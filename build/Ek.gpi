@@ -1,0 +1,23 @@
+set terminal postscript eps enhanced color font 'Helvetica,18'
+
+set output 'Ek_Distribution.eps'
+
+#XRANGE
+#set xlabel 't [s]'
+#set xrange [0:10000]
+#set xtics 0.2
+#set mxtics 2
+
+#YRANGE
+#set ylabel 'T [C]'
+	#set yrange [1.0e-3:1.0e-1]
+#set ytics 0.2
+#set mytics 2
+
+set logscale x
+set logscale y
+
+set format x "10^{%T}"
+set format y "10^{%T}"
+
+plot 'Energy_Cascade.dat' using 1:2 w l title 'Ek'
