@@ -1,0 +1,7 @@
+#ifndef CONFIG_HEADER
+#define CONFIG_HEADER
+
+#define _CRT_SECURE_NO_DEPRECATE 1
+#define _CRT_SECURE_NO_WARNINGS
+
+#endif

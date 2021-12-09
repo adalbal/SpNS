@@ -1,0 +1,79 @@
+################################################
+#################### NEEDED ####################
+################################################
+#### Significant Fourier coefficients to be computed (note that mesh size will be: (3/2*Nx)x(3/2*Ny)x(3/2*Nz))
+Nx	32
+Ny	32
+Nz	32
+
+#### Either kinematic viscosity or Reynolds lambda number has to be fixed
+nu					3.283e-4	### Kinematic viscosity
+#Reynolds_lambda		295.0			### Reynolds lambda
+
+Final_Time	0.5	### Last instant of time to be simulated
+
+
+################################################
+################### OPTIONAL ###################
+################################################
+#### Output of the results obtained:
+##		Field = 1				=>	Output of Field, at least, at the end of the simulation
+##		Elsewhere (or omitted)	=>	No output of Field
+Velocity_Physical		1	### Velocity field in physical space
+Velocity_Fourier		1	### Velocity field in Fourier space
+Energy_Cascade			1	### Total kinetic energy in Fourier space for each |k|
+#### Output frequency in terms of the number of iterations. (Omitted/equal to zero => Output only at the end of the simulation)
+Velocity_Phys_Freq		0
+Velocity_Four_Freq		0
+Energy_Cascade_Freq		0
+#### Storage location of output files relative path from "./build". (Omitted => folder containing the executable ("./build"))
+Velocity_Phys_Folder	OUTPUT
+Velocity_Four_Folder	OUTPUT
+Energy_Cascade_Folder	OUTPUT
+
+#### Initial velocity in physical space from either ASCII or binary file (missing fields => Dummy initial distribution 1/|k|^2)
+#### ASCII input file containing three columns: u, v, w; and Nx_file*Ny_file*Nz_file values
+#ASCII_Input_Filename		Initial_velocity.dat
+#### Binary input file containing successively all the components of u, v and w (Nx_file*Ny_file*Nz_file values each)
+#Binary_Input_Filename		Initial_velocity.bin
+#### Number of nodes
+#Nx_file					128
+#Ny_file					128
+#Nz_file					128
+
+#### Forced energy cascade from file (Any field omitted => HIT decay)
+InputEkFilename		DATA/Forced_Energy_Cascade.dat ### Ek for |k|=0 must be omitted (and start from |k|=1)
+Last_K				291	### Highest round(|k|) of the forced energy cascade (can be as high as desired, although extra terms will be ignored)
+Final_Forced_Time	0.2	### Last instant of time on which energy cascade is forced (Final_Forced_Time=0 => Forced Ek until Final_Time is reached)
+
+#### Length proportionality factors (INTEGER NUMBERS!!!):
+#		(Lx,Ly,Lz) = (a,b,c)  =>  Lx=aL, Ly=bL, Lz=cL
+#		Omitted				  =>  Lx=Ly=Lz=L
+#Lx	1		### Length factor x-direction (Omitted => Lx = 1)
+#Ly	1		### Length factor y-direction (Omitted => Ly = 1)
+#Lz	1		### Length factor z-direction (Omitted => Lz = 1)
+
+#### Rotation of the system
+#omega_x	0.0		### Angular rotation velocity of the system x-direction (Omitted => omega_x = 0.0)
+#omega_y	0.0		### Angular rotation velocity of the system y-direction (Omitted => omega_y = 0.0)
+#omega_z	0.0		### Angular rotation velocity of the system z-direction (Omitted => omega_z = 0.0)
+
+#### LES turbulence modelling
+#C_Smag	0.16	### Smagorinsky model constant (Omitted/equal to zero => No LES modelling)
+
+#### Timestep scaling constant: At = C_At * At
+C_At	0.5		### Constant for self-adaptive timestep (Omitted => C_At = 1.0)
+
+#### Temporal integration scheme:
+##		SelfAdaptiveTimestep = 1  =>  Self-adaptive temporal scheme
+##		Elsewhere (or omitted)	  =>  CFL timestep + Adams-Bashforth scheme
+#SelfAdaptiveTimestep	0
+
+#### Correction of machine error on the complex conjugates present in plane k3=0 (z=0):
+##		ComplexConjugateCorrection = 1  =>  Correction
+##		Elsewhere (or omitted)			=>  Omission (less stable but faster)
+#ComplexConjugateCorrection	0
+
+#### Parallelization
+#OMP_Threads	1	### Number of OpenMP threads assigned to each process (Omitted/equal to 1 => MPI-only)
+
