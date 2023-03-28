@@ -470,10 +470,11 @@ int main (int argc, char **argv){
 	}
 	//Terminal print of execution times
 	hit.Recalculate_Energy_Cascade();
-	double timeTot = ((double) (timeend - timebeg)) / CLOCKS_PER_SEC;
-	double timeLoop = ((double) (timeend - timebegloop)) / CLOCKS_PER_SEC;
-	MPI_Allreduce(&timeTot, &timeTot, 1, REAL_MPI, MPI_MAX, MCW);
-	MPI_Allreduce(&timeLoop, &timeLoop, 1, REAL_MPI, MPI_MAX, MCW);
+	double timeTot, timeLoop;
+	double local_timeTot = ((double) (timeend - timebeg)) / CLOCKS_PER_SEC;
+	double local_timeLoop = ((double) (timeend - timebegloop)) / CLOCKS_PER_SEC;
+	MPI_Allreduce(&local_timeTot, &timeTot, 1, REAL_MPI, MPI_MAX, MCW);
+	MPI_Allreduce(&local_timeLoop, &timeLoop, 1, REAL_MPI, MPI_MAX, MCW);
 	if (myrank == 0) {
 		printf("\nFinal time: %f\t Final kinetic energy: %f\n", hit.gettime(), hit.getEk_Tot());
 		printf("Number of iterations: %d\t Total execution time: %f\t Main loop time: %f\n", iter, timeTot, timeLoop);
