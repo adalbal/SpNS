@@ -426,20 +426,16 @@ int main (int argc, char **argv){
 		}
 		if (isVelFourOut_iter) {
 			if ((iter+1) % Velocity_Four_Freq == 0) {
-				if (myrank == 0) {
-					snprintf(VelFourfilename, 256, "%s/%s_%d.%s", VelFourfolder, base_VelFourfilename.c_str(), VelFour_file_iter, Binary_fileformat.c_str());
-					hit.FourierVelocity_to_BinaryFile(VelFourfilename);
-					VelFour_file_iter++;
-				}
+				snprintf(VelFourfilename, 256, "%s/%s_%d.%s", VelFourfolder, base_VelFourfilename.c_str(), VelFour_file_iter, Binary_fileformat.c_str());
+				hit.FourierVelocity_to_BinaryFile(VelFourfilename); //must be called from all ranks
+				VelFour_file_iter++;
 			}
 		}
 		if (isVelPhysOut_iter) {
 			if (iter % Velocity_Phys_Freq == 0) {
-				if (myrank == 0) {
-					snprintf(VelPhysfilename, 256, "%s/%s_%d.%s", VelPhysfolder, base_VelPhysfilename.c_str(), VelPhys_file_iter, Binary_fileformat.c_str());
-					hit.RealVelocity_to_BinaryFile(VelPhysfilename);
-					VelPhys_file_iter++;
-				}
+				snprintf(VelPhysfilename, 256, "%s/%s_%d.%s", VelPhysfolder, base_VelPhysfilename.c_str(), VelPhys_file_iter, Binary_fileformat.c_str());
+				hit.RealVelocity_to_BinaryFile(VelPhysfilename); //must be called from all ranks
+				VelPhys_file_iter++;
 			}
 		}
 	}

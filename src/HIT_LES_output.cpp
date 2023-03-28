@@ -4,11 +4,11 @@
 // MPI I/O
 //=====================================================================================================================
 
-// Output velocity Fourier coefficients (into a binary file)
+// Output velocity Fourier coefficients (into a binary file) - collective routine!
 void HIT::FourierVelocity_to_BinaryFile(char const * const filename) const {
 	DealiasedComplex3DimField_to_BinaryFile(uk_1, vk_1, wk_1, filename);
 };
-// Output velocity field (into a binary file)
+// Output velocity field (into a binary file) - collective routine!
 void HIT::RealVelocity_to_BinaryFile(char const * const filename) const {
 	Real3DimField_to_BinaryFile(u, v, w, filename);
 };
@@ -16,7 +16,7 @@ void HIT::RealVelocity_to_BinaryFile(char const * const filename) const {
 //It only outputs significant dealiased terms, i.e.,
 //	-> k1<=(Nx_2+1) instead of (Mx_2+1) (idem for y and z-axis)
 //	-> k1%Lx_factor==0 (idem for y and z-axis)
-//Field is stored in parallel in a shared binary file
+//Field is stored in parallel in a shared binary file - collective routine!
 void HIT::DealiasedComplex3DimField_to_BinaryFile(COMPLEX const * const field_x, COMPLEX const * const field_y, COMPLEX const * const field_z, char const * const filename) const {
 	//Opening MPI file
 	MPI_File fh;
@@ -62,7 +62,7 @@ void HIT::DealiasedComplex3DimField_to_BinaryFile(COMPLEX const * const field_x,
 	MPI_File_close(&fh);
 };
 //It outputs all the terms of a real field (the consideration of dealiased terms does not make sense here)
-//Field is stored in parallel in a shared binary file
+//Field is stored in parallel in a shared binary file - collective routine!
 void HIT::Real3DimField_to_BinaryFile(REAL const * const field_x, REAL const * const field_y, REAL const * const field_z, char const * const filename) const {
 	//Opening MPI file
 	MPI_File fh;
