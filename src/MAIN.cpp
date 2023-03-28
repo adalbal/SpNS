@@ -418,7 +418,7 @@ int main (int argc, char **argv){
 			if ((iter+1) % Energy_Cascade_Freq == 0) {
 				hit.Recalculate_Energy_Cascade(); //must be called from all ranks
 				if (myrank == 0) {
-					snprintf(Ekfilename, 256, "%s/%s_%d.%s", base_Ekfilename.c_str(), Ekfolder, Ek_file_iter, ASCII_fileformat.c_str());
+					snprintf(Ekfilename, 256, "%s/%s_%d.%s", Ekfolder, base_Ekfilename.c_str(), Ek_file_iter, ASCII_fileformat.c_str());
 					Output_Energy_Cascade(&hit, Ekfilename);
 					Ek_file_iter++;
 				}
@@ -448,7 +448,6 @@ int main (int argc, char **argv){
 	if (isEkOut) {
 		hit.Recalculate_Energy_Cascade();
 		if (myrank == 0) {
-			//snprintf(Ekfilename, 256, "%s/%s.%s", Ekfolder, base_Ekfilename.c_str(), ASCII_fileformat.c_str());
 			snprintf(Ekfilename, 256, "%s/%s.%s", Ekfolder, base_Ekfilename.c_str(), ASCII_fileformat.c_str());
 			Output_Energy_Cascade(&hit, Ekfilename);
 		}
