@@ -1011,6 +1011,7 @@ void HIT::Recalculate_Energy_Cascade() {
 	//Reset of vector local_Ek[K]
 	for (int K=0; K<=last_rad; K++) {
 		local_Ek[K] = 0.0;
+		Ek[K] = 0.0;
 	}
 	//Recalculation of vector local_Ek[K]
 	LOOP_FOURIER {
@@ -1029,9 +1030,7 @@ void HIT::Recalculate_Energy_Cascade() {
 		}
 	}
 	//Sum accross processes
-	for (int K=0; K<=last_rad; K++) {
-		MPI_Allreduce(&local_Ek[K], &Ek[K], 1, REAL_MPI, MPI_SUM, MCW);
-	}
+	MPI_Allreduce(local_Ek+1, Ek+1, last_rad, REAL_MPI, MPI_SUM, MCW);
 };
 //Calculation of total kinetic energy from Ek[K]
 void HIT::Recalculate_Total_Kinetic_Energy() {
