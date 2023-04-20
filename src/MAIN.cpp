@@ -465,9 +465,10 @@ int main (int argc, char **argv){
 	}
 	//Terminal print of execution times
 	hit.Recalculate_Energy_Cascade();
-	double timeTot, timeLoop;
 	double local_timeTot = ((double) (timeend - timebeg)) / CLOCKS_PER_SEC;
 	double local_timeLoop = ((double) (timeend - timebegloop)) / CLOCKS_PER_SEC;
+	double timeTot = 0.0;
+	double timeLoop = 0.0;
 	MPI_Allreduce(&local_timeTot, &timeTot, 1, REAL_MPI, MPI_MAX, MCW);
 	MPI_Allreduce(&local_timeLoop, &timeLoop, 1, REAL_MPI, MPI_MAX, MCW);
 	if (myrank == 0) {

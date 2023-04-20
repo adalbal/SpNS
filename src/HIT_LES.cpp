@@ -329,6 +329,7 @@ void HIT::Recalculate_SelfAdaptive_TimeStep() {
 		local_MaxVel = max(local_MaxVel, (fabs(u[ind])/Ax + fabs(v[ind])/Ay + fabs(w[ind])/Az));
 	}
 	//Compute maximum accros processes
+	MaxVel = 0.0;
 	MPI_Allreduce(&local_MaxVel, &MaxVel, 1, REAL_MPI, MPI_MAX, MCW);
 	//Recalculate self-adaptive timestep
 	phi0 = atan(MaxVel*Ah*Ah/(0.35*nu*12.0)); //0.35 per la constant Cc
@@ -345,6 +346,7 @@ void HIT::Recalculate_CFL_TimeStep() {
 		local_MaxVel = max(local_MaxVel, max(fabs(u[ind])/Ax, max(fabs(v[ind])/Ay, fabs(w[ind])/Az)));
 	}
 	//Compute maximum accros processes
+	MaxVel = 0.0;
 	MPI_Allreduce(&local_MaxVel, &MaxVel, 1, REAL_MPI, MPI_MAX, MCW);
 	//Recalculate CFL timestep
 	C_conv = 0.35 / MaxVel;
