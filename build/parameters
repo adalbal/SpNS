@@ -44,6 +44,7 @@ Nz_file					128
 #### Forced energy cascade from file (Any field omitted => HIT decay)
 #InputEkFilename		Forced_Energy_Cascade.dat ### Ek for |k|=0 must be omitted (and start from |k|=1)
 #Last_K				291	### Highest round(|k|) of the forced energy cascade (can be as high as desired, although extra terms will be ignored)
+#Nullify_MissingK	0	### Set Ek=0 for all k>Last_K (Omitted/equal to zero => Do not nullify)
 #Final_Forced_Time	0.0	### Last instant of time on which energy cascade is forced (Final_Forced_Time=0 => Forced Ek until Final_Time is reached)
 
 #### Length proportionality factors (INTEGER NUMBERS!!!):

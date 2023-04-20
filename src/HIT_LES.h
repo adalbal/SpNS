@@ -141,7 +141,7 @@ class HIT {
 		// FORCING TERM
 		//===================================================
 		// Imposition of a given Energy distribution ("normalizing" current Fourier coefficients)
-		void Forcing_Energy_Cascade(REAL const * const Forced_Ek, const ptrdiff_t& last_input_rad);
+		void Forcing_Energy_Cascade(REAL const * const Forced_Ek, const ptrdiff_t& last_input_rad, const bool& isNullifyMissingEk);
 			// Imposition of correct complex conjugation for k3=0
 			void Complex_Conjugate_Correction();
 

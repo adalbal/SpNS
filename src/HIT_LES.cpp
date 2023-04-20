@@ -357,7 +357,7 @@ void HIT::Recalculate_CFL_TimeStep() {
 //=====================================================================================================================
 
 // Imposition of a given Energy distribution ("normalizing" current Fourier coefficients)
-void HIT::Forcing_Energy_Cascade(REAL const * const Forced_Ek, const ptrdiff_t& last_input_rad) {
+void HIT::Forcing_Energy_Cascade(REAL const * const Forced_Ek, const ptrdiff_t& last_input_rad, const bool& isNullifyMissingEk) {
 	//Update Ek in order to calculate forcing term scaling factors FT[k]
 	Recalculate_Energy_Cascade();
 	//Internal temporary variables
@@ -378,7 +378,7 @@ void HIT::Forcing_Energy_Cascade(REAL const * const Forced_Ek, const ptrdiff_t& 
 					vk_1[ind][ic] *= FT[K];
 					wk_1[ind][ic] *= FT[K];
 				}
-			} else { //Extra modes (with respect to Forced_Ek)
+			} else if(isNullifyMissingEk) { //Nullify extra modes (with respect to Forced_Ek)
 				for (int ic=0; ic<=1; ic++){ //ic=0 => Real part, ic=1 => Imaginary part
 					uk_1[ind][ic] = 0.0;
 					vk_1[ind][ic] = 0.0;

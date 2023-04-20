@@ -61,6 +61,7 @@ int main (int argc, char **argv){
 	//Inputting energy cascade to be forced from file
 	char EkFilename[256];
 	int last_input_rad;
+	int nullify_missingEk;
 	double Final_Forced_Time;
 	//Extra constants
 	int Lx_factor, Ly_factor, Lz_factor; //Length factors
@@ -72,7 +73,7 @@ int main (int argc, char **argv){
 	int OMP_Threads; //Number of OpenMP threads assigned to each MPI-process
 	// -----------------------------------------------------------
 	// Derived parameters ----------------------------------------
-	bool isReLambda, isInitialFieldFromBinaryFile, isInitialFieldFromASCIIFile, isForcedEk, isNotCubic, isRotating, isLES, isSelfAdaptive, isComplexConjugateCorrected, isOpenMP;
+	bool isReLambda, isInitialFieldFromBinaryFile, isInitialFieldFromASCIIFile, isForcedEk, isNullifyMissingEk, isNotCubic, isRotating, isLES, isSelfAdaptive, isComplexConjugateCorrected, isOpenMP;
 	bool isVelPhysOut, isVelPhysOut_iter, isVelFourOut, isVelFourOut_iter, isEkOut, isEkOut_iter;
 	int Mx, My, Mz; //De-aliasing mesh size = 3*(N/2) != (3*N)/2 !!!!
 	// -----------------------------------------------------------
@@ -157,6 +158,7 @@ int main (int argc, char **argv){
 
 		PM.RequestParameter(EkFilename,"InputEkFilename",TYPE_WORD,IO_DONTCRASH);
 		PM.RequestParameter(last_input_rad,"Last_K",TYPE_INT,IO_DONTCRASH,GT,0);
+		PM.RequestParameter(nullify_missingEk,"Nullify_MissingK",TYPE_INT,IO_DONTCRASH,GE,0);
 		PM.RequestParameter(Final_Forced_Time,"Final_Forced_Time",TYPE_DOUBLE,IO_DONTCRASH,GE,0.0);
 
 		PM.RequestParameter(Lx_factor,"Lx",TYPE_INT,IO_DONTCRASH,GT,0);
@@ -203,9 +205,11 @@ int main (int argc, char **argv){
 		}
 		if (PM["InputEkFilename"].GetIsSet() && PM["Last_K"].GetIsSet() && PM["Final_Forced_Time"].GetIsSet()) {
 			isForcedEk = true;
+			isNullifyMissingEk = (nullify_missingEk ? true : false);
 			Final_Forced_Time = ((Final_Forced_Time > 0.0) ? Final_Forced_Time : Final_Time);
 		} else {
 			isForcedEk = false;
+			isNullifyMissingEk = false;
 		}
 		if ((PM["Lx"].GetIsSet() && (Lx_factor > 1)) ||
 			(PM["Ly"].GetIsSet() && (Ly_factor > 1)) ||
@@ -395,7 +399,7 @@ int main (int argc, char **argv){
 		//Periodic NS resolution
 		hit.New_Fractional_Step_Method();
 		if (isForcedEk && (hit.gettime() < Final_Forced_Time)) {
-			hit.Forcing_Energy_Cascade(Forced_Ek, last_input_rad);
+			hit.Forcing_Energy_Cascade(Forced_Ek, last_input_rad, isNullifyMissingEk);
 		}
 		//Update of iteration counter
 		iter++;
