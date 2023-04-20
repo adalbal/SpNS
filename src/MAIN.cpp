@@ -79,9 +79,9 @@ int main (int argc, char **argv){
 	// -----------------------------------------------------------
 	// Output parameters -----------------------------------------
 	//Final filenames (result of concatenating strings)
-	char VelPhysfilename[256];
-	char VelFourfilename[256];
-	char Ekfilename[256];
+	char VelPhysfilename[512];
+	char VelFourfilename[512];
+	char Ekfilename[512];
 	//Output files can be easily stored in folders modifying base_* variables
 	const string base_VelPhysfilename = "Velocity";
 	const string base_VelFourfilename = "Velocity_Fourier";
@@ -422,7 +422,7 @@ int main (int argc, char **argv){
 			if ((iter+1) % Energy_Cascade_Freq == 0) {
 				hit.Recalculate_Energy_Cascade(); //must be called from all ranks
 				if (myrank == 0) {
-					snprintf(Ekfilename, 256, "%s/%s_%d.%s", Ekfolder, base_Ekfilename.c_str(), Ek_file_iter, ASCII_fileformat.c_str());
+					snprintf(Ekfilename, 512, "%s/%s_%d.%s", Ekfolder, base_Ekfilename.c_str(), Ek_file_iter, ASCII_fileformat.c_str());
 					Output_Energy_Cascade(&hit, Ekfilename);
 					Ek_file_iter++;
 				}
@@ -430,14 +430,14 @@ int main (int argc, char **argv){
 		}
 		if (isVelFourOut_iter) {
 			if ((iter+1) % Velocity_Four_Freq == 0) {
-				snprintf(VelFourfilename, 256, "%s/%s_%d.%s", VelFourfolder, base_VelFourfilename.c_str(), VelFour_file_iter, Binary_fileformat.c_str());
+				snprintf(VelFourfilename, 512, "%s/%s_%d.%s", VelFourfolder, base_VelFourfilename.c_str(), VelFour_file_iter, Binary_fileformat.c_str());
 				hit.FourierVelocity_to_BinaryFile(VelFourfilename); //must be called from all ranks
 				VelFour_file_iter++;
 			}
 		}
 		if (isVelPhysOut_iter) {
 			if (iter % Velocity_Phys_Freq == 0) {
-				snprintf(VelPhysfilename, 256, "%s/%s_%d.%s", VelPhysfolder, base_VelPhysfilename.c_str(), VelPhys_file_iter, Binary_fileformat.c_str());
+				snprintf(VelPhysfilename, 512, "%s/%s_%d.%s", VelPhysfolder, base_VelPhysfilename.c_str(), VelPhys_file_iter, Binary_fileformat.c_str());
 				hit.RealVelocity_to_BinaryFile(VelPhysfilename); //must be called from all ranks
 				VelPhys_file_iter++;
 			}
@@ -452,19 +452,19 @@ int main (int argc, char **argv){
 	if (isEkOut) {
 		hit.Recalculate_Energy_Cascade();
 		if (myrank == 0) {
-			snprintf(Ekfilename, 256, "%s/%s.%s", Ekfolder, base_Ekfilename.c_str(), ASCII_fileformat.c_str());
+			snprintf(Ekfilename, 512, "%s/%s.%s", Ekfolder, base_Ekfilename.c_str(), ASCII_fileformat.c_str());
 			Output_Energy_Cascade(&hit, Ekfilename);
 		}
 	}
 	//Output of velocity Fourier coefficients (binary)
 	if (isVelFourOut) {
-		snprintf(VelFourfilename, 256, "%s/%s.%s", VelFourfolder, base_VelFourfilename.c_str(), Binary_fileformat.c_str());
+		snprintf(VelFourfilename, 512, "%s/%s.%s", VelFourfolder, base_VelFourfilename.c_str(), Binary_fileformat.c_str());
 		hit.FourierVelocity_to_BinaryFile(VelFourfilename);
 	}
 	//Output of velocity field (binary)
 	if (isVelPhysOut) {
 		hit.Recalculate_R_vector_Fourier_Coefficients(); //In order to compute IFFT of velocity (otherwise Fourier velocity-iteration n, and real veocity-iteration n-1)
-		snprintf(VelPhysfilename, 256, "%s/%s.%s", VelPhysfolder, base_VelPhysfilename.c_str(), Binary_fileformat.c_str());
+		snprintf(VelPhysfilename, 512, "%s/%s.%s", VelPhysfolder, base_VelPhysfilename.c_str(), Binary_fileformat.c_str());
 		hit.RealVelocity_to_BinaryFile(VelPhysfilename);
 	}
 	//Terminal print of execution times
