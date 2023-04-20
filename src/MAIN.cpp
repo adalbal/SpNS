@@ -13,10 +13,6 @@
 #include "parser.h"
 #include "HIT_LES.h"
 
-#ifndef QA //QA can be set to true via Makefile doing: "make QA"
-	#define QA 0 //By default, QA=false
-#endif
-
 using namespace std;
 
 //=====================================================================================================================

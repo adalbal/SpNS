@@ -4,6 +4,10 @@
 //=====================================================================================================================
 // Preprocessor definitions
 //=====================================================================================================================
+#ifndef QA //QA can be set to true via Makefile doing: "make QA"
+	#define QA 0 //By default, QA=false
+#endif
+
 #ifndef BYTES //BYTES can be defined via Makefile doing: "make float" or "make double"
 	#define BYTES 8 //By default, double-precision
 #endif

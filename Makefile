@@ -18,17 +18,20 @@ CC := mpicc
 
 all: $(BUILD_DIR)/$(TARGET_EXEC)
 #Extra output in log file (to run QA tests)
-QA: CPPFLAGS+=-DQA=1
-QA: clean
-QA: all
+.PHONY: QA
+QA:
+	$(MAKE) clean
+	$(MAKE) all CPPFLAGS="$(CPPFLAGS) -DQA=1"
 #Calculations made with single-precision
-float: CPPFLAGS+=-DBYTES=4
-float: clean
-float: all
+.PHONY: float
+float:
+	$(MAKE) clean
+	$(MAKE) all CPPFLAGS="$(CPPFLAGS) -DBYTES=4"
 #Calculations made with double-precision
-double: CPPFLAGS+=-DBYTES=8
-double: clean
-double: all
+.PHONY: double
+double:
+	$(MAKE) clean
+	$(MAKE) all CPPFLAGS="$(CPPFLAGS) -DBYTES=8"
 
 $(BUILD_DIR)/$(TARGET_EXEC): $(OBJS)
 	$(MKDIR_P) $(dir $@)output

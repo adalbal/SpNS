@@ -9,9 +9,13 @@
 #include "util.h"
 
 int threads_ok;
-static int shutitup = 0; //Avoid output of logfile
+#if QA
+    static int shutitup = 0; //Avoid output of logfile
+#else
+    static int shutitup = 1; //Force output of logfile
+#endif
 static int info = 0; //if 1, then additional info is written in log file
-static int init = 0; //initially 0 and, immediately after mpi has been initiated, it is set to 1 (and pprintf starts writinf in each log files)
+static int init = 0; //initially 0 and, immediately after mpi has been initiated, it is set to 1 (and pprintf starts writing in each log files)
 static int numprocs, myid;
 static FILE *afile;
 
@@ -171,4 +175,3 @@ void end_parallel(void){
 	close_logfile();
 	MPI_Finalize();
 }
- 
