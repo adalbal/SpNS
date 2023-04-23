@@ -78,6 +78,8 @@
 #define LOOP_REAL for (int i=0; i<local_n0; i++) \
 				  for (int j=0; j<My; j++) \
 				  for (int k=0, ind=(i*My+j)*2*(Mz_2+1)+k; k<Mz; k++, ind=(i*My+j)*2*(Mz_2+1)+k)
+// Debug macros
+#define FUCK printf("rank %d ------> %s,\t %s(),\t line: %d\n", myrank, __FILE__, __FUNCTION__, __LINE__);
 
 using namespace std;
 

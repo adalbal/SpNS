@@ -7,8 +7,9 @@ Ny	32
 Nz	32
 
 #### Either kinematic viscosity or Reynolds lambda number has to be fixed
-nu					3.283e-4	### Kinematic viscosity
-#Reynolds_lambda		213.0			### Reynolds lambda
+nu						3.283e-4	### Kinematic viscosity
+#Reynolds_lambda			213.0		### Reynolds lambda
+#Reynolds_lambda_Freq	100			### Reynolds lambda forcing frequency. (Omitted/equal to zero => Only force at the beginning of the simulation)
 
 Final_Time	0.5	### Last instant of time to be simulated
 

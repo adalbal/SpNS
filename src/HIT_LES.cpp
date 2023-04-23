@@ -57,7 +57,7 @@ void HIT::Recalculate_Velocity_Gradients_Fourier_Coefficients() {
 		}
 	}
 };
-//Calculation of physical velocity using Fourier series expansion
+// Calculation of physical velocity using Fourier series expansion
 void HIT::Recalculate_Velocity_Antitransform() {
 	//Auxiliary copy needed because c2r leaves garbage at input
 	memcpy(uk_aux, uk_1, sizeof(COMPLEX) * alloc_local);
@@ -68,7 +68,7 @@ void HIT::Recalculate_Velocity_Antitransform() {
 	fftw.IFFTWc2r(vk_aux,v);
 	fftw.IFFTWc2r(wk_aux,w);
 };
-//Recalculate_Convective_Fourier_Coefficients():
+// Recalculate_Convective_Fourier_Coefficients():
 //	1.) Calculation of gradu, gradv and gradw
 //	2.) Calculation convective term in Physical space
 //	3.) Calculation convective term in Fourier space
@@ -242,7 +242,7 @@ void HIT::Recalculate_R_vector_Fourier_Coefficients() {
 // PREDICTOR VELOCITY
 //===================================================
 
-//Recalculation Predictor Velocity Fourier Coefficients, for a determined (k1,k2,k3)
+// Recalculation Predictor Velocity Fourier Coefficients, for a determined (k1,k2,k3)
 // INPUT:
 //		ukxyz_aux ->	Garbage after c2r fftw_plan
 //		ukxyz_0 ->		Previous distribution of velocity (in Fourier space)
@@ -302,7 +302,7 @@ void HIT::Recalculate_Predictor_Velocity_Fourier_Coefficients() {
 // DIVERGENCE-FREE PROJECTION OF PREDICTOR VELOCITY
 //===================================================
 
-//Divergence-free projection of predictor velocity (result of substracting the gradient of pseudo-pressure -> operator (k^t·k)/(k·k))
+// Divergence-free projection of predictor velocity (result of substracting the gradient of pseudo-pressure -> operator (k^t·k)/(k·k))
 void HIT::Recalculate_Divergence_Free_Projection() {
 	REAL aux;
 	//Projection of Predictor velocity and calculation of uk_n+1 (stored in ukxy_1 replacing predictor velocity)
@@ -321,7 +321,7 @@ void HIT::Recalculate_Divergence_Free_Projection() {
 //===================================================
 // CALCULATE NEW TIMESTEP:
 //===================================================
-//Calculation of new self-adaptive timestep
+// Calculation of new self-adaptive timestep
 void HIT::Recalculate_SelfAdaptive_TimeStep() {
 	//Compute local maximums at each process
 	REAL local_MaxVel = 0.0;
@@ -337,8 +337,7 @@ void HIT::Recalculate_SelfAdaptive_TimeStep() {
 	kappa = Kopt(phi0);
 	At = C_At*At;
 };
-
-//Calculation of new CFL timestep
+// Calculation of new CFL timestep
 void HIT::Recalculate_CFL_TimeStep() {
 	//Compute local maximums at each process
 	REAL local_MaxVel = 0.0;
@@ -427,13 +426,19 @@ void HIT::Complex_Conjugate_Correction() {
 		}
 	}
 };
-
+// Calculation of new kinematic viscosity
+void HIT::Recalculate_Kinematic_Viscosity(const REAL ReLambda) {
+	nu = Recalculate_Energy_Cascade() / ReLambda * sqrt(10.0 / 3.0 / Recalculate_pseudoEpsilon());
+};
+REAL HIT::Recalculate_pseudoEpsilon(const char* filename) {
+	return Integrate_Field(filename, pseudoEpsilon);
+};
 
 //=====================================================================================================================
 // INPUTTING INITIAL VELOCITY FIELD
 //=====================================================================================================================
 
-//Initialization of velocity field in Fourier space using dummy distibution 1/|k|
+// Initialization of velocity field in Fourier space using dummy distibution 1/|k|
 void HIT::Input_Dummy_Field() {
 	LOOP_FOURIER {
 		if (dealiased[ind]) {
@@ -448,7 +453,7 @@ void HIT::Input_Dummy_Field() {
 	}
 };
 
-//Initialization of velocity field in Fourier space from an input file containing velocities in Fourier space
+// Initialization of velocity field in Fourier space from an input file containing velocities in Fourier space
 void HIT::Input_Real_Field() {
 	//Create pointers for Fourier-space velocity
 	COMPLEX *uk_file = alloc_complex(Nx_file * Ny_file * (Nz_file/2+1));
@@ -678,7 +683,7 @@ void HIT::Truncate_Input_File_Fourier_Coefficients (COMPLEX const * const uk_fil
 // AUXILIAR FUNCTIONS
 //=====================================================================================================================
 
-//Initialization of the clas HIT (called uniquely in the constructor)
+// Initialization of the clas HIT (called uniquely in the constructor)
 void HIT::HIT_init() {
 	//===================================================
 	// 1. GENERAL MEMORY ALLOCATION
@@ -702,7 +707,8 @@ void HIT::HIT_init() {
 	convy = alloc_real(2 * alloc_local);
 	convz = alloc_real(2 * alloc_local);
 	rad2 = alloc_real(2 * alloc_local);
-	local_Ek = alloc_real(last_rad+1);
+	local_acumField = alloc_real(last_rad+1);
+	global_acumField = alloc_real(last_rad+1);
 	Ek = alloc_real(last_rad+1);
 	// COMPLEX*
 	uk_aux = alloc_complex(alloc_local);
@@ -874,6 +880,24 @@ void HIT::HIT_init() {
 		}
 	}
 
+	//Lambda function computing the kinetic energy of (a,b,k3)
+	KineticEnergy = [&](int a, int b, int k3)->REAL{
+		int ind = (b*Mx+a)*(Mz_2+1)+k3;
+		return uk_1[ind][0]*uk_1[ind][0] + uk_1[ind][1]*uk_1[ind][1] +
+			   vk_1[ind][0]*vk_1[ind][0] + vk_1[ind][1]*vk_1[ind][1] +
+			   wk_1[ind][0]*wk_1[ind][0] + wk_1[ind][1]*wk_1[ind][1];
+	};
+	//Lambda function computing the pseudoEpsilon of (a,b,k3)
+	pseudoEpsilon = [&](int a, int b, int k3)->REAL{
+		int ind = (b*Mx+a)*(Mz_2+1)+k3;
+		int K = static_cast<int>(round(sqrt(rad2[ind])));
+		REAL Ek = uk_1[ind][0]*uk_1[ind][0] + uk_1[ind][1]*uk_1[ind][1] +
+				  vk_1[ind][0]*vk_1[ind][0] + vk_1[ind][1]*vk_1[ind][1] +
+				  wk_1[ind][0]*wk_1[ind][0] + wk_1[ind][1]*wk_1[ind][1];
+		return K*Ek;
+	};
+
+
 	//===================================================
 	// 4.1 LES MEMORY ALLOCATION
 	//===================================================
@@ -967,14 +991,14 @@ void HIT::HIT_init() {
 		Recalculate_CFL_TimeStep();
 	}
 
-	Calculate_Ek_init();
+	Ek_init = Recalculate_Energy_Cascade();
 #if(0)
 	if (myrank == 0) {
 		cout << "Initial kinetic energy: " << Ek_init << endl;
 	}
 #endif
 };
-//Deletion of the clas HIT (called uniquely in the destructor)
+// Deletion of the clas HIT (called uniquely in the destructor)
 void HIT::HIT_destroy() {
 	//Freeing memory
 	FREE(u); FREE(v); FREE(w);
@@ -985,7 +1009,7 @@ void HIT::HIT_destroy() {
 	FREE(convx_k); FREE(convy_k); FREE(convz_k);
 	FREE(Rx0_k); FREE(Ry0_k); FREE(Rz0_k);
 	FREE(Rx1_k); FREE(Ry1_k); FREE(Rz1_k);
-	FREE(dealiased); FREE(rad2); FREE(local_Ek); FREE(Ek);
+	FREE(dealiased); FREE(rad2); FREE(local_acumField); FREE(global_acumField); FREE(Ek);
 	for (int coord=0; coord<3; coord++) {
 		FREE(gradu[coord]); FREE(gradv[coord]); FREE(gradw[coord]);
 		FREE(gradu_k[coord]); FREE(gradv_k[coord]); FREE(gradw_k[coord]);
@@ -1007,50 +1031,49 @@ void HIT::HIT_destroy() {
 		FREE(k); FREE(phi); FREE(c);
 	}
 };
-
-//Calculation of kinetic energy (total, Ek_Tot, and modal, Ek[K])
-void HIT::Recalculate_Energy_Cascade() {
-	//Reset of vector local_Ek[K]
+// Integrate complex fields over spherical shells from k=1 to k=last_rad
+REAL HIT::Integrate_Field(const char* filename, std::function<REAL(int a, int b, int k3)>& funcFieldNorm, REAL* inAcumField) {
+	//Reset local_acumField and inAcumField
 	for (int K=0; K<=last_rad; K++) {
-		local_Ek[K] = 0.0;
-		Ek[K] = 0.0;
+		local_acumField[K] = 0.0;
+		inAcumField[K] = 0.0;
 	}
-	//Recalculation of vector local_Ek[K]
+	//Recalculation of vector local_acumField[K]
 	LOOP_FOURIER {
 		if (dealiased[ind]) {
 			int K = static_cast<int>(round(sqrt(rad2[ind])));
 			if (K<=last_rad) {
-				REAL aux =  (uk_1[ind][0] * uk_1[ind][0]) + (uk_1[ind][1] * uk_1[ind][1]);
-				aux += (vk_1[ind][0] * vk_1[ind][0]) + (vk_1[ind][1] * vk_1[ind][1]);
-				aux += (wk_1[ind][0] * wk_1[ind][0]) + (wk_1[ind][1] * wk_1[ind][1]);
+				REAL aux = funcFieldNorm(a, b, k3);
 				if (conjugate[ind]) {
-					local_Ek[K] += aux;
+					local_acumField[K] += aux;
 				} else {
-					local_Ek[K] += (0.5 * aux);
+					local_acumField[K] += (0.5 * aux);
 				}
 			}
 		}
 	}
 	//Sum accross processes
-	MPI_Allreduce(local_Ek+1, Ek+1, last_rad, REAL_MPI, MPI_SUM, MCW);
-};
-//Calculation of total kinetic energy from Ek[K]
-void HIT::Recalculate_Total_Kinetic_Energy() {
-	Ek_Tot = 0.0;
-	for (int K=0; K<=last_rad; K++) {
-		Ek_Tot += Ek[K];
+	MPI_Allreduce(local_acumField+1, inAcumField+1, last_rad, REAL_MPI, MPI_SUM, MCW);
+	//If filename is valid, output distribution
+	if (!myrank && filename) {
+		std::ofstream outFile(filename);
+		for (int K=1; K<=last_rad; K++) {
+			outFile << inAcumField[K] << "\n";
+		}
+		outFile.close();
 	}
+	//Return the integral of the field on the sphere of radium last_rad
+	REAL acumFieldTotal = 0.0;
+	for (int K=0; K<=last_rad; K++) {
+		acumFieldTotal += inAcumField[K];
+	}
+	return acumFieldTotal;
 };
-// Calculation of the initial kinetic energy of the system
-void HIT::Calculate_Ek_init () {
-	//Calculates Ek_Tot given the distribution of velocity in Fourier space
-	Recalculate_Energy_Cascade();
-	//Calculates the total kinetic energy summing Ek accros |k|
-	Recalculate_Total_Kinetic_Energy();
-	//Updates the value of Ek_init with the current total kinetic energy
-	Ek_init = Ek_Tot;
+// Calculation of kinetic energy (total, Ek_Tot, and modal, Ek[K])
+REAL HIT::Recalculate_Energy_Cascade(const char* filename) {
+	Ek_Tot = Integrate_Field(filename, KineticEnergy, Ek);
+	return Ek_Tot;
 };
-
 // Calculation of the total kinetic energy of initial velocity field loaded from file (all done by process 0 in Input_Real_Field())
 void HIT::Calculate_Ek_init_file (COMPLEX const * const uk_file, COMPLEX const * const vk_file, COMPLEX const * const wk_file) {
 	Ek_init_file = 0.0;

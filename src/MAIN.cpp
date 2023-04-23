@@ -21,11 +21,6 @@ using namespace std;
 void Read_Ek_Input_File (const int& Last_K, REAL* Ek_input, const int& dumb_columns, const char* EkFilename);
 
 //=====================================================================================================================
-// Output functions
-//=====================================================================================================================
-void Output_Energy_Cascade (HIT const * const hit, char const * const filename);
-
-//=====================================================================================================================
 // main program
 //=====================================================================================================================
 int main (int argc, char **argv){
@@ -42,6 +37,7 @@ int main (int argc, char **argv){
 	double nu;
 	//Reynolds lambda
 	double ReLambda;
+	int ReLambda_Freq;
 	//Last instant of time to be simulated
 	double Final_Time;
 	//------------
@@ -69,7 +65,7 @@ int main (int argc, char **argv){
 	int OMP_Threads; //Number of OpenMP threads assigned to each MPI-process
 	// -----------------------------------------------------------
 	// Derived parameters ----------------------------------------
-	bool isReLambda, isInitialFieldFromBinaryFile, isInitialFieldFromASCIIFile, isForcedEk, isNullifyMissingEk, isNotCubic, isRotating, isLES, isSelfAdaptive, isComplexConjugateCorrected, isOpenMP;
+	bool isReLambda, isReLambda_iter, isInitialFieldFromBinaryFile, isInitialFieldFromASCIIFile, isForcedEk, isNullifyMissingEk, isNotCubic, isRotating, isLES, isSelfAdaptive, isComplexConjugateCorrected, isOpenMP;
 	bool isVelPhysOut, isVelPhysOut_iter, isVelFourOut, isVelFourOut_iter, isEkOut, isEkOut_iter;
 	int Mx, My, Mz; //De-aliasing mesh size = 3*(N/2) != (3*N)/2 !!!!
 	// -----------------------------------------------------------
@@ -134,6 +130,7 @@ int main (int argc, char **argv){
 		PM.RequestParameter(Nz,"Nz",TYPE_INT,IO_CRASH,GT,0);
 		PM.RequestParameter(nu,"nu",TYPE_DOUBLE,IO_DONTCRASH,GT,0.0);
 		PM.RequestParameter(ReLambda,"Reynolds_lambda",TYPE_DOUBLE,IO_DONTCRASH,GT,0.0);
+		PM.RequestParameter(ReLambda_Freq,"Reynolds_lambda_Freq",TYPE_INT,IO_DONTCRASH,GE,0);
 		PM.RequestParameter(Final_Time,"Final_Time",TYPE_DOUBLE,IO_CRASH,GT,0.0);
 
 		PM.RequestParameter(Velocity_Physical,"Velocity_Physical",TYPE_INT,IO_DONTCRASH); //(1=true/elsewhere=false)
@@ -177,8 +174,10 @@ int main (int argc, char **argv){
 
 		if (PM["Reynolds_lambda"].GetIsSet()) {
 			isReLambda = true;
+			isReLambda_iter = ((PM["Reynolds_lambda_Freq"].GetIsSet() && (ReLambda_Freq > 0)) ? true : false);
 		} else {
 			isReLambda = false;
+			isReLambda_iter = false;
 		}
 
 		if (PM["Nx_file"].GetIsSet() && PM["Ny_file"].GetIsSet() && PM["Nz_file"].GetIsSet()) {
@@ -394,8 +393,17 @@ int main (int argc, char **argv){
 	while (hit.gettime() < Final_Time) {
 		//Periodic NS resolution
 		hit.New_Fractional_Step_Method();
+		//Force energy cascade
 		if (isForcedEk && (hit.gettime() < Final_Forced_Time)) {
 			hit.Forcing_Energy_Cascade(Forced_Ek, last_input_rad, isNullifyMissingEk);
+		}
+		//Force Reynolds lambda
+		if (isReLambda_iter) {
+			if (iter % ReLambda_Freq == 0) {
+				if(!myrank) printf("\nnu: %f -> ", hit.getnu());
+				hit.Recalculate_Kinematic_Viscosity(ReLambda);
+				if(!myrank) printf("%f\n", hit.getnu());
+			}
 		}
 		//Update of iteration counter
 		iter++;
@@ -416,12 +424,9 @@ int main (int argc, char **argv){
 		//Thus, in order that all output fields correspond to the same iteration, this modification has to be made)
 		if (isEkOut_iter) {
 			if ((iter+1) % Energy_Cascade_Freq == 0) {
-				hit.Recalculate_Energy_Cascade(); //must be called from all ranks
-				if (myrank == 0) {
-					snprintf(Ekfilename, 512, "%s/%s_%d.%s", Ekfolder, base_Ekfilename.c_str(), Ek_file_iter, ASCII_fileformat.c_str());
-					Output_Energy_Cascade(&hit, Ekfilename);
-					Ek_file_iter++;
-				}
+				snprintf(Ekfilename, 512, "%s/%s_%d.%s", Ekfolder, base_Ekfilename.c_str(), Ek_file_iter, ASCII_fileformat.c_str());
+				hit.Recalculate_Energy_Cascade(Ekfilename); //must be called from all ranks
+				Ek_file_iter++;
 			}
 		}
 		if (isVelFourOut_iter) {
@@ -446,11 +451,8 @@ int main (int argc, char **argv){
 	//===================================================
 	//Output of energy cascade (ASCII)
 	if (isEkOut) {
-		hit.Recalculate_Energy_Cascade();
-		if (myrank == 0) {
-			snprintf(Ekfilename, 512, "%s/%s.%s", Ekfolder, base_Ekfilename.c_str(), ASCII_fileformat.c_str());
-			Output_Energy_Cascade(&hit, Ekfilename);
-		}
+		snprintf(Ekfilename, 512, "%s/%s.%s", Ekfolder, base_Ekfilename.c_str(), ASCII_fileformat.c_str());
+		hit.Recalculate_Energy_Cascade(Ekfilename);
 	}
 	//Output of velocity Fourier coefficients (binary)
 	if (isVelFourOut) {
@@ -513,14 +515,4 @@ void Read_Ek_Input_File (const int& Last_K, REAL* Ek_input, const int& dumb_colu
 		}
 	}
 	infile.close();
-};
-//Functions to output results obtained
-void Output_Energy_Cascade (HIT const * const hit, char const * const filename) {
-	ptrdiff_t last_rad = hit->getlast_rad();
-	ofstream OutputFile_Ek;
-	OutputFile_Ek.open(filename);
-	for (ptrdiff_t K=1; K<=last_rad; K++) {
-		OutputFile_Ek << K << " " << hit->getEk(K) << endl;
-	}
-	OutputFile_Ek.close();
 };

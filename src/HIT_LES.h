@@ -2,9 +2,10 @@
 #define __HIT_LES__
 
 #include <iostream>
-#include <cstring> //memcpy
 #include <cmath>
+#include <cstring> //memcpy
 #include <fstream> //to read input file
+#include<functional> //function
 #include <fftw3-mpi.h>
 
 #include "util.h"
@@ -144,23 +145,27 @@ class HIT {
 		void Forcing_Energy_Cascade(REAL const * const Forced_Ek, const ptrdiff_t& last_input_rad, const bool& isNullifyMissingEk);
 			// Imposition of correct complex conjugation for k3=0
 			void Complex_Conjugate_Correction();
+		// Calculation of new kinematic viscosity
+		void Recalculate_Kinematic_Viscosity(const REAL ReLambda);
+			// Calculation of pseudoEpsilon
+			REAL Recalculate_pseudoEpsilon(const char* filename = NULL);
 
 		//===================================================
 		// POST-PROCESS
 		//===================================================
+		// Integrate complex fields over spherical shells from k=1 to k=last_rad
+		REAL Integrate_Field(const char* filename, std::function<REAL(int a, int b, int k3)>& funcFieldNorm, REAL* inAcumField);
+		inline REAL Integrate_Field(const char* filename, std::function<REAL(int a, int b, int k3)>& funcFieldNorm);
+		// Calculation of kinetic energy cascade
+		REAL Recalculate_Energy_Cascade(const char* filename = NULL);
+		void Calculate_Ek_init_file(COMPLEX const * const uk_file, COMPLEX const * const vk_file, COMPLEX const * const wk_file);
+		// I/O functions (implemented in HIT_LES_output.cpp)
 		void DealiasedComplex3DimField_to_BinaryFile(COMPLEX const * const field_x, COMPLEX const * const field_y, COMPLEX const * const field_z, char const * const filename) const;
 		void Real3DimField_to_BinaryFile(REAL const * const field_x, REAL const * const field_y, REAL const * const field_z, char const * const filename) const;
-		
 		void FourierVelocity_to_BinaryFile(char const * const filename) const;
 		void RealVelocity_to_BinaryFile(char const * const filename) const;
-		
 		void Field2File(REAL const * const field, char const * const filename) const;
 		void Field2File(COMPLEX const * const field, char const * const filename) const;
-		//Kinetic energy
-		void Recalculate_Energy_Cascade();
-		void Recalculate_Total_Kinetic_Energy();
-		void Calculate_Ek_init();
-		void Calculate_Ek_init_file(COMPLEX const * const uk_file, COMPLEX const * const vk_file, COMPLEX const * const wk_file);
 
 		//===================================================
 		// GETS, SETS, EXTRACTS
@@ -205,7 +210,7 @@ class HIT {
 		COMPLEX *convx_k, *convy_k, *convz_k;
 		COMPLEX *Rx0_k, *Ry0_k, *Rz0_k, *Rx1_k, *Ry1_k, *Rz1_k;
 		bool *dealiased, *conjugate;
-		REAL *rad2, *local_Ek, *Ek;
+		REAL *rad2, *local_acumField, *global_acumField, *Ek;
 		REAL Ek_Tot, Ek_init, Ek_init_file, pseudoEpsilon_init_file;
 		int num_dealiased, num_dealiased_real;
 		int *local_n0_, *local_n1_;
@@ -216,6 +221,9 @@ class HIT {
 		//Complex conjugate correction
 		COMPLEX *local_uk_k3_0, *local_vk_k3_0, *local_wk_k3_0, *uk_k3_0, *vk_k3_0, *wk_k3_0;
 		int *displs_k3_0, *recvcounts_k3_0;
+		// Complex field integrals
+		std::function<REAL(int a, int b, int k3)> KineticEnergy;
+		std::function<REAL(int a, int b, int k3)> pseudoEpsilon;
 	};
 
 //Auxiliary functions related to the calculation of self-adaptive timestep
@@ -240,6 +248,10 @@ inline REAL HIT::Kopt(REAL phi0){
 	if(phi0>phi[2]&&phi0<=PI/2.0) return FuG(phi0,c[11],c[12],c[13],phi[2],PI/2.0,k[1],0.0);
 	crash("Kopt fail!"); return 0;
 }
+//Post-process
+REAL HIT::Integrate_Field(const char* filename, std::function<REAL(int a, int b, int k3)>& funcFieldNorm) {
+	return Integrate_Field(filename, funcFieldNorm, global_acumField);
+};
 //Gets, sets and extracts
 const ptrdiff_t& HIT::getNx() const { return Nx;};
 const ptrdiff_t& HIT::getNy() const { return Ny;};
@@ -249,7 +261,7 @@ const REAL& HIT::getnu() const { return nu;};
 void HIT::setnu(const REAL& nu_) { nu=nu_;};
 const REAL& HIT::getAt() const { return At;};
 const REAL& HIT::gettime() const { return time;};
-const REAL& HIT::getEk_Tot() {Recalculate_Total_Kinetic_Energy(); return Ek_Tot;};
+const REAL& HIT::getEk_Tot() { return Ek_Tot;};
 const REAL& HIT::getEk_init() const { return Ek_init;};
 const REAL& HIT::getEk_init_file() const { return Ek_init_file;};
 const REAL& HIT::getpseudoEpsilon_init_file() const { return pseudoEpsilon_init_file;};
