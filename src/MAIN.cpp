@@ -413,7 +413,7 @@ int main (int argc, char **argv){
 			pprintf("Time: %f,    iter: %5d,    Ek: %f\n", hit.gettime(), iter, hit.getEk_Tot());
 		}
 #endif
-		if (iter % 10 == 0) {
+		if (iter % 100 == 0) {
 			hit.Recalculate_Energy_Cascade();
 			if (myrank == 0) {
 				printf("Time: %f,    iter: %5d,    Ek: %f\n", hit.gettime(), iter, hit.getEk_Tot());
