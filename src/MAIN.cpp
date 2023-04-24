@@ -197,6 +197,9 @@ int main (int argc, char **argv){
 		} else {
 			isInitialFieldFromASCIIFile = false;
 			isInitialFieldFromBinaryFile = false;
+			Nx_file = -1; //unnecessary, but to avoid valgrind complains in HIT's ctor
+			Ny_file = -1; //unnecessary, but to avoid valgrind complains in HIT's ctor
+			Nz_file = -1; //unnecessary, but to avoid valgrind complains in HIT's ctor
 		}
 		if (PM["InputEkFilename"].GetIsSet() && PM["Last_K"].GetIsSet() && PM["Final_Forced_Time"].GetIsSet()) {
 			isForcedEk = true;
