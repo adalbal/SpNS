@@ -507,7 +507,8 @@ void Read_Ek_Input_File (const int& Last_K, REAL* Ek_input, const int& dumb_colu
 	if(infile.fail()) {
 		crash("Forced energy cascade input file is missing!!! Include \"%s\", please\n", EkFilename);
 	}
-	while((!infile.eof()) && (row <= Last_K)) {
+	Ek_input[0] = 0.0;
+	while((!infile.eof()) && (row < Last_K)) {
 		if (col < dumb_columns) {
 			infile >> shit;
 			col++;
