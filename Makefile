@@ -11,7 +11,7 @@ DEPS := $(OBJS:.o=.d)
 INC_DIRS := $(shell find $(SRC_DIRS) -type d)
 INC_FLAGS := $(addprefix -I,$(INC_DIRS))
 
-CPPFLAGS += -g $(INC_FLAGS) -MMD -MP -fopenmp -O3 -Wall -Wextra -Wfloat-equal #-Werror
+CPPFLAGS += -g $(INC_FLAGS) -std=c++11 -MMD -MP -fopenmp -O3 -Wall -Wextra -Wfloat-equal #-Werror
 LDFLAGS += -lfftw3_mpi -lfftw3_threads -lfftw3 -lfftw3f_mpi -lfftw3f_threads -lfftw3f -lm
 CXX := mpic++
 CC := mpicc
