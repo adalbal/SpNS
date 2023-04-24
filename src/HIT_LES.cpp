@@ -14,11 +14,7 @@ void HIT::New_Fractional_Step_Method() {
 	//Calculation of the new timesteps velocity distribution (from predictor velocity)
 	Recalculate_Divergence_Free_Projection();
 	//Obtention of new timestep
-	if (isSelfAdaptive) {
-		Recalculate_SelfAdaptive_TimeStep();
-	} else {
-		Recalculate_CFL_TimeStep();
-	}
+	Recalculate_TimeStep();
 	//Update of total simulated time
 	time=time+At;
 	//Update of intern iteration counter
@@ -305,7 +301,7 @@ void HIT::Recalculate_Predictor_Velocity_Fourier_Coefficients() {
 // Divergence-free projection of predictor velocity (result of substracting the gradient of pseudo-pressure -> operator (k^t·k)/(k·k))
 void HIT::Recalculate_Divergence_Free_Projection() {
 	REAL aux;
-	//Projection of Predictor velocity and calculation of uk_n+1 (stored in ukxy_1 replacing predictor velocity)
+	//Projection of Predictor velocity and calculation of uk_n+1 (stored in ukxyz_1 replacing predictor velocity)
 	LOOP_FOURIER_k1k2k3 {
 		if (dealiased[ind]) {
 			for (int ic=0; ic<=1; ic++){ //ic=0 => Real part, ic=1 => Imaginary part
@@ -321,6 +317,14 @@ void HIT::Recalculate_Divergence_Free_Projection() {
 //===================================================
 // CALCULATE NEW TIMESTEP:
 //===================================================
+//Obtention of new timestep
+void HIT::Recalculate_TimeStep() {
+	if (isSelfAdaptive) {
+		Recalculate_SelfAdaptive_TimeStep();
+	} else {
+		Recalculate_CFL_TimeStep();
+	}
+}
 // Calculation of new self-adaptive timestep
 void HIT::Recalculate_SelfAdaptive_TimeStep() {
 	//Compute local maximums at each process
@@ -348,6 +352,7 @@ void HIT::Recalculate_CFL_TimeStep() {
 	MaxVel = 0.0;
 	MPI_Allreduce(&local_MaxVel, &MaxVel, 1, REAL_MPI, MPI_MAX, MCW);
 	//Recalculate CFL timestep
+	C_visc = 0.2 * min(Ax*Ax, min(Ay*Ay, Az*Az)) / nu;
 	C_conv = 0.35 / MaxVel;
 	At = min(C_visc, C_conv);
 	At = C_At * At;
@@ -980,15 +985,12 @@ void HIT::HIT_init() {
 		c[11] = 4.80513;
 		c[12] = -16.9473;
 		c[13] = 15.0155;
-		//Initial self-adaptive timestep
-		Recalculate_Velocity_Antitransform(); //As only uk_1,vk_1,wk_1 were already available
-		Recalculate_SelfAdaptive_TimeStep();
 	} else {
-		//Related constants:
-		C_visc = 0.2 * min(Ax*Ax, min (Ay*Ay, Az*Az)) / nu;
-		//Initial CFL timestep
-		Recalculate_Velocity_Antitransform(); //As only uk_1,vk_1,wk_1 were already available
-		Recalculate_CFL_TimeStep();
+	}
+	//Initial timestep. If passing ReLambda, then it needs to be computed once nu is properly set (in MAIN.cpp)
+	Recalculate_Velocity_Antitransform(); //As only uk_1,vk_1,wk_1 were already available
+	if(!isReLambda){
+		Recalculate_TimeStep();
 	}
 
 	Ek_init = Recalculate_Energy_Cascade();

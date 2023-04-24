@@ -6,7 +6,8 @@
 #include <cstring> //memcpy
 #include <fstream> //to read input file
 #include<functional> //function
-#include <fftw3-mpi.h>
+
+#include "fftw3-mpi.h"
 
 #include "util.h"
 #include "FFTW_package.h"
@@ -24,7 +25,7 @@ class HIT {
 			const int& Lx_factor_, const int& Ly_factor_, const int& Lz_factor_,
 			const REAL& omega_x_, const REAL& omega_y_, const REAL& omega_z_,
 			const char *ASCII_Input_Filename_, const char *Binary_Input_Filename_, const ptrdiff_t& Nx_file_, const ptrdiff_t& Ny_file_, const ptrdiff_t& Nz_file_,
-			const bool& isInitialFieldFromBinaryFile_, const bool& isInitialFieldFromASCIIFile_, const bool& isNotCubic_, const bool& isRotating_, const bool& isLES_, const bool& isComplexConjugateCorrected_, const bool& isSelfAdaptive_):
+			const bool& isReLambda_, const bool& isInitialFieldFromBinaryFile_, const bool& isInitialFieldFromASCIIFile_, const bool& isNotCubic_, const bool& isRotating_, const bool& isLES_, const bool& isComplexConjugateCorrected_, const bool& isSelfAdaptive_):
 			fftw(Mx_,My_,Mz_), //Class to compute FFT and IFFT
 			ActualNx((Nx_%2==0) ? Nx_/Lx_factor_ : (Nx_-1)/Lx_factor_+1), //Number of dealiased modes to be resolved considering length factors
 			ActualNy((Ny_%2==0) ? Ny_/Ly_factor_ : (Ny_-1)/Ly_factor_+1),
@@ -67,6 +68,7 @@ class HIT {
 			Nx_file(Nx_file_), //Augmented mesh size of the velocity input file (field of velocityes repeated as many times as )
 			Ny_file(Ny_file_),
 			Nz_file(Nz_file_),
+			isReLambda(isReLambda_), //if true, then nu_ is undefined and setnu() needs to be called (in MAIN.cpp)
 			isInitialFieldFromBinaryFile(isInitialFieldFromBinaryFile_),
 			isInitialFieldFromASCIIFile(isInitialFieldFromASCIIFile_),
 			isNotCubic(isNotCubic_),
@@ -127,6 +129,8 @@ class HIT {
 		//===================================================
 		// CALCULATE NEW TIMESTEP:
 		//===================================================
+		//Obtention of new timestep
+		void Recalculate_TimeStep();
 		// A) Calculation of new self-adaptive timestep
 		void Recalculate_SelfAdaptive_TimeStep();
 			//Auxiliary related functions
@@ -195,7 +199,7 @@ class HIT {
 		const REAL omega_x, omega_y, omega_z;
 		const char *ASCII_Input_Filename, *Binary_Input_Filename;
 		const ptrdiff_t ActualNx_file, ActualNy_file, ActualNz_file, Nx_file, Ny_file, Nz_file;
-		const bool isInitialFieldFromBinaryFile,isInitialFieldFromASCIIFile,isNotCubic,isRotating,isLES,isComplexConjugateCorrected,isSelfAdaptive;
+		const bool isReLambda,isInitialFieldFromBinaryFile,isInitialFieldFromASCIIFile,isNotCubic,isRotating,isLES,isComplexConjugateCorrected,isSelfAdaptive;
 		REAL time;
 		REAL MaxVel, At; //Any timestep
 		REAL C_visc, C_conv; //CFL timestep

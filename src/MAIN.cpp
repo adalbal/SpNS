@@ -203,7 +203,7 @@ int main (int argc, char **argv){
 		}
 		if (PM["InputEkFilename"].GetIsSet() && PM["Last_K"].GetIsSet() && PM["Final_Forced_Time"].GetIsSet()) {
 			isForcedEk = true;
-			isNullifyMissingEk = (nullify_missingEk ? true : false);
+			isNullifyMissingEk = (PM["Nullify_MissingK"].GetIsSet() && nullify_missingEk ? true : false);
 			Final_Forced_Time = ((Final_Forced_Time > 0.0) ? Final_Forced_Time : Final_Time);
 		} else {
 			isForcedEk = false;
@@ -310,36 +310,35 @@ int main (int argc, char **argv){
 	// INITIALIZATION OF OBJECTS
 	//===================================================
 	//Homogeneous Isotropic turbulence solver
-	HIT hit(Nx,Ny,Nz,Mx,My,Mz,nu,C_Smag,C_At,Lx_factor,Ly_factor,Lz_factor,omega_x,omega_y,omega_z,ASCII_Input_Filename,Binary_Input_Filename,Nx_file,Ny_file,Nz_file,isInitialFieldFromBinaryFile,isInitialFieldFromASCIIFile,isNotCubic,isRotating,isLES,isComplexConjugateCorrected,isSelfAdaptive);
+	HIT hit(Nx,Ny,Nz,Mx,My,Mz,nu,C_Smag,C_At,Lx_factor,Ly_factor,Lz_factor,omega_x,omega_y,omega_z,ASCII_Input_Filename,Binary_Input_Filename,Nx_file,Ny_file,Nz_file,isReLambda,isInitialFieldFromBinaryFile,isInitialFieldFromASCIIFile,isNotCubic,isRotating,isLES,isComplexConjugateCorrected,isSelfAdaptive);
 
 	//Energy cascade to be forced (if so)
-	REAL *Forced_Ek;
-	//Total forced kinetic energy and "pseudoEpsilon" (epsilon = 2*nu*pseudoEpsilon). Only used if ReLambda is given
-	REAL Forced_Ek_Tot, Forced_pseudoEpsilon_Tot;
+	REAL *Forced_Ek = NULL;
 	if (isForcedEk) {
 		//Memory allocation
 		Forced_Ek = alloc_real(last_input_rad+1);
 		//Reading input file
 		Read_Ek_Input_File (last_input_rad, Forced_Ek, 0, EkFilename);
-		if (isReLambda) {
-			//Calculation of total input kinetic energy (used to compute nu)
+	}
+
+	//If Reynolds lambda is passed, then nu has to be set accordingly
+	if (isReLambda) {
+		REAL Forced_Ek_Tot, Forced_pseudoEpsilon_Tot;
+		if (isForcedEk) {
 			Forced_Ek_Tot = 0.0;
 			Forced_pseudoEpsilon_Tot = 0.0;
 			for (int K=1; K<=last_input_rad; K++) { //Forced_Ek[0] assumed to be 0.0
 				Forced_Ek_Tot += Forced_Ek[K];
 				Forced_pseudoEpsilon_Tot += (K * K * Forced_Ek[K]);
 			}
-		}
-	}
-
-	//If initial Reynolds lambda is set instead of nu, then nu has to be set
-	if (isReLambda) {
-		if (isForcedEk) {
-			nu = 2.0 * Forced_Ek_Tot / ReLambda * sqrt(5.0 / 6.0 / Forced_pseudoEpsilon_Tot);
 		} else {
-			nu = 2.0 * hit.getEk_init_file() / ReLambda * sqrt(5.0 / 6.0 / hit.getpseudoEpsilon_init_file());
+			Forced_Ek_Tot = hit.getEk_init_file();
+			Forced_pseudoEpsilon_Tot = hit.getpseudoEpsilon_init_file();
 		}
+		nu = Forced_Ek_Tot / ReLambda * sqrt(10.0 / 3.0 / Forced_pseudoEpsilon_Tot);
 		hit.setnu(nu);
+		//As it depends on nu, the initial time-step was undefined and needs to be recomputed
+		hit.Recalculate_TimeStep();
 	}
 
 	if (myrank == 0){
@@ -405,6 +404,8 @@ int main (int argc, char **argv){
 			if (iter % ReLambda_Freq == 0) {
 				if(!myrank) printf("\nnu: %f -> ", hit.getnu());
 				hit.Recalculate_Kinematic_Viscosity(ReLambda);
+				//Update time-step to new nu
+				hit.Recalculate_TimeStep();
 				if(!myrank) printf("%f\n", hit.getnu());
 			}
 		}
@@ -486,6 +487,9 @@ int main (int argc, char **argv){
 	pprintf("Number of iterations: %d\t Total execution time: %f\t Main loop time: %f\n", iter, timeTot, timeLoop);
 	pprintf("TIME/ITERATION: %f\n\n", (timeLoop/iter));
 #endif
+
+	//Free memory
+	FREE(Forced_Ek);
 
 	//Ending of parallelization
 	end_parallel();
