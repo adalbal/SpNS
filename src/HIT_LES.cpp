@@ -443,8 +443,8 @@ REAL HIT::Recalculate_pseudoEpsilon(const char* filename) {
 // INPUTTING INITIAL VELOCITY FIELD
 //=====================================================================================================================
 
-// Initialization of velocity field in Fourier space using dummy distibution 1/|k|
-void HIT::Input_Dummy_Field() {
+// Initialization of velocity field in Fourier space using K41 distibution |k|^{-5/3}
+void HIT::Input_K41_Field() {
 	LOOP_FOURIER {
 		if (dealiased[ind]) {
 			uk_1[ind][0] = ((rad2[ind]>0.0) ? pow(rad2[ind], -5.0/6.0) : 0.0);  uk_1[ind][1] = 0.0;
@@ -870,7 +870,7 @@ void HIT::HIT_init() {
 		//Input velocity (it needs to be after initialization of *dealiased)
 		Input_Real_Field();
 	} else {
-		Input_Dummy_Field();
+		Input_K41_Field();
 	}
 
 	//Trivial initial distribution of R vector

@@ -92,8 +92,8 @@ class HIT {
 		// INPUTTING INITIAL VELOCITY FIELD
 		//===================================================
 		//=========================
-		// A) Initialization of velocity field in Fourier space using dummy distibution 1/|k|
-		void Input_Dummy_Field();
+		// A) Initialization of velocity field in Fourier space using K41 distibution |k|^{-5/3}
+		void Input_K41_Field();
 		//=========================
 		// B) Initialization of velocity field in Fourier space from an input file containing velocities in Fourier space
 		void Input_Real_Field();

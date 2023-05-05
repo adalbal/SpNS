@@ -31,7 +31,7 @@ Velocity_Phys_Folder	OUTPUT
 Velocity_Four_Folder	OUTPUT
 Energy_Cascade_Folder	OUTPUT
 
-#### Initial velocity in physical space from either ASCII or binary file (missing fields => Dummy initial distribution 1/|k|^2)
+#### Initial velocity in physical space from either ASCII or binary file (missing fields => K41 initial distribution |k|^{-5/3})
 #### ASCII input file containing three columns: u, v, w; and Nx_file*Ny_file*Nz_file values
 #ASCII_Input_Filename		Initial_velocity.dat
 #### Binary input file containing successively all the components of u, v and w (Nx_file*Ny_file*Nz_file values each)
