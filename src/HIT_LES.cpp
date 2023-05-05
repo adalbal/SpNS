@@ -447,9 +447,9 @@ REAL HIT::Recalculate_pseudoEpsilon(const char* filename) {
 void HIT::Input_Dummy_Field() {
 	LOOP_FOURIER {
 		if (dealiased[ind]) {
-			uk_1[ind][0] = ((rad2[ind]>0.0) ? (1.0/(rad2[ind])) : 0.0);  uk_1[ind][1] = 0.0;
-			vk_1[ind][0] = ((rad2[ind]>0.0) ? (1.0/(rad2[ind])) : 0.0);  vk_1[ind][1] = 0.0;
-			wk_1[ind][0] = ((rad2[ind]>0.0) ? (1.0/(rad2[ind])) : 0.0);  wk_1[ind][1] = 0.0;
+			uk_1[ind][0] = ((rad2[ind]>0.0) ? pow(rad2[ind], -5.0/6.0) : 0.0);  uk_1[ind][1] = 0.0;
+			vk_1[ind][0] = ((rad2[ind]>0.0) ? pow(rad2[ind], -5.0/6.0) : 0.0);  vk_1[ind][1] = 0.0;
+			wk_1[ind][0] = ((rad2[ind]>0.0) ? pow(rad2[ind], -5.0/6.0) : 0.0);  wk_1[ind][1] = 0.0;
 		} else { //Aliased terms
 			uk_1[ind][0] = 0.0;  uk_1[ind][1] = 0.0;
 			vk_1[ind][0] = 0.0;  vk_1[ind][1] = 0.0;
