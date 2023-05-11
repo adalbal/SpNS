@@ -503,24 +503,31 @@ int main (int argc, char **argv){
 //=====================================================================================================================
 //Read and load of energy cascade from input file of known size
 void Read_Ek_Input_File (const int& Last_K, REAL* Ek_input, const int& dumb_columns, const char* EkFilename) {
-	int row = 0;
-	int col = 0;
-	REAL shit;
-	ifstream infile;
-	infile.open(EkFilename);
-	if(infile.fail()) {
-		crash("Forced energy cascade input file is missing!!! Include \"%s\", please\n", EkFilename);
-	}
-	Ek_input[0] = 0.0;
-	while((!infile.eof()) && (row < Last_K)) {
-		if (col < dumb_columns) {
-			infile >> shit;
-			col++;
-		} else {
-			infile >> Ek_input[row+1]; //Ek for |k|=i is stored in Ek_input[i] and Ek[0] is unused (and must not be set in input file)
-			row++;
-			col=0;
+	const int myrank = MyID();
+
+	if (!myrank) {
+		ifstream infile(EkFilename);
+		if(infile.fail()) {
+			crash("Forced energy cascade input file is missing!!! Include \"%s\", please\n", EkFilename);
 		}
+
+		int row = 0;
+		int col = 0;
+		REAL shit;
+		Ek_input[0] = 0.0;
+		while((!infile.eof()) && (row < Last_K)) {
+			if (col < dumb_columns) {
+				infile >> shit;
+				col++;
+			} else {
+				infile >> Ek_input[row+1]; //Ek for |k|=i is stored in Ek_input[i] and Ek[0] is unused (and must not be set in input file)
+				row++;
+				col=0;
+			}
+		}
+		infile.close();
 	}
-	infile.close();
+
+	//Broadcast energy cascade to all ranks
+	MPI_Bcast(Ek_input, Last_K+1, MPI_REAL, 0, MPI_COMM_WORLD);
 };
