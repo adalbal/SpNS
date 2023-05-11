@@ -6,4 +6,8 @@
 #SBATCH --job-name=DHIT
 #SBATCH --time=00:10:00
 
-srun ../../build/a.out params3_FORCING_ENERGY_CASCADE
+if which srun >/dev/null; then
+  srun ../../build/a.out params3_FORCING_ENERGY_CASCADE
+else
+  mpirun -np 4 ../../build/a.out params3_FORCING_ENERGY_CASCADE
+fi

@@ -6,4 +6,8 @@
 #SBATCH --job-name=DHIT
 #SBATCH --time=00:10:00
 
-srun ../../build/a.out params7_DHIT_DNS_NONCUBIC
+if which srun >/dev/null; then
+  srun ../../build/a.out params7_DHIT_DNS_NONCUBIC
+else
+  mpirun -np 4 ../../build/a.out params7_DHIT_DNS_NONCUBIC
+fi
