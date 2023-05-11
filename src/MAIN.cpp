@@ -157,9 +157,9 @@ int main (int argc, char **argv){
 		PM.RequestParameter(Lx_factor,"Lx",TYPE_INT,IO_DONTCRASH,GT,0);
 		PM.RequestParameter(Ly_factor,"Ly",TYPE_INT,IO_DONTCRASH,GT,0);
 		PM.RequestParameter(Lz_factor,"Lz",TYPE_INT,IO_DONTCRASH,GT,0);
-		PM.RequestParameter(omega_x,"omega_x",TYPE_DOUBLE,IO_DONTCRASH,GE,0.0);
-		PM.RequestParameter(omega_y,"omega_y",TYPE_DOUBLE,IO_DONTCRASH,GE,0.0);
-		PM.RequestParameter(omega_z,"omega_z",TYPE_DOUBLE,IO_DONTCRASH,GE,0.0);
+		PM.RequestParameter(omega_x,"omega_x",TYPE_DOUBLE,IO_DONTCRASH);
+		PM.RequestParameter(omega_y,"omega_y",TYPE_DOUBLE,IO_DONTCRASH);
+		PM.RequestParameter(omega_z,"omega_z",TYPE_DOUBLE,IO_DONTCRASH);
 		PM.RequestParameter(C_Smag,"C_Smag",TYPE_DOUBLE,IO_DONTCRASH,GE,0.0);
 		PM.RequestParameter(C_At,"C_At",TYPE_DOUBLE,IO_DONTCRASH,GT,0.0);
 		PM.RequestParameter(SelfAdaptiveTimestep,"SelfAdaptiveTimestep",TYPE_INT,IO_DONTCRASH); //(1=true/elsewhere=false)
@@ -254,9 +254,9 @@ int main (int argc, char **argv){
 			Ly_factor = 1;
 			Lz_factor = 1;
 		}
-		if ((PM["omega_x"].GetIsSet() && (omega_x > 0.0)) ||
-			(PM["omega_y"].GetIsSet() && (omega_y > 0.0)) ||
-			(PM["omega_z"].GetIsSet() && (omega_z > 0.0))) {
+		if ((PM["omega_x"].GetIsSet() && (fabs(omega_x) > 0.0)) ||
+			(PM["omega_y"].GetIsSet() && (fabs(omega_y) > 0.0)) ||
+			(PM["omega_z"].GetIsSet() && (fabs(omega_z) > 0.0))) {
 			isRotating = true;
 			// In case only significant rotation velocity component has been set
 			omega_x = ((PM["omega_x"].GetIsSet()) ? omega_x : 0.0);
@@ -361,7 +361,7 @@ int main (int argc, char **argv){
 		if (isRotating) {
 			printf("###------------------------------------------###\n");
 			printf("### Rotation velocity:                       ###\n");
-			printf("### w_x:%.1e,  w_y:%.1e,  w_z:%.1e  ###\n", omega_x, omega_y, omega_z);
+			printf("### w_x:%.1e,  w_y:%.1e,  w_z:%.1e ###\n", omega_x, omega_y, omega_z);
 		}
 		printf("###------------------------------------------###\n");
 		printf("### Total number of modes:                   ###\n");
