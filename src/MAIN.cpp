@@ -508,7 +508,7 @@ void Read_Ek_Input_File (const int& Last_K, REAL* Ek_input, const int& dumb_colu
 	if (!myrank) {
 		ifstream infile(EkFilename);
 		if(infile.fail()) {
-			crash("Forced energy cascade input file is missing!!! Include \"%s\", please\n", EkFilename);
+			crash("Read_Ek_Input_File(): Forced energy cascade input file is missing!!! Include \"%s\", please\n", EkFilename);
 		}
 
 		int row = 0;
@@ -518,7 +518,7 @@ void Read_Ek_Input_File (const int& Last_K, REAL* Ek_input, const int& dumb_colu
 		while((!infile.eof()) && (row < Last_K)) {
 			if (col < dumb_columns) {
 				infile >> shit;
-				if (shit != row+1) crash("Read_Ek_Input_File(): invalid entry in (row,col)=(%d,%d)\n", row, col);
+				if (static_cast<int>(shit) != row+1) crash("Read_Ek_Input_File(): invalid entry in (row,col)=(%d,%d)\n", row, col);
 				col++;
 			} else {
 				infile >> Ek_input[row+1]; //Ek for |k|=i is stored in Ek_input[i] and Ek[0] is unused (and must not be set in input file)
