@@ -431,12 +431,17 @@ void HIT::Complex_Conjugate_Correction() {
 		}
 	}
 };
+// Calculation of Reynolds lambda
+REAL HIT::Recalculate_Reynolds_Lambda() {
+	ReLambda = Recalculate_Energy_Cascade() / nu * sqrt(20.0 / 3.0 / Recalculate_Enstrophy());
+	return ReLambda;
+};
 // Calculation of new kinematic viscosity
 void HIT::Recalculate_Kinematic_Viscosity(const REAL ReLambda) {
-	nu = Recalculate_Energy_Cascade() / ReLambda * sqrt(10.0 / 3.0 / Recalculate_pseudoEpsilon());
+	nu = Recalculate_Energy_Cascade() / ReLambda * sqrt(20.0 / 3.0 / Recalculate_Enstrophy());
 };
-REAL HIT::Recalculate_pseudoEpsilon(const char* filename) {
-	return Integrate_Field(filename, pseudoEpsilon);
+REAL HIT::Recalculate_Enstrophy(const char* filename) {
+	return Integrate_Field(filename, Enstrophy);
 };
 
 //=====================================================================================================================
@@ -503,9 +508,9 @@ void HIT::Input_Real_Field() {
 		}
 		Calculate_Ek_init_file(uk_file, vk_file, wk_file);
 	}
-	//Share Ek_init_file and pseudoEpsilon_init_file from process 0 to the rest of processes
+	//Share Ek_init_file and Enstrophy_init_file from process 0 to the rest of processes
 	MPI_Bcast(&Ek_init_file, 1, REAL_MPI, 0, MCW);
-	MPI_Bcast(&pseudoEpsilon_init_file, 1, REAL_MPI, 0, MCW);
+	MPI_Bcast(&Enstrophy_init_file, 1, REAL_MPI, 0, MCW);
 	//Share vectors uk_file, vk_file and wk_file from process 0 to the rest of processes
 	MPI_Bcast(uk_file, sizeof(COMPLEX) *  Nx_file * Ny_file * (Nz_file/2+1), MPI_BYTE, 0, MCW);
 	MPI_Bcast(vk_file, sizeof(COMPLEX) *  Nx_file * Ny_file * (Nz_file/2+1), MPI_BYTE, 0, MCW);
@@ -888,20 +893,16 @@ void HIT::HIT_init() {
 	//Lambda function computing the kinetic energy of (a,b,k3)
 	KineticEnergy = [&](int a, int b, int k3)->REAL{
 		int ind = (b*Mx+a)*(Mz_2+1)+k3;
-		return uk_1[ind][0]*uk_1[ind][0] + uk_1[ind][1]*uk_1[ind][1] +
-			   vk_1[ind][0]*vk_1[ind][0] + vk_1[ind][1]*vk_1[ind][1] +
-			   wk_1[ind][0]*wk_1[ind][0] + wk_1[ind][1]*wk_1[ind][1];
+		return 0.5 * (uk_1[ind][0]*uk_1[ind][0] + uk_1[ind][1]*uk_1[ind][1] +
+					  vk_1[ind][0]*vk_1[ind][0] + vk_1[ind][1]*vk_1[ind][1] +
+					  wk_1[ind][0]*wk_1[ind][0] + wk_1[ind][1]*wk_1[ind][1]);
 	};
-	//Lambda function computing the pseudoEpsilon of (a,b,k3)
-	pseudoEpsilon = [&](int a, int b, int k3)->REAL{
+	//Lambda function computing the Enstrophy of (a,b,k3)
+	//Enstrophy = 2 * k^2 * E(k) = k^2 * ukxyz^2
+	Enstrophy = [&](int a, int b, int k3)->REAL{
 		int ind = (b*Mx+a)*(Mz_2+1)+k3;
-		int K = static_cast<int>(round(sqrt(rad2[ind])));
-		REAL Ek = uk_1[ind][0]*uk_1[ind][0] + uk_1[ind][1]*uk_1[ind][1] +
-				  vk_1[ind][0]*vk_1[ind][0] + vk_1[ind][1]*vk_1[ind][1] +
-				  wk_1[ind][0]*wk_1[ind][0] + wk_1[ind][1]*wk_1[ind][1];
-		return K*Ek;
+		return 2 * rad2[ind] * KineticEnergy(a, b, k3);
 	};
-
 
 	//===================================================
 	// 4.1 LES MEMORY ALLOCATION
@@ -1047,9 +1048,9 @@ REAL HIT::Integrate_Field(const char* filename, std::function<REAL(int a, int b,
 			if (K<=last_rad) {
 				REAL aux = funcFieldNorm(a, b, k3);
 				if (conjugate[ind]) {
-					local_acumField[K] += aux;
+					local_acumField[K] += (2 * aux);
 				} else {
-					local_acumField[K] += (0.5 * aux);
+					local_acumField[K] += aux;
 				}
 			}
 		}
@@ -1059,14 +1060,16 @@ REAL HIT::Integrate_Field(const char* filename, std::function<REAL(int a, int b,
 	//If filename is valid, output distribution
 	if (!myrank && filename) {
 		std::ofstream outFile(filename);
+		if (!outFile.is_open()) printf("WARNING: HIT::Integrate_Field(): Error opening \"%s\".\n", filename);
 		for (int K=1; K<=last_rad; K++) {
+			//outFile << K << " " << inAcumField[K] << "\n";
 			outFile << inAcumField[K] << "\n";
 		}
 		outFile.close();
 	}
 	//Return the integral of the field on the sphere of radium last_rad
 	REAL acumFieldTotal = 0.0;
-	for (int K=0; K<=last_rad; K++) {
+	for (int K=1; K<=last_rad; K++) {
 		acumFieldTotal += inAcumField[K];
 	}
 	return acumFieldTotal;
@@ -1078,8 +1081,9 @@ REAL HIT::Recalculate_Energy_Cascade(const char* filename) {
 };
 // Calculation of the total kinetic energy of initial velocity field loaded from file (all done by process 0 in Input_Real_Field())
 void HIT::Calculate_Ek_init_file (COMPLEX const * const uk_file, COMPLEX const * const vk_file, COMPLEX const * const wk_file) {
+	printf("WARNING: Before using it, double-check function HIT::Calculate_Ek_init_file()\n");
 	Ek_init_file = 0.0;
-	pseudoEpsilon_init_file = 0.0;
+	Enstrophy_init_file = 0.0;
 	//Sum accross Fourier modes
 	LOOP_3D (a,0,Nx_file, b,0,Ny_file, k3,0,Nz_file/2+1) {
 		int ind = (a*Ny_file+b)*(Nz_file/2+1)+k3;
@@ -1093,12 +1097,13 @@ void HIT::Calculate_Ek_init_file (COMPLEX const * const uk_file, COMPLEX const *
 			REAL Ek_file =  (uk_file[ind][0] * uk_file[ind][0]) + (uk_file[ind][1] * uk_file[ind][1]);
 			Ek_file += (vk_file[ind][0] * vk_file[ind][0]) + (vk_file[ind][1] * vk_file[ind][1]);
 			Ek_file += (wk_file[ind][0] * wk_file[ind][0]) + (wk_file[ind][1] * wk_file[ind][1]);
-			if (conjugate_file) { //Ek = 0.5 * |uk|^2 (conjugate=true => implicit avoided mode and Ek counted twice)
-				Ek_init_file += Ek_file;
-				pseudoEpsilon_init_file += (rad2_file * Ek_file);
+			Ek_file *= 0.5;
+			if (conjugate_file) {
+				Ek_init_file += 2 * Ek_file;
+				Enstrophy_init_file += 2 * (2 * rad2_file * Ek_file);
 			} else {
-				Ek_init_file += (0.5 * Ek_file);
-				pseudoEpsilon_init_file += (rad2_file * 0.5 * Ek_file);
+				Ek_init_file += Ek_file;
+				Enstrophy_init_file += (2 * rad2_file * Ek_file);
 			}
 		}
 	}

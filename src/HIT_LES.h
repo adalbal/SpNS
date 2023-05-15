@@ -149,10 +149,12 @@ class HIT {
 		void Forcing_Energy_Cascade(REAL const * const Forced_Ek, const ptrdiff_t& last_input_rad, const bool& isNullifyMissingEk);
 			// Imposition of correct complex conjugation for k3=0
 			void Complex_Conjugate_Correction();
+		// Calculation of Reynolds lambda
+		REAL Recalculate_Reynolds_Lambda();
 		// Calculation of new kinematic viscosity
 		void Recalculate_Kinematic_Viscosity(const REAL ReLambda);
-			// Calculation of pseudoEpsilon
-			REAL Recalculate_pseudoEpsilon(const char* filename = NULL);
+			// Calculation of Enstrophy
+			REAL Recalculate_Enstrophy(const char* filename = NULL);
 
 		//===================================================
 		// POST-PROCESS
@@ -180,19 +182,20 @@ class HIT {
 		inline const ptrdiff_t& getlast_rad() const;
 		inline const REAL& getnu() const;
 		inline void setnu(const REAL& nu_);
+		inline const REAL& getReLambda() const;
 		inline const REAL& getAt() const;
 		inline const REAL& gettime() const;
 		inline const REAL& getEk_Tot();
 		inline const REAL& getEk_init() const;
 		inline const REAL& getEk_init_file() const;
-		inline const REAL& getpseudoEpsilon_init_file() const; //Actual epsilon = 2*nu*pseudoEpsilon
+		inline const REAL& getEnstrophy_init_file() const; //Actual dissipation: epsilon = nu*Enstrophy
 		inline const REAL& getEk(ptrdiff_t K) const;
 
 	private:
 		FFT_package fftw;
 		const ptrdiff_t ActualNx, ActualNy, ActualNz, ActualMx, ActualMy, ActualMz, Nx, Ny, Nz, Nx_2, Ny_2, Nz_2, Mx, My, Mz, Mx_2, Mz_2, last_rad;
 		const int numprocs, myrank;
-		REAL nu;
+		REAL nu, ReLambda;
 		const REAL delta, C_Smag;
 		const REAL C_At, Ax, Ay, Az; // Any timestep
 		const int Lx_factor, Ly_factor, Lz_factor;
@@ -215,7 +218,7 @@ class HIT {
 		COMPLEX *Rx0_k, *Ry0_k, *Rz0_k, *Rx1_k, *Ry1_k, *Rz1_k;
 		bool *dealiased, *conjugate;
 		REAL *rad2, *local_acumField, *global_acumField, *Ek;
-		REAL Ek_Tot, Ek_init, Ek_init_file, pseudoEpsilon_init_file;
+		REAL Ek_Tot, Ek_init, Ek_init_file, Enstrophy_init_file;
 		int num_dealiased, num_dealiased_real;
 		int *local_n0_, *local_n1_;
 		MPI_Offset offset_Fourier, offset_Real;
@@ -227,7 +230,7 @@ class HIT {
 		int *displs_k3_0, *recvcounts_k3_0;
 		// Complex field integrals
 		std::function<REAL(int a, int b, int k3)> KineticEnergy;
-		std::function<REAL(int a, int b, int k3)> pseudoEpsilon;
+		std::function<REAL(int a, int b, int k3)> Enstrophy;
 	};
 
 //Auxiliary functions related to the calculation of self-adaptive timestep
@@ -263,12 +266,13 @@ const ptrdiff_t& HIT::getNz() const { return Nz;};
 const ptrdiff_t& HIT::getlast_rad() const { return last_rad;};
 const REAL& HIT::getnu() const { return nu;};
 void HIT::setnu(const REAL& nu_) { nu=nu_;};
+const REAL& HIT::getReLambda() const { return ReLambda;};
 const REAL& HIT::getAt() const { return At;};
 const REAL& HIT::gettime() const { return time;};
 const REAL& HIT::getEk_Tot() { return Ek_Tot;};
 const REAL& HIT::getEk_init() const { return Ek_init;};
 const REAL& HIT::getEk_init_file() const { return Ek_init_file;};
-const REAL& HIT::getpseudoEpsilon_init_file() const { return pseudoEpsilon_init_file;};
+const REAL& HIT::getEnstrophy_init_file() const { return Enstrophy_init_file;};
 const REAL& HIT::getEk(ptrdiff_t K) const { return Ek[K];};
 
 #endif // __HIT_LES__

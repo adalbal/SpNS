@@ -323,19 +323,19 @@ int main (int argc, char **argv){
 
 	//If Reynolds lambda is passed, then nu has to be set accordingly
 	if (isReLambda) {
-		REAL Forced_Ek_Tot, Forced_pseudoEpsilon_Tot;
+		REAL Forced_Ek_Tot, Forced_Enstrophy_Tot;
 		if (isForcedEk) {
 			Forced_Ek_Tot = 0.0;
-			Forced_pseudoEpsilon_Tot = 0.0;
+			Forced_Enstrophy_Tot = 0.0;
 			for (int K=1; K<=last_input_rad; K++) { //Forced_Ek[0] assumed to be 0.0
 				Forced_Ek_Tot += Forced_Ek[K];
-				Forced_pseudoEpsilon_Tot += (K * K * Forced_Ek[K]);
+				Forced_Enstrophy_Tot += (2 * K * K * Forced_Ek[K]);
 			}
 		} else {
 			Forced_Ek_Tot = hit.getEk_init_file();
-			Forced_pseudoEpsilon_Tot = hit.getpseudoEpsilon_init_file();
+			Forced_Enstrophy_Tot = hit.getEnstrophy_init_file();
 		}
-		nu = Forced_Ek_Tot / ReLambda * sqrt(10.0 / 3.0 / Forced_pseudoEpsilon_Tot);
+		nu = Forced_Ek_Tot / ReLambda * sqrt(20.0 / 3.0 / Forced_Enstrophy_Tot);
 		hit.setnu(nu);
 		//As it depends on nu, the initial time-step was undefined and needs to be recomputed
 		hit.Recalculate_TimeStep();
@@ -355,6 +355,9 @@ int main (int argc, char **argv){
 			printf("### Smagorinsky constant: %.4f             ###\n", C_Smag);
 		}
 		if (isReLambda) {
+			printf("###------------------------------------------###\n");
+			printf("### Reynolds lambda:  %5.1f                  ###\n", ReLambda);
+		} else {
 			printf("###------------------------------------------###\n");
 			printf("### Kinematic viscosity: %.2e            ###\n", nu);
 		}
@@ -412,13 +415,15 @@ int main (int argc, char **argv){
 #if(QA) //USED FOR QA TESTS
 		if (iter % 10 == 0) {
 			hit.Recalculate_Energy_Cascade();
-			pprintf("Time: %f,    iter: %5d,    Ek: %f\n", hit.gettime(), iter, hit.getEk_Tot());
+			hit.Recalculate_Reynolds_Lambda();
+			pprintf("Time: %f,    iter: %5d,    Ek: %6.3f,    ReLambda: %8.3f\n", hit.gettime(), iter, hit.getEk_Tot(), hit.getReLambda());
 		}
 #endif
 		if (iter % 100 == 0) {
 			hit.Recalculate_Energy_Cascade();
+			hit.Recalculate_Reynolds_Lambda();
 			if (myrank == 0) {
-				printf("Time: %f,    iter: %5d,    Ek: %f\n", hit.gettime(), iter, hit.getEk_Tot());
+				printf("Time: %f,    iter: %5d,    Ek: %6.3f,    ReLambda: %8.3f\n", hit.gettime(), iter, hit.getEk_Tot(), hit.getReLambda());
 			}
 		}
 		//Data output (Energy cascade and Fourier velocity use iter+1 instead of iter because new real velocity is not computed
@@ -469,6 +474,7 @@ int main (int argc, char **argv){
 	}
 	//Terminal print of execution times
 	hit.Recalculate_Energy_Cascade();
+	hit.Recalculate_Reynolds_Lambda();
 	double local_timeTot = ((double) (timeend - timebeg)) / CLOCKS_PER_SEC;
 	double local_timeLoop = ((double) (timeend - timebegloop)) / CLOCKS_PER_SEC;
 	double timeTot = 0.0;
@@ -476,14 +482,28 @@ int main (int argc, char **argv){
 	MPI_Allreduce(&local_timeTot, &timeTot, 1, REAL_MPI, MPI_MAX, MCW);
 	MPI_Allreduce(&local_timeLoop, &timeLoop, 1, REAL_MPI, MPI_MAX, MCW);
 	if (myrank == 0) {
-		printf("\nFinal time: %f\t Final kinetic energy: %f\n", hit.gettime(), hit.getEk_Tot());
-		printf("Number of iterations: %d\t Total execution time: %f\t Main loop time: %f\n", iter, timeTot, timeLoop);
-		printf("TIME/ITERATION: %f\n\n", (timeLoop/iter));
+		printf("\n");
+		printf("Final time-steps: %d\n", iter);
+		printf("Final time:       %f\n", hit.gettime());
+		printf("Final energy:     %f\n", hit.getEk_Tot());
+		printf("Final ReLambda:   %.3f\n", hit.getReLambda());
+		printf("\n");
+		printf("Total time: %f\n", timeTot);
+		printf("Loop time:  %f\n", timeLoop);
+		printf("Time/iter:  %f\n", (timeLoop/iter));
+		printf("\n");
 	}
 #if(QA) //USED FOR QA TESTS
-	pprintf("\nFinal time: %f\t Final kinetic energy: %f\n", hit.gettime(), hit.getEk_Tot());
-	pprintf("Number of iterations: %d\t Total execution time: %f\t Main loop time: %f\n", iter, timeTot, timeLoop);
-	pprintf("TIME/ITERATION: %f\n\n", (timeLoop/iter));
+	pprintf("\n");
+	pprintf("Final time-steps: %d\n", iter);
+	pprintf("Final time:       %f\n", hit.gettime());
+	pprintf("Final energy:     %f\n", hit.getEk_Tot());
+	pprintf("Final ReLambda:   %.3f\n", hit.getReLambda());
+	pprintf("\n");
+	pprintf("Total time: %f\n", timeTot);
+	pprintf("Loop time:  %f\n", timeLoop);
+	pprintf("Time/iter:  %f\n", (timeLoop/iter));
+	pprintf("\n");
 #endif
 
 	//Free memory
