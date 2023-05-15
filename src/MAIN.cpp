@@ -402,11 +402,9 @@ int main (int argc, char **argv){
 		//Force Reynolds lambda
 		if (isReLambda_iter) {
 			if (iter % ReLambda_Freq == 0) {
-				if(!myrank) printf("\nnu: %f -> ", hit.getnu());
 				hit.Recalculate_Kinematic_Viscosity(ReLambda);
 				//Update time-step to new nu
 				hit.Recalculate_TimeStep();
-				if(!myrank) printf("%f\n", hit.getnu());
 			}
 		}
 		//Update of iteration counter
