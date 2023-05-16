@@ -7,7 +7,8 @@
 #include <time.h>
 #include <stdlib.h>
 #include <stdarg.h>
-#include <fftw3-mpi.h>
+
+#include "fftw3-mpi.h"
 
 #include "util.h"
 #include "parser.h"
@@ -403,7 +404,7 @@ int main (int argc, char **argv){
 		hit.New_Fractional_Step_Method();
 		//Update initial dummy viscosity
 		if (iter == 0 && isReLambda && !isForcedEk && !isInitialFieldFromBinaryFile && !isInitialFieldFromASCIIFile) {
-			hit.Recalculate_Kinematic_Viscosity(ReLambda);
+			hit.Forcing_Reynolds_Lambda(ReLambda);
 			hit.Recalculate_TimeStep();
 		}
 		//Force energy cascade
@@ -413,7 +414,7 @@ int main (int argc, char **argv){
 		//Force Reynolds lambda
 		if (isReLambda_iter) {
 			if (iter % ReLambda_Freq == 0) {
-				hit.Recalculate_Kinematic_Viscosity(ReLambda);
+				hit.Forcing_Reynolds_Lambda(ReLambda);
 				//Update time-step to new nu
 				hit.Recalculate_TimeStep();
 			}

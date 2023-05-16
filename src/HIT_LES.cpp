@@ -436,9 +436,9 @@ REAL HIT::Recalculate_Reynolds_Lambda() {
 	ReLambda = Recalculate_Energy_Cascade() / nu * sqrt(20.0 / 3.0 / Recalculate_Enstrophy());
 	return ReLambda;
 };
-// Calculation of new kinematic viscosity
-void HIT::Recalculate_Kinematic_Viscosity(const REAL ReLambda) {
-	nu = Recalculate_Energy_Cascade() / ReLambda * sqrt(20.0 / 3.0 / Recalculate_Enstrophy());
+// Imposition of a given Reynolds lambda
+void HIT::Forcing_Reynolds_Lambda(const REAL ReLambda_) {
+	nu = Recalculate_Energy_Cascade() / ReLambda_ * sqrt(20.0 / 3.0 / Recalculate_Enstrophy());
 };
 REAL HIT::Recalculate_Enstrophy(const char* filename) {
 	return Integrate_Field(filename, Enstrophy);

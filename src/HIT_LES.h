@@ -151,8 +151,8 @@ class HIT {
 			void Complex_Conjugate_Correction();
 		// Calculation of Reynolds lambda
 		REAL Recalculate_Reynolds_Lambda();
-		// Calculation of new kinematic viscosity
-		void Recalculate_Kinematic_Viscosity(const REAL ReLambda);
+		// Imposition of a given Reynolds lambda
+		void Forcing_Reynolds_Lambda(const REAL ReLambda_);
 			// Calculation of Enstrophy
 			REAL Recalculate_Enstrophy(const char* filename = NULL);
 
