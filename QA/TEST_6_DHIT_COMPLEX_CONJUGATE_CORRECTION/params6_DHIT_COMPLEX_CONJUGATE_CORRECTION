@@ -7,10 +7,11 @@ Ny	32
 Nz	32
 
 #### Either kinematic viscosity or Reynolds lambda number has to be fixed
-nu					3.283e-4	### Kinematic viscosity
-#Reynolds_lambda		295.0			### Reynolds lambda
+#nu						3.283e-4	### Kinematic viscosity
+Reynolds_lambda			295.0		### Reynolds lambda
+Reynolds_lambda_Freq	10			### Reynolds lambda forcing frequency. (Omitted/equal to zero => Only force at the beginning of the simulation)
 
-Final_Time	0.5	### Last instant of time to be simulated
+Final_Time	0.01	### Last instant of time to be simulated
 
 
 ################################################
@@ -19,9 +20,9 @@ Final_Time	0.5	### Last instant of time to be simulated
 #### Output of the results obtained:
 ##		Field = 1				=>	Output of Field, at least, at the end of the simulation
 ##		Elsewhere (or omitted)	=>	No output of Field
-Velocity_Physical		1	### Velocity field in physical space
-Velocity_Fourier		1	### Velocity field in Fourier space
-Energy_Cascade			1	### Total kinetic energy in Fourier space for each |k|
+Velocity_Physical		0	### Velocity field in physical space
+Velocity_Fourier		0	### Velocity field in Fourier space
+Energy_Cascade			0	### Total kinetic energy in Fourier space for each |k|
 #### Output frequency in terms of the number of iterations. (Omitted/equal to zero => Output only at the end of the simulation)
 Velocity_Phys_Freq		0
 Velocity_Four_Freq		0

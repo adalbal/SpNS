@@ -331,11 +331,14 @@ int main (int argc, char **argv){
 				Forced_Ek_Tot += Forced_Ek[K];
 				Forced_Enstrophy_Tot += (2 * K * K * Forced_Ek[K]);
 			}
-		} else {
+			nu = Forced_Ek_Tot / ReLambda * sqrt(20.0 / 3.0 / Forced_Enstrophy_Tot);
+		} else if (isInitialFieldFromBinaryFile || isInitialFieldFromASCIIFile) {
 			Forced_Ek_Tot = hit.getEk_init_file();
 			Forced_Enstrophy_Tot = hit.getEnstrophy_init_file();
+			nu = Forced_Ek_Tot / ReLambda * sqrt(20.0 / 3.0 / Forced_Enstrophy_Tot);
+		} else {
+			nu = 1.0e-3;
 		}
-		nu = Forced_Ek_Tot / ReLambda * sqrt(20.0 / 3.0 / Forced_Enstrophy_Tot);
 		hit.setnu(nu);
 		//As it depends on nu, the initial time-step was undefined and needs to be recomputed
 		hit.Recalculate_TimeStep();
@@ -398,6 +401,11 @@ int main (int argc, char **argv){
 	while (hit.gettime() < Final_Time) {
 		//Periodic NS resolution
 		hit.New_Fractional_Step_Method();
+		//Update initial dummy viscosity
+		if (iter == 0 && isReLambda && !isForcedEk && !isInitialFieldFromBinaryFile && !isInitialFieldFromASCIIFile) {
+			hit.Recalculate_Kinematic_Viscosity(ReLambda);
+			hit.Recalculate_TimeStep();
+		}
 		//Force energy cascade
 		if (isForcedEk && (hit.gettime() < Final_Forced_Time)) {
 			hit.Forcing_Energy_Cascade(Forced_Ek, last_input_rad, isNullifyMissingEk);
@@ -413,7 +421,7 @@ int main (int argc, char **argv){
 		//Update of iteration counter
 		iter++;
 #if(QA) //USED FOR QA TESTS
-		if (iter % 10 == 0) {
+		if (iter % 1 == 0) {
 			hit.Recalculate_Energy_Cascade();
 			hit.Recalculate_Reynolds_Lambda();
 			pprintf("Time: %f,    iter: %5d,    Ek: %6.3f,    ReLambda: %8.3f\n", hit.gettime(), iter, hit.getEk_Tot(), hit.getReLambda());
