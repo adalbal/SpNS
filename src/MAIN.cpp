@@ -548,5 +548,5 @@ void Read_Ek_Input_File (const int& Last_K, REAL* Ek_input, const int& dumb_colu
 	}
 
 	//Broadcast energy cascade to all ranks
-	MPI_Bcast(Ek_input, Last_K+1, MPI_REAL, 0, MPI_COMM_WORLD);
+	MPI_Bcast(Ek_input, Last_K+1, REAL_MPI, 0, MPI_COMM_WORLD);
 };
