@@ -11,7 +11,7 @@ nu						3.283e-4	### Kinematic viscosity
 #Reynolds_lambda			295.0		### Reynolds lambda
 #Reynolds_lambda_Freq	50			### Reynolds lambda forcing frequency. (Omitted/equal to zero => Only force at the beginning of the simulation)
 
-Final_Time	0.01	### Last instant of time to be simulated
+Final_Time	0.5	### Last instant of time to be simulated
 
 
 ################################################

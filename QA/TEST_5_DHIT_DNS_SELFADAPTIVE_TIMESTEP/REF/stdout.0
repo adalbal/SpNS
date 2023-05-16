@@ -1,0 +1,189 @@
+FileBuffer: loading params5_DNS_SELFADAPTIVE_TIMESTEP
+                            Nx: 32
+                            Ny: 32
+                            Nz: 32
+               Reynolds_lambda: 295.00
+                    Final_Time: 0.50
+             Velocity_Physical: 0
+              Velocity_Fourier: 0
+                Energy_Cascade: 0
+            Velocity_Phys_Freq: 0
+            Velocity_Four_Freq: 0
+           Energy_Cascade_Freq: 0
+          Velocity_Phys_Folder: OUTPUT
+          Velocity_Four_Folder: OUTPUT
+         Energy_Cascade_Folder: OUTPUT
+                          C_At: 0.50
+          SelfAdaptiveTimestep: 1
+Default used for parameters:
+                            nu: 0.00
+          Reynolds_lambda_Freq: 1040508
+          ASCII_Input_Filename: ºu“ë
+         Binary_Input_Filename: 
+                       Nx_file: 0
+                       Ny_file: 164488
+                       Nz_file: 0
+               InputEkFilename: @ø”ë4
+                        Last_K: 164496
+              Nullify_MissingK: 0
+             Final_Forced_Time: 0.00
+                            Lx: 155648
+                            Ly: 0
+                            Lz: 3
+                       omega_x: 0.00
+                       omega_y: 0.00
+                       omega_z: 0.00
+                        C_Smag: 0.00
+    ComplexConjugateCorrection: 1463800
+
+
+Time: 0.002963,    iter:     1,    Ek:  1.232,    ReLambda:  295.000
+Time: 0.006420,    iter:     2,    Ek:  1.232,    ReLambda:  295.779
+Time: 0.009879,    iter:     3,    Ek:  1.232,    ReLambda:  295.012
+Time: 0.013363,    iter:     4,    Ek:  1.230,    ReLambda:  296.274
+Time: 0.016848,    iter:     5,    Ek:  1.231,    ReLambda:  295.111
+Time: 0.020297,    iter:     6,    Ek:  1.229,    ReLambda:  296.755
+Time: 0.023754,    iter:     7,    Ek:  1.231,    ReLambda:  295.301
+Time: 0.027180,    iter:     8,    Ek:  1.228,    ReLambda:  297.202
+Time: 0.030619,    iter:     9,    Ek:  1.231,    ReLambda:  295.577
+Time: 0.034034,    iter:    10,    Ek:  1.228,    ReLambda:  297.612
+Time: 0.037467,    iter:    11,    Ek:  1.230,    ReLambda:  295.927
+Time: 0.040881,    iter:    12,    Ek:  1.227,    ReLambda:  297.987
+Time: 0.044318,    iter:    13,    Ek:  1.229,    ReLambda:  296.337
+Time: 0.047742,    iter:    14,    Ek:  1.226,    ReLambda:  298.331
+Time: 0.051193,    iter:    15,    Ek:  1.229,    ReLambda:  296.792
+Time: 0.054637,    iter:    16,    Ek:  1.225,    ReLambda:  298.647
+Time: 0.058110,    iter:    17,    Ek:  1.228,    ReLambda:  297.274
+Time: 0.061583,    iter:    18,    Ek:  1.224,    ReLambda:  298.942
+Time: 0.065071,    iter:    19,    Ek:  1.227,    ReLambda:  297.769
+Time: 0.068559,    iter:    20,    Ek:  1.223,    ReLambda:  299.218
+Time: 0.072043,    iter:    21,    Ek:  1.226,    ReLambda:  298.257
+Time: 0.075533,    iter:    22,    Ek:  1.223,    ReLambda:  299.478
+Time: 0.079014,    iter:    23,    Ek:  1.225,    ReLambda:  298.720
+Time: 0.082479,    iter:    24,    Ek:  1.222,    ReLambda:  299.724
+Time: 0.085937,    iter:    25,    Ek:  1.224,    ReLambda:  299.148
+Time: 0.089383,    iter:    26,    Ek:  1.221,    ReLambda:  299.952
+Time: 0.092831,    iter:    27,    Ek:  1.223,    ReLambda:  299.534
+Time: 0.096273,    iter:    28,    Ek:  1.220,    ReLambda:  300.162
+Time: 0.099723,    iter:    29,    Ek:  1.222,    ReLambda:  299.878
+Time: 0.103171,    iter:    30,    Ek:  1.219,    ReLambda:  300.352
+Time: 0.106634,    iter:    31,    Ek:  1.221,    ReLambda:  300.177
+Time: 0.110100,    iter:    32,    Ek:  1.218,    ReLambda:  300.520
+Time: 0.113585,    iter:    33,    Ek:  1.220,    ReLambda:  300.434
+Time: 0.117077,    iter:    34,    Ek:  1.218,    ReLambda:  300.666
+Time: 0.120593,    iter:    35,    Ek:  1.219,    ReLambda:  300.647
+Time: 0.124119,    iter:    36,    Ek:  1.217,    ReLambda:  300.787
+Time: 0.127671,    iter:    37,    Ek:  1.218,    ReLambda:  300.818
+Time: 0.131234,    iter:    38,    Ek:  1.216,    ReLambda:  300.882
+Time: 0.134805,    iter:    39,    Ek:  1.216,    ReLambda:  300.949
+Time: 0.138350,    iter:    40,    Ek:  1.215,    ReLambda:  300.951
+Time: 0.141876,    iter:    41,    Ek:  1.215,    ReLambda:  301.041
+Time: 0.145384,    iter:    42,    Ek:  1.214,    ReLambda:  300.993
+Time: 0.148879,    iter:    43,    Ek:  1.214,    ReLambda:  301.095
+Time: 0.152362,    iter:    44,    Ek:  1.213,    ReLambda:  301.010
+Time: 0.155839,    iter:    45,    Ek:  1.213,    ReLambda:  301.116
+Time: 0.159311,    iter:    46,    Ek:  1.212,    ReLambda:  301.003
+Time: 0.162784,    iter:    47,    Ek:  1.212,    ReLambda:  301.106
+Time: 0.166257,    iter:    48,    Ek:  1.211,    ReLambda:  300.973
+Time: 0.169737,    iter:    49,    Ek:  1.211,    ReLambda:  301.068
+Time: 0.173223,    iter:    50,    Ek:  1.210,    ReLambda:  300.923
+Time: 0.176720,    iter:    51,    Ek:  1.211,    ReLambda:  301.006
+Time: 0.180229,    iter:    52,    Ek:  1.209,    ReLambda:  300.851
+Time: 0.183753,    iter:    53,    Ek:  1.210,    ReLambda:  300.920
+Time: 0.187293,    iter:    54,    Ek:  1.209,    ReLambda:  300.759
+Time: 0.190848,    iter:    55,    Ek:  1.209,    ReLambda:  300.813
+Time: 0.194403,    iter:    56,    Ek:  1.208,    ReLambda:  300.646
+Time: 0.197966,    iter:    57,    Ek:  1.208,    ReLambda:  300.685
+Time: 0.201535,    iter:    58,    Ek:  1.207,    ReLambda:  300.513
+Time: 0.205117,    iter:    59,    Ek:  1.206,    ReLambda:  300.536
+Time: 0.208708,    iter:    60,    Ek:  1.206,    ReLambda:  300.360
+Time: 0.212310,    iter:    61,    Ek:  1.205,    ReLambda:  300.366
+Time: 0.215894,    iter:    62,    Ek:  1.205,    ReLambda:  300.184
+Time: 0.219465,    iter:    63,    Ek:  1.204,    ReLambda:  300.178
+Time: 0.223026,    iter:    64,    Ek:  1.204,    ReLambda:  299.990
+Time: 0.226581,    iter:    65,    Ek:  1.203,    ReLambda:  299.970
+Time: 0.230131,    iter:    66,    Ek:  1.203,    ReLambda:  299.775
+Time: 0.233683,    iter:    67,    Ek:  1.202,    ReLambda:  299.742
+Time: 0.237235,    iter:    68,    Ek:  1.202,    ReLambda:  299.539
+Time: 0.240795,    iter:    69,    Ek:  1.201,    ReLambda:  299.491
+Time: 0.244361,    iter:    70,    Ek:  1.201,    ReLambda:  299.281
+Time: 0.247939,    iter:    71,    Ek:  1.200,    ReLambda:  299.217
+Time: 0.251528,    iter:    72,    Ek:  1.200,    ReLambda:  299.000
+Time: 0.255132,    iter:    73,    Ek:  1.199,    ReLambda:  298.921
+Time: 0.258737,    iter:    74,    Ek:  1.199,    ReLambda:  298.696
+Time: 0.262344,    iter:    75,    Ek:  1.198,    ReLambda:  298.602
+Time: 0.265947,    iter:    76,    Ek:  1.198,    ReLambda:  298.372
+Time: 0.269556,    iter:    77,    Ek:  1.197,    ReLambda:  298.265
+Time: 0.273168,    iter:    78,    Ek:  1.197,    ReLambda:  298.029
+Time: 0.276790,    iter:    79,    Ek:  1.196,    ReLambda:  297.909
+Time: 0.280420,    iter:    80,    Ek:  1.196,    ReLambda:  297.666
+Time: 0.284044,    iter:    81,    Ek:  1.195,    ReLambda:  297.534
+Time: 0.287657,    iter:    82,    Ek:  1.195,    ReLambda:  297.290
+Time: 0.291261,    iter:    83,    Ek:  1.194,    ReLambda:  297.147
+Time: 0.294860,    iter:    84,    Ek:  1.194,    ReLambda:  296.901
+Time: 0.298458,    iter:    85,    Ek:  1.193,    ReLambda:  296.749
+Time: 0.302057,    iter:    86,    Ek:  1.193,    ReLambda:  296.502
+Time: 0.305661,    iter:    87,    Ek:  1.192,    ReLambda:  296.339
+Time: 0.309274,    iter:    88,    Ek:  1.192,    ReLambda:  296.091
+Time: 0.312896,    iter:    89,    Ek:  1.191,    ReLambda:  295.919
+Time: 0.316533,    iter:    90,    Ek:  1.191,    ReLambda:  295.670
+Time: 0.320184,    iter:    91,    Ek:  1.190,    ReLambda:  295.488
+Time: 0.323849,    iter:    92,    Ek:  1.190,    ReLambda:  295.237
+Time: 0.327511,    iter:    93,    Ek:  1.189,    ReLambda:  295.047
+Time: 0.331173,    iter:    94,    Ek:  1.189,    ReLambda:  294.798
+Time: 0.334832,    iter:    95,    Ek:  1.188,    ReLambda:  294.600
+Time: 0.338489,    iter:    96,    Ek:  1.188,    ReLambda:  294.354
+Time: 0.342145,    iter:    97,    Ek:  1.187,    ReLambda:  294.149
+Time: 0.345803,    iter:    98,    Ek:  1.187,    ReLambda:  293.905
+Time: 0.349465,    iter:    99,    Ek:  1.186,    ReLambda:  293.694
+Time: 0.353133,    iter:   100,    Ek:  1.186,    ReLambda:  293.451
+Time: 0.356808,    iter:   101,    Ek:  1.185,    ReLambda:  293.234
+Time: 0.360492,    iter:   102,    Ek:  1.185,    ReLambda:  292.991
+Time: 0.364180,    iter:   103,    Ek:  1.184,    ReLambda:  292.767
+Time: 0.367868,    iter:   104,    Ek:  1.183,    ReLambda:  292.525
+Time: 0.371560,    iter:   105,    Ek:  1.183,    ReLambda:  292.298
+Time: 0.375259,    iter:   106,    Ek:  1.182,    ReLambda:  292.055
+Time: 0.378969,    iter:   107,    Ek:  1.182,    ReLambda:  291.823
+Time: 0.382692,    iter:   108,    Ek:  1.181,    ReLambda:  291.578
+Time: 0.386433,    iter:   109,    Ek:  1.181,    ReLambda:  291.341
+Time: 0.390186,    iter:   110,    Ek:  1.180,    ReLambda:  291.094
+Time: 0.393931,    iter:   111,    Ek:  1.180,    ReLambda:  290.853
+Time: 0.397668,    iter:   112,    Ek:  1.179,    ReLambda:  290.606
+Time: 0.401399,    iter:   113,    Ek:  1.179,    ReLambda:  290.363
+Time: 0.405126,    iter:   114,    Ek:  1.178,    ReLambda:  290.117
+Time: 0.408850,    iter:   115,    Ek:  1.178,    ReLambda:  289.872
+Time: 0.412575,    iter:   116,    Ek:  1.177,    ReLambda:  289.626
+Time: 0.416298,    iter:   117,    Ek:  1.176,    ReLambda:  289.378
+Time: 0.420021,    iter:   118,    Ek:  1.176,    ReLambda:  289.132
+Time: 0.423742,    iter:   119,    Ek:  1.175,    ReLambda:  288.882
+Time: 0.427461,    iter:   120,    Ek:  1.175,    ReLambda:  288.635
+Time: 0.431182,    iter:   121,    Ek:  1.174,    ReLambda:  288.384
+Time: 0.434908,    iter:   122,    Ek:  1.174,    ReLambda:  288.136
+Time: 0.438639,    iter:   123,    Ek:  1.173,    ReLambda:  287.882
+Time: 0.442380,    iter:   124,    Ek:  1.173,    ReLambda:  287.632
+Time: 0.446133,    iter:   125,    Ek:  1.172,    ReLambda:  287.376
+Time: 0.449899,    iter:   126,    Ek:  1.171,    ReLambda:  287.123
+Time: 0.453683,    iter:   127,    Ek:  1.171,    ReLambda:  286.863
+Time: 0.457486,    iter:   128,    Ek:  1.170,    ReLambda:  286.606
+Time: 0.461300,    iter:   129,    Ek:  1.170,    ReLambda:  286.343
+Time: 0.465106,    iter:   130,    Ek:  1.169,    ReLambda:  286.083
+Time: 0.468908,    iter:   131,    Ek:  1.169,    ReLambda:  285.820
+Time: 0.472709,    iter:   132,    Ek:  1.168,    ReLambda:  285.557
+Time: 0.476501,    iter:   133,    Ek:  1.168,    ReLambda:  285.293
+Time: 0.480286,    iter:   134,    Ek:  1.167,    ReLambda:  285.030
+Time: 0.484064,    iter:   135,    Ek:  1.166,    ReLambda:  284.765
+Time: 0.487841,    iter:   136,    Ek:  1.166,    ReLambda:  284.499
+Time: 0.491618,    iter:   137,    Ek:  1.165,    ReLambda:  284.232
+Time: 0.495398,    iter:   138,    Ek:  1.165,    ReLambda:  283.963
+Time: 0.499184,    iter:   139,    Ek:  1.164,    ReLambda:  283.693
+Time: 0.502981,    iter:   140,    Ek:  1.164,    ReLambda:  283.420
+
+Final time-steps: 140
+Final time:       0.502981
+Final energy:     1.163619
+Final ReLambda:   283.420
+
+Total time: 1.114791
+Loop time:  0.858397
+Time/iter:  0.006131
+

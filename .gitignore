@@ -31,5 +31,9 @@
 *.out
 *.app
 
-# Other
+# VIM
 *.swp
+
+# QA
+stdout.*
+!QA/TEST*/REF/*
