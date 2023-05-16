@@ -450,19 +450,40 @@ REAL HIT::Recalculate_Enstrophy(const char* filename) {
 
 // Initialization of velocity field in Fourier space using K41 distibution |k|^{-5/3}
 void HIT::Input_K41_Field() {
+	//Set random velocity field in Fourier space
+	srand(0); //Set fixed seed
 	LOOP_FOURIER {
-		if (dealiased[ind]) {
-			uk_1[ind][0] = ((rad2[ind]>0.0) ? pow(rad2[ind], -5.0/6.0) : 0.0);  uk_1[ind][1] = 0.0;
-			vk_1[ind][0] = ((rad2[ind]>0.0) ? pow(rad2[ind], -5.0/6.0) : 0.0);  vk_1[ind][1] = 0.0;
-			wk_1[ind][0] = ((rad2[ind]>0.0) ? pow(rad2[ind], -5.0/6.0) : 0.0);  wk_1[ind][1] = 0.0;
-		} else { //Aliased terms
-			uk_1[ind][0] = 0.0;  uk_1[ind][1] = 0.0;
-			vk_1[ind][0] = 0.0;  vk_1[ind][1] = 0.0;
-			wk_1[ind][0] = 0.0;  wk_1[ind][1] = 0.0;
+		for (int ic=0; ic<=1; ic++) { //ic=0 => Real part, ic=1 => Imaginary part
+			if (dealiased[ind]) {
+				int K = static_cast<int>(round(sqrt(rad2[ind])));
+				//As K41 is not forced to them, set to 0 velocities with K>last_rad
+				if (K<=last_rad) {
+					uk_1[ind][ic] = (((REAL)rand()/RAND_MAX)*2.0 - 1.0);
+					vk_1[ind][ic] = (((REAL)rand()/RAND_MAX)*2.0 - 1.0);
+					wk_1[ind][ic] = (((REAL)rand()/RAND_MAX)*2.0 - 1.0);
+				} else {
+					uk_1[ind][ic] = 0.0;
+					vk_1[ind][ic] = 0.0;
+					wk_1[ind][ic] = 0.0;
+				}
+			} else { //Aliased terms
+				uk_1[ind][ic] = 0.0;
+				vk_1[ind][ic] = 0.0;
+				wk_1[ind][ic] = 0.0;
+			}
 		}
 	}
+	//Initialize K41 energy cascade
+	REAL *K41_Ek = alloc_real(last_rad+1);
+	K41_Ek[0] = 0.0; //Dummy case
+	for (int K=1; K<=last_rad; K++) {
+		K41_Ek[K] = pow(K, -5.0/3.0);
+	}
+	//Force K41 energy cascade
+	Forcing_Energy_Cascade(K41_Ek, last_rad, false);
+	//Free of mallocated memory
+	FREE(K41_Ek);
 };
-
 // Initialization of velocity field in Fourier space from an input file containing velocities in Fourier space
 void HIT::Input_Real_Field() {
 	//Create pointers for Fourier-space velocity
@@ -869,43 +890,7 @@ void HIT::HIT_init() {
 	FREE(offset_Real_);
 
 	//===================================================
-	// 3. Initial velocity field
-	//===================================================
-	if(isInitialFieldFromBinaryFile || isInitialFieldFromASCIIFile) {
-		//Input velocity (it needs to be after initialization of *dealiased)
-		Input_Real_Field();
-	} else {
-		Input_K41_Field();
-	}
-
-	//Trivial initial distribution of R vector
-	for (int ind=0; ind<local_n1*Mx*(Mz_2+1); ind++) {
-		for (int ic=0; ic<=1; ic++){ //ic=0 => Real part, ic=1 => Imaginary part
-			Rx1_k[ind][ic] = 0.0;
-			Ry1_k[ind][ic] = 0.0;
-			Rz1_k[ind][ic] = 0.0;
-//			uk_0[ind][ic] = 0.0;
-//			vk_0[ind][ic] = 0.0;
-//			wk_0[ind][ic] = 0.0;
-		}
-	}
-
-	//Lambda function computing the kinetic energy of (a,b,k3)
-	KineticEnergy = [&](int a, int b, int k3)->REAL{
-		int ind = (b*Mx+a)*(Mz_2+1)+k3;
-		return 0.5 * (uk_1[ind][0]*uk_1[ind][0] + uk_1[ind][1]*uk_1[ind][1] +
-					  vk_1[ind][0]*vk_1[ind][0] + vk_1[ind][1]*vk_1[ind][1] +
-					  wk_1[ind][0]*wk_1[ind][0] + wk_1[ind][1]*wk_1[ind][1]);
-	};
-	//Lambda function computing the Enstrophy of (a,b,k3)
-	//Enstrophy = 2 * k^2 * E(k) = k^2 * ukxyz^2
-	Enstrophy = [&](int a, int b, int k3)->REAL{
-		int ind = (b*Mx+a)*(Mz_2+1)+k3;
-		return 2 * rad2[ind] * KineticEnergy(a, b, k3);
-	};
-
-	//===================================================
-	// 4.1 LES MEMORY ALLOCATION
+	// 3. LES MEMORY ALLOCATION
 	//===================================================
 	if (isLES) {
 		// double*
@@ -929,7 +914,7 @@ void HIT::HIT_init() {
 	}
 
 	//===================================================
-	// 4.2 COMPLEX CONJUGATE CORRECTION
+	// 4. COMPLEX CONJUGATE CORRECTION
 	//===================================================
 	if (isComplexConjugateCorrected) {
 		// COMPLEX*
@@ -955,7 +940,44 @@ void HIT::HIT_init() {
 	}
 
 	//===================================================
-	// 4.3 TIMESTEP
+	// 5. LAMBDA FUNCTIONS TO INTEGRATE FIELDS
+	//===================================================
+	//Kinetic energy of (a,b,k3)
+	KineticEnergy = [&](int a, int b, int k3)->REAL{
+		int ind = (b*Mx+a)*(Mz_2+1)+k3;
+		return 0.5 * (uk_1[ind][0]*uk_1[ind][0] + uk_1[ind][1]*uk_1[ind][1] +
+					  vk_1[ind][0]*vk_1[ind][0] + vk_1[ind][1]*vk_1[ind][1] +
+					  wk_1[ind][0]*wk_1[ind][0] + wk_1[ind][1]*wk_1[ind][1]);
+	};
+
+	//Enstrophy of (a,b,k3)
+	//Enstrophy = 2 * k^2 * E(k) = k^2 * ukxyz^2
+	Enstrophy = [&](int a, int b, int k3)->REAL{
+		int ind = (b*Mx+a)*(Mz_2+1)+k3;
+		return 2 * rad2[ind] * KineticEnergy(a, b, k3);
+	};
+
+	//===================================================
+	// 6. INITIAL VELOCITY FIELD
+	//===================================================
+	if(isInitialFieldFromBinaryFile || isInitialFieldFromASCIIFile) {
+		//Input velocity (it needs to be after initialization of *dealiased)
+		Input_Real_Field();
+	} else {
+		Input_K41_Field();
+	}
+
+	//Trivial initial distribution of R vector
+	for (int ind=0; ind<local_n1*Mx*(Mz_2+1); ind++) {
+		for (int ic=0; ic<=1; ic++){ //ic=0 => Real part, ic=1 => Imaginary part
+			Rx1_k[ind][ic] = 0.0;
+			Ry1_k[ind][ic] = 0.0;
+			Rz1_k[ind][ic] = 0.0;
+		}
+	}
+
+	//===================================================
+	// 7. TIMESTEP
 	//===================================================
 	if (isSelfAdaptive) {
 		//Related constants:
@@ -1062,8 +1084,7 @@ REAL HIT::Integrate_Field(const char* filename, std::function<REAL(int a, int b,
 		std::ofstream outFile(filename);
 		if (!outFile.is_open()) printf("WARNING: HIT::Integrate_Field(): Error opening \"%s\".\n", filename);
 		for (int K=1; K<=last_rad; K++) {
-			//outFile << K << " " << inAcumField[K] << "\n";
-			outFile << inAcumField[K] << "\n";
+			outFile << K << "\t" << inAcumField[K] << "\n";
 		}
 		outFile.close();
 	}
