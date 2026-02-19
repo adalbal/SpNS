@@ -4,18 +4,13 @@
 start_time=$(date +%s)
 
 # Run QA tests
-for X in `ls -d TEST_*` ; do 
+for X in `ls -d TEST_*` ; do
   cd $X
-  echo $X 
+  echo $X
 
-  rm -rf OUTPUT/*
-  rm -rf slurm* stdout* output*
+  rm -rf stdout*
 
-  if which sbatch >/dev/null; then
-    sbatch runit.cmd
-  else
-    bash runit.cmd
-  fi
+  mpirun -np 4 ../../build/a.out params*
 
   cd ..
 done
@@ -27,4 +22,4 @@ end_time=$(date +%s)
 elapsed_time=$((end_time - start_time))
 
 # Print the total execution time
-echo -e "\nQA TOTAL EXECUTION TIME: $elapsed_time seconds\n\n"
+echo -e "\nQA TOTAL EXECUTION TIME: $elapsed_time seconds\n"
