@@ -16,6 +16,9 @@
 
 using namespace std;
 
+extern double tlastprint;
+extern double tcurrprint;
+
 //=====================================================================================================================
 // Input functions
 //=====================================================================================================================
@@ -44,7 +47,7 @@ int main (int argc, char **argv){
 	//------------
 	//OPTIONAL:
 	//Outputting obtained results
-	char VelPhysfolder[256], VelFourfolder[256], Ekfolder[256];
+	char VelPhysfolder[256], VelFourfolder[256], Ekfolder[256], Yottafolder[256];
 	int Velocity_Physical, Velocity_Fourier, Energy_Cascade;  // (1:Output field / elsewhere:No output of the field)
 	int Velocity_Phys_Freq, Velocity_Four_Freq, Energy_Cascade_Freq; // Output frequency (in terms of iteration number)
 	//Inputting velocity in phycical space from file
@@ -75,6 +78,10 @@ int main (int argc, char **argv){
 	char VelPhysfilename[512];
 	char VelFourfilename[512];
 	char Ekfilename[512];
+	char Yottafilename[512];
+	const char** invariantsFilename = new const char*[5];
+	for(int coord=0; coord<5; coord++) invariantsFilename[coord] = new char[512];
+	const char* invariantsTag[5] = {"QG", "QS", "RG", "RS", "V2"};
 	//Output files can be easily stored in folders modifying base_* variables
 	const string base_VelPhysfilename = "Velocity";
 	const string base_VelFourfilename = "Velocity_Fourier";
@@ -143,6 +150,7 @@ int main (int argc, char **argv){
 		PM.RequestParameter(VelPhysfolder,"Velocity_Phys_Folder",TYPE_WORD,IO_DONTCRASH);
 		PM.RequestParameter(VelFourfolder,"Velocity_Four_Folder",TYPE_WORD,IO_DONTCRASH);
 		PM.RequestParameter(Ekfolder,"Energy_Cascade_Folder",TYPE_WORD,IO_DONTCRASH);
+		PM.RequestParameter(Yottafolder,"Yotta_Folder",TYPE_WORD,IO_DONTCRASH);
 
 		PM.RequestParameter(ASCII_Input_Filename,"ASCII_Input_Filename",TYPE_WORD,IO_DONTCRASH);
 		PM.RequestParameter(Binary_Input_Filename,"Binary_Input_Filename",TYPE_WORD,IO_DONTCRASH);
@@ -301,6 +309,7 @@ int main (int argc, char **argv){
 			isEkOut = true;
 			isEkOut_iter = ((PM["Energy_Cascade_Freq"].GetIsSet() && (Energy_Cascade_Freq > 0)) ? true : false);
 			if (!PM["Energy_Cascade_Folder"].GetIsSet()) snprintf(Ekfolder , 256, ".");
+			if (!PM["Yotta_Folder"].GetIsSet()) snprintf(Ekfolder , 256, ".");
 		} else {
 			isEkOut = false;
 			isEkOut_iter = false;
@@ -414,9 +423,11 @@ int main (int argc, char **argv){
 		//Force Reynolds lambda
 		if (isReLambda_iter) {
 			if (iter % ReLambda_Freq == 0) {
+				if(!myrank) printf("\nnu: %f -> ", hit.getnu());
 				hit.Forcing_Reynolds_Lambda(ReLambda);
 				//Update time-step to new nu
 				hit.Recalculate_TimeStep();
+				if(!myrank) printf("%f\n", hit.getnu());
 			}
 		}
 		//Update of iteration counter
@@ -440,21 +451,47 @@ int main (int argc, char **argv){
 		//Thus, in order that all output fields correspond to the same iteration, this modification has to be made)
 		if (isEkOut_iter) {
 			if ((iter+1) % Energy_Cascade_Freq == 0) {
-				snprintf(Ekfilename, 512, "%s/%s_%d.%s", Ekfolder, base_Ekfilename.c_str(), Ek_file_iter, ASCII_fileformat.c_str());
+				//update printing times
+				tlastprint = tcurrprint;
+				tcurrprint = hit.gettime();
+
+				if (myrank == 0) printf("iter: %6d, snapshot: %d, tlastprint: %f, tcurrprint: %f, Dtprint: %f\n", iter, Ek_file_iter, tlastprint,tcurrprint,tcurrprint-tlastprint);
+
+				snprintf(Ekfilename, 512, "%s/%s_%08d.%s", Ekfolder, base_Ekfilename.c_str(), Ek_file_iter, ASCII_fileformat.c_str());
 				hit.Recalculate_Energy_Cascade(Ekfilename); //must be called from all ranks
+
+				// Yotta stuff
+				for(int coord=0; coord<5; coord++) {
+					snprintf(Yottafilename, 512, "%s/%s_%08d.%s", Yottafolder, invariantsTag[coord], Ek_file_iter, ASCII_fileformat.c_str());
+					strcpy(const_cast<char*>(invariantsFilename[coord]), Yottafilename);
+				}
+				hit.Recalculate_Invariants_Distribution(invariantsFilename); //must be called from all ranks
+
+				snprintf(Yottafilename, 512, "%s/%s_%08d.%s", Yottafolder, "Poisson_Residual", Ek_file_iter, ASCII_fileformat.c_str());
+				hit.Recalculate_Residual_Distribution(Yottafilename); //must be called from all ranks
+
+				snprintf(Yottafilename, 512, "%s/%s_%08d.%s", Yottafolder, "Div_Pred_Vel", Ek_file_iter, ASCII_fileformat.c_str());
+				hit.Recalculate_RHS_Distribution(Yottafilename); //must be called from all ranks
+
+				snprintf(Yottafilename, 512, "%s/%s_%08d.%s", Yottafolder, "Pred_Energy_Cascade", Ek_file_iter, ASCII_fileformat.c_str());
+				hit.Recalculate_Predictor_Energy_Cascade(Yottafilename); //must be called from all ranks
+
+				snprintf(Yottafilename, 512, "%s/%s_%08d.%s", Yottafolder, "p", Ek_file_iter, ASCII_fileformat.c_str());
+				hit.Recalculate_Pressure_Distribution(Yottafilename); //must be called from all ranks
+
 				Ek_file_iter++;
 			}
 		}
 		if (isVelFourOut_iter) {
 			if ((iter+1) % Velocity_Four_Freq == 0) {
-				snprintf(VelFourfilename, 512, "%s/%s_%d.%s", VelFourfolder, base_VelFourfilename.c_str(), VelFour_file_iter, Binary_fileformat.c_str());
+				snprintf(VelFourfilename, 512, "%s/%s_%08d.%s", VelFourfolder, base_VelFourfilename.c_str(), VelFour_file_iter, Binary_fileformat.c_str());
 				hit.FourierVelocity_to_BinaryFile(VelFourfilename); //must be called from all ranks
 				VelFour_file_iter++;
 			}
 		}
 		if (isVelPhysOut_iter) {
 			if (iter % Velocity_Phys_Freq == 0) {
-				snprintf(VelPhysfilename, 512, "%s/%s_%d.%s", VelPhysfolder, base_VelPhysfilename.c_str(), VelPhys_file_iter, Binary_fileformat.c_str());
+				snprintf(VelPhysfilename, 512, "%s/%s_%08d.%s", VelPhysfolder, base_VelPhysfilename.c_str(), VelPhys_file_iter, Binary_fileformat.c_str());
 				hit.RealVelocity_to_BinaryFile(VelPhysfilename); //must be called from all ranks
 				VelPhys_file_iter++;
 			}
@@ -469,6 +506,25 @@ int main (int argc, char **argv){
 	if (isEkOut) {
 		snprintf(Ekfilename, 512, "%s/%s.%s", Ekfolder, base_Ekfilename.c_str(), ASCII_fileformat.c_str());
 		hit.Recalculate_Energy_Cascade(Ekfilename);
+
+		// Yotta stuff
+		for(int coord=0; coord<5; coord++) {
+			snprintf(Yottafilename, 512, "%s/%s.%s", Yottafolder, invariantsTag[coord], ASCII_fileformat.c_str());
+			strcpy(const_cast<char*>(invariantsFilename[coord]), Yottafilename);
+		}
+		hit.Recalculate_Invariants_Distribution(invariantsFilename); //must be called from all ranks
+
+		snprintf(Yottafilename, 512, "%s/%s.%s", Yottafolder, "Poisson_Residual", ASCII_fileformat.c_str());
+		hit.Recalculate_Residual_Distribution(Yottafilename); //must be called from all ranks
+
+		snprintf(Yottafilename, 512, "%s/%s.%s", Yottafolder, "Div_Pred_Vel", ASCII_fileformat.c_str());
+		hit.Recalculate_RHS_Distribution(Yottafilename); //must be called from all ranks
+
+		snprintf(Yottafilename, 512, "%s/%s.%s", Yottafolder, "Pred_Energy_Cascade", ASCII_fileformat.c_str());
+		hit.Recalculate_Predictor_Energy_Cascade(Yottafilename); //must be called from all ranks
+
+		snprintf(Yottafilename, 512, "%s/%s.%s", Yottafolder, "p", ASCII_fileformat.c_str());
+		hit.Recalculate_Pressure_Distribution(Yottafilename); //must be called from all ranks
 	}
 	//Output of velocity Fourier coefficients (binary)
 	if (isVelFourOut) {

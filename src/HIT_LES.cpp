@@ -2,6 +2,10 @@
 
 int iter = 0;
 
+double tlastprint = 0.0;
+double tcurrprint = 0.0;
+
+
 //=====================================================================================================================
 // FRACTIONAL STEP METHOD
 //=====================================================================================================================
@@ -300,6 +304,29 @@ void HIT::Recalculate_Predictor_Velocity_Fourier_Coefficients() {
 
 // Divergence-free projection of predictor velocity (result of substracting the gradient of pseudo-pressure -> operator (k^t·k)/(k·k))
 void HIT::Recalculate_Divergence_Free_Projection() {
+	//Keep predictor velocity (upk,vpk,wpk)
+	memcpy(upk, uk_1, sizeof(COMPLEX) * alloc_local);
+	memcpy(vpk, vk_1, sizeof(COMPLEX) * alloc_local);
+	memcpy(wpk, wk_1, sizeof(COMPLEX) * alloc_local);
+	//Poisson's RHS calculation:
+	//Old RHS: RHSk_0 = RHSk_1
+	//New RHS: RHSk_1 = (i*k1*uk_1 + i*k2*vk_1 + i*k3*wk_1)/At
+	memcpy(RHSk_0, RHSk_1, sizeof(COMPLEX) * alloc_local);
+	LOOP_FOURIER_k1k2k3{ //Predictor velocity divergence in Fourier space
+		if (dealiased[ind]) {
+			RHSk_1[ind][0]  = - k1 * uk_1[ind][1] - k2 * vk_1[ind][1] - k3 * wk_1[ind][1];
+			RHSk_1[ind][1]  =   k1 * uk_1[ind][0] + k2 * vk_1[ind][0] + k3 * wk_1[ind][0];
+			RHSk_1[ind][0] /= At;
+			RHSk_1[ind][1] /= At;
+		} else { //For de-aliasing purposes
+			for (int coord=0; coord<3; coord++) {
+				for (int ic=0; ic<=1; ic++){ //ic=0 => Real part, ic=1 => Imaginary part
+					RHSk_1[ind][ic] = 0.0;
+				}
+			}
+		}
+	}
+
 	REAL aux;
 	//Projection of Predictor velocity and calculation of uk_n+1 (stored in ukxyz_1 replacing predictor velocity)
 	LOOP_FOURIER_k1k2k3 {
@@ -741,6 +768,16 @@ void HIT::HIT_init() {
 	local_acumField = alloc_real(last_rad+1);
 	global_acumField = alloc_real(last_rad+1);
 	Ek = alloc_real(last_rad+1);
+	// Yotta stuff
+	for(int coord=0; coord<5; coord++) {
+		invG[coord] = alloc_real(2*alloc_local);
+		invGk[coord] = alloc_complex(alloc_local);
+	}
+	RHSk_0 = alloc_complex(alloc_local);
+	RHSk_1 = alloc_complex(alloc_local);
+	upk = alloc_complex(alloc_local);
+	vpk = alloc_complex(alloc_local);
+	wpk = alloc_complex(alloc_local);
 	// COMPLEX*
 	uk_aux = alloc_complex(alloc_local);
 	vk_aux = alloc_complex(alloc_local);
@@ -957,6 +994,51 @@ void HIT::HIT_init() {
 		return 2 * rad2[ind] * KineticEnergy(a, b, k3);
 	};
 
+	//Yotta stuff
+	GradientInvariants[0] = [&](int a, int b, int k3)->REAL{
+		int ind = (b*Mx+a)*(Mz_2+1)+k3;
+		return invGk[0][ind][0]*invGk[0][ind][0] + invGk[0][ind][1]*invGk[0][ind][1];
+	};
+	GradientInvariants[1] = [&](int a, int b, int k3)->REAL{
+		int ind = (b*Mx+a)*(Mz_2+1)+k3;
+		return invGk[1][ind][0]*invGk[1][ind][0] + invGk[1][ind][1]*invGk[1][ind][1];
+	};
+	GradientInvariants[2] = [&](int a, int b, int k3)->REAL{
+		int ind = (b*Mx+a)*(Mz_2+1)+k3;
+		return invGk[2][ind][0]*invGk[2][ind][0] + invGk[2][ind][1]*invGk[2][ind][1];
+	};
+	GradientInvariants[3] = [&](int a, int b, int k3)->REAL{
+		int ind = (b*Mx+a)*(Mz_2+1)+k3;
+		return invGk[3][ind][0]*invGk[3][ind][0] + invGk[3][ind][1]*invGk[3][ind][1];
+	};
+	GradientInvariants[4] = [&](int a, int b, int k3)->REAL{
+		int ind = (b*Mx+a)*(Mz_2+1)+k3;
+		return invGk[4][ind][0]*invGk[4][ind][0] + invGk[4][ind][1]*invGk[4][ind][1];
+	};
+	PoissonResidual = [&](int a, int b, int k3)->REAL{
+		int ind = (b*Mx+a)*(Mz_2+1)+k3;
+		REAL res_real = RHSk_0[ind][0] - RHSk_1[ind][0];
+		REAL res_imag = RHSk_0[ind][1] - RHSk_1[ind][1];
+		return res_real*res_real + res_imag*res_imag;
+	};
+	PoissonRHS = [&](int a, int b, int k3)->REAL{
+		int ind = (b*Mx+a)*(Mz_2+1)+k3;
+		return RHSk_1[ind][0]*RHSk_1[ind][0] + RHSk_1[ind][1]*RHSk_1[ind][1];
+	};
+	PredictorEnergy = [&](int a, int b, int k3)->REAL{
+		int ind = (b*Mx+a)*(Mz_2+1)+k3;
+		return upk[ind][0]*upk[ind][0] + upk[ind][1]*upk[ind][1] +
+			   vpk[ind][0]*vpk[ind][0] + vpk[ind][1]*vpk[ind][1] +
+			   wpk[ind][0]*wpk[ind][0] + wpk[ind][1]*wpk[ind][1];
+	};
+	PressureField = [&](int a, int b, int k3)->REAL{
+		int ind = (b*Mx+a)*(Mz_2+1)+k3;
+		REAL p_real = ((rad2[ind]>0) ? (-RHSk_1[ind][0]/rad2[ind]) : 0.0);
+		REAL p_imag = ((rad2[ind]>0) ? (-RHSk_1[ind][1]/rad2[ind]) : 0.0);
+		//TODO: Confirm if Recalculate_Pressure_Distribution() is called after Recalculate_timestep()
+		return (p_real * p_real) + (p_imag * p_imag);
+	};
+
 	//===================================================
 	// 6. INITIAL VELOCITY FIELD
 	//===================================================
@@ -1039,6 +1121,13 @@ void HIT::HIT_destroy() {
 		FREE(gradu[coord]); FREE(gradv[coord]); FREE(gradw[coord]);
 		FREE(gradu_k[coord]); FREE(gradv_k[coord]); FREE(gradw_k[coord]);
 	}
+	// Yotta stuff
+	for(int coord=0; coord<5; coord++) {
+		FREE(invG[coord]);
+		FREE(invGk[coord]);
+	}
+	FREE(RHSk_0); FREE(RHSk_1);
+	FREE(upk); FREE(vpk); FREE(wpk);
 	if (isLES) {
 		FREE(nu_eddy);
 		FREE(SGS_11); FREE(SGS_21); FREE(SGS_22);
@@ -1057,9 +1146,20 @@ void HIT::HIT_destroy() {
 	}
 };
 // Integrate complex fields over spherical shells from k=1 to k=last_rad
-REAL HIT::Integrate_Field(const char* filename, std::function<REAL(int a, int b, int k3)>& funcFieldNorm, REAL* inAcumField) {
+REAL HIT::Integrate_Field(const char* filename, std::function<REAL(int a, int b, int k3)>& funcFieldNorm, REAL* inAcumField, int last_integrated_rad) {
+    if(last_integrated_rad>last_rad_max) crash("Invalide last_integrated_rad>last_rad_max (%ld > %ld).\n", last_integrated_rad, last_rad_max);
+    // Resize local_acumField and inAcumField according to last_integrated_rad
+    REAL* aux_ptr1 = static_cast<REAL*>(realloc(local_acumField, (last_integrated_rad+1) * sizeof(REAL)));
+    REAL* aux_ptr2 = static_cast<REAL*>(realloc(inAcumField, (last_integrated_rad+1) * sizeof(REAL)));
+    if (aux_ptr1 && aux_ptr2) {
+        local_acumField = aux_ptr1;
+        inAcumField = aux_ptr2;
+    } else {
+        crash("Realloc failed.\n");
+    }
+
 	//Reset local_acumField and inAcumField
-	for (int K=0; K<=last_rad; K++) {
+	for (int K=0; K<=last_integrated_rad; K++) {
 		local_acumField[K] = 0.0;
 		inAcumField[K] = 0.0;
 	}
@@ -1067,7 +1167,7 @@ REAL HIT::Integrate_Field(const char* filename, std::function<REAL(int a, int b,
 	LOOP_FOURIER {
 		if (dealiased[ind]) {
 			int K = static_cast<int>(round(sqrt(rad2[ind])));
-			if (K<=last_rad) {
+			if (K<=last_integrated_rad) {
 				REAL aux = funcFieldNorm(a, b, k3);
 				if (conjugate[ind]) {
 					local_acumField[K] += (2 * aux);
@@ -1078,26 +1178,26 @@ REAL HIT::Integrate_Field(const char* filename, std::function<REAL(int a, int b,
 		}
 	}
 	//Sum accross processes
-	MPI_Allreduce(local_acumField+1, inAcumField+1, last_rad, REAL_MPI, MPI_SUM, MCW);
+	MPI_Allreduce(local_acumField+1, inAcumField+1, last_integrated_rad, REAL_MPI, MPI_SUM, MCW);
 	//If filename is valid, output distribution
 	if (!myrank && filename) {
 		std::ofstream outFile(filename);
 		if (!outFile.is_open()) printf("WARNING: HIT::Integrate_Field(): Error opening \"%s\".\n", filename);
-		for (int K=1; K<=last_rad; K++) {
-			outFile << K << "\t" << inAcumField[K] << "\n";
+		for (int K=1; K<=last_integrated_rad; K++) {
+			outFile << K << "\t" << inAcumField[K] << "\t" << (tcurrprint - tlastprint) << "\n";
 		}
 		outFile.close();
 	}
-	//Return the integral of the field on the sphere of radium last_rad
+	//Return the integral of the field on the sphere of radium last_integrated_rad
 	REAL acumFieldTotal = 0.0;
-	for (int K=1; K<=last_rad; K++) {
+	for (int K=1; K<=last_integrated_rad; K++) {
 		acumFieldTotal += inAcumField[K];
 	}
 	return acumFieldTotal;
 };
 // Calculation of kinetic energy (total, Ek_Tot, and modal, Ek[K])
 REAL HIT::Recalculate_Energy_Cascade(const char* filename) {
-	Ek_Tot = Integrate_Field(filename, KineticEnergy, Ek);
+	Ek_Tot = Integrate_Field(filename, KineticEnergy, Ek, last_rad);
 	return Ek_Tot;
 };
 // Calculation of the total kinetic energy of initial velocity field loaded from file (all done by process 0 in Input_Real_Field())
@@ -1130,3 +1230,43 @@ void HIT::Calculate_Ek_init_file (COMPLEX const * const uk_file, COMPLEX const *
 	}
 };
 
+//Calculation of velocity gradient tensor invariants' distribution
+void HIT::Recalculate_Invariants_Distribution(const char* filename[5]) {
+	//Calculation of velocity gradient invariants
+	struct tensor G;
+	alloc_fill_rand_tensor(&G,0);
+	LOOP_REAL {
+		for(int coord=0; coord<3; coord++) {
+			G.v[0][coord] = gradu[coord][ind];
+			G.v[1][coord] = gradv[coord][ind];
+			G.v[2][coord] = gradw[coord][ind];
+		}
+		invG[0][ind] = calc_QG(&G);
+		invG[1][ind] = calc_QS(&G);
+		invG[2][ind] = calc_RG(&G);
+		invG[3][ind] = calc_RS(&G);
+		invG[4][ind] = calc_V2(&G);
+	}
+	for(int coord=0; coord<5; coord++) {
+		//Forward transform the invariants
+		fftw.FFTWr2c(invG[coord], invGk[coord]); //FFT (r2c)
+		fftw.Fourier_Normalization(invGk[coord], dealiased); //Normalization of relevant coefficients
+		Integrate_Field(filename[coord], GradientInvariants[coord]);
+	}
+};
+//Calculation of initial Poisson's residual distribution
+REAL HIT::Recalculate_Residual_Distribution(const char* filename) {
+	return Integrate_Field(filename, PoissonResidual);
+};
+//Calculation of Poisson's RHS distribution
+REAL HIT::Recalculate_RHS_Distribution(const char* filename) {
+	return Integrate_Field(filename, PoissonRHS);
+};
+//Calculation of kinetic energy associated to the predictor velocity
+REAL HIT::Recalculate_Predictor_Energy_Cascade(const char* filename) {
+	return Integrate_Field(filename, PredictorEnergy);
+};
+//Calculation of pressure field distribution
+REAL HIT::Recalculate_Pressure_Distribution(const char* filename) {
+	return Integrate_Field(filename, PressureField);
+};

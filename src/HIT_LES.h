@@ -11,6 +11,7 @@
 
 #include "util.h"
 #include "FFTW_package.h"
+#include "tensor_algebra.hpp"
 
 using namespace std;
 
@@ -45,6 +46,7 @@ class HIT {
 			Mx_2(Mx_/2), //Half de-aliasing mesh size = N/2
 			Mz_2(Mz_/2),
 			last_rad(min((Nx_-1)/2, min((Ny_-1)/2, (Nz_-1)/2))), //Radium of the biggest circumference incribed in a Nx*Ny*Nz parallelogram
+			last_rad_max((int)std::ceil(std::sqrt(1.0*(Nx_-1)/2*(Nx_-1)/2 + 1.0*(Ny_-1)/2*(Ny_-1)/2 + 1.0*(Nz_-1)/2*(Nz_-1)/2))), //Radium of the biggest circumference circumscribed in a Nx*Ny*Nz parallelogram
 			numprocs(NumProc()), //Total number of MPI processes
 			myrank(MyID()), //Current MPI process ID
 			nu(nu_), //Kinetic viscosity
@@ -160,11 +162,17 @@ class HIT {
 		// POST-PROCESS
 		//===================================================
 		// Integrate complex fields over spherical shells from k=1 to k=last_rad
-		REAL Integrate_Field(const char* filename, std::function<REAL(int a, int b, int k3)>& funcFieldNorm, REAL* inAcumField);
+		REAL Integrate_Field(const char* filename, std::function<REAL(int a, int b, int k3)>& funcFieldNorm, REAL* inAcumField, int last_integrated_rad);
 		inline REAL Integrate_Field(const char* filename, std::function<REAL(int a, int b, int k3)>& funcFieldNorm);
 		// Calculation of kinetic energy cascade
 		REAL Recalculate_Energy_Cascade(const char* filename = NULL);
 		void Calculate_Ek_init_file(COMPLEX const * const uk_file, COMPLEX const * const vk_file, COMPLEX const * const wk_file);
+		// Yotta stuff
+		void Recalculate_Invariants_Distribution(const char* filename[5] = NULL);
+		REAL Recalculate_Pressure_Distribution(const char* filename = NULL);
+		REAL Recalculate_Residual_Distribution(const char* filename = NULL);
+		REAL Recalculate_RHS_Distribution(const char* filename = NULL);
+		REAL Recalculate_Predictor_Energy_Cascade(const char* filename = NULL);
 		// I/O functions (implemented in HIT_LES_output.cpp)
 		void DealiasedComplex3DimField_to_BinaryFile(COMPLEX const * const field_x, COMPLEX const * const field_y, COMPLEX const * const field_z, char const * const filename) const;
 		void Real3DimField_to_BinaryFile(REAL const * const field_x, REAL const * const field_y, REAL const * const field_z, char const * const filename) const;
@@ -193,7 +201,7 @@ class HIT {
 
 	private:
 		FFT_package fftw;
-		const ptrdiff_t ActualNx, ActualNy, ActualNz, ActualMx, ActualMy, ActualMz, Nx, Ny, Nz, Nx_2, Ny_2, Nz_2, Mx, My, Mz, Mx_2, Mz_2, last_rad;
+		const ptrdiff_t ActualNx, ActualNy, ActualNz, ActualMx, ActualMy, ActualMz, Nx, Ny, Nz, Nx_2, Ny_2, Nz_2, Mx, My, Mz, Mx_2, Mz_2, last_rad, last_rad_max;
 		const int numprocs, myrank;
 		REAL nu, ReLambda;
 		const REAL delta, C_Smag;
@@ -212,6 +220,10 @@ class HIT {
 		REAL *u, *v, *w;
 		REAL *gradu[3], *gradv[3], *gradw[3];
 		REAL *convx, *convy, *convz;
+		REAL *invG[5];
+		COMPLEX *invGk[5];
+		COMPLEX *RHSk_0, *RHSk_1;
+		COMPLEX *upk, *vpk, *wpk;
 		COMPLEX *uk_aux, *vk_aux, *wk_aux, *uk_0, *vk_0, *wk_0, *uk_1, *vk_1, *wk_1;
 		COMPLEX *gradu_k[3], *gradv_k[3], *gradw_k[3];
 		COMPLEX *convx_k, *convy_k, *convz_k;
@@ -231,6 +243,12 @@ class HIT {
 		// Complex field integrals
 		std::function<REAL(int a, int b, int k3)> KineticEnergy;
 		std::function<REAL(int a, int b, int k3)> Enstrophy;
+		// Yotta stuff
+		std::function<REAL(int a, int b, int k3)> GradientInvariants[5];
+		std::function<REAL(int a, int b, int k3)> PoissonResidual;
+		std::function<REAL(int a, int b, int k3)> PoissonRHS;
+		std::function<REAL(int a, int b, int k3)> PredictorEnergy;
+		std::function<REAL(int a, int b, int k3)> PressureField;
 	};
 
 //Auxiliary functions related to the calculation of self-adaptive timestep
@@ -257,7 +275,7 @@ inline REAL HIT::Kopt(REAL phi0){
 }
 //Post-process
 REAL HIT::Integrate_Field(const char* filename, std::function<REAL(int a, int b, int k3)>& funcFieldNorm) {
-	return Integrate_Field(filename, funcFieldNorm, global_acumField);
+	return Integrate_Field(filename, funcFieldNorm, global_acumField, last_rad);
 };
 //Gets, sets and extracts
 const ptrdiff_t& HIT::getNx() const { return Nx;};
