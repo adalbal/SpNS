@@ -46,7 +46,7 @@ class HIT {
 			Mx_2(Mx_/2), //Half de-aliasing mesh size = N/2
 			Mz_2(Mz_/2),
 			last_rad(min((Nx_-1)/2, min((Ny_-1)/2, (Nz_-1)/2))), //Radium of the biggest circumference incribed in a Nx*Ny*Nz parallelogram
-			last_rad_max((int)std::ceil(std::sqrt(1.0*(Nx_-1)/2*(Nx_-1)/2 + 1.0*(Ny_-1)/2*(Ny_-1)/2 + 1.0*(Nz_-1)/2*(Nz_-1)/2))), //Radium of the biggest circumference circumscribed in a Nx*Ny*Nz parallelogram
+			last_rad_max((int)std::ceil(std::sqrt(1.0*(Nx_*Nx_/4) + 1.0*(Ny_*Ny_/4) + 1.0*(Nz_*Nz_/4)))), //Radium of the biggest circumference circumscribed in a Nx*Ny*Nz parallelogram
 			numprocs(NumProc()), //Total number of MPI processes
 			myrank(MyID()), //Current MPI process ID
 			nu(nu_), //Kinetic viscosity
@@ -161,7 +161,7 @@ class HIT {
 		//===================================================
 		// POST-PROCESS
 		//===================================================
-		// Integrate complex fields over spherical shells from k=1 to k=last_rad
+		// Integrate complex fields over spherical shells from k=1 to k=last_rad_max
 		REAL Integrate_Field(const char* filename, std::function<REAL(int a, int b, int k3)>& funcFieldNorm, REAL* inAcumField, int last_integrated_rad);
 		inline REAL Integrate_Field(const char* filename, std::function<REAL(int a, int b, int k3)>& funcFieldNorm);
 		// Calculation of kinetic energy cascade
@@ -275,7 +275,7 @@ inline REAL HIT::Kopt(REAL phi0){
 }
 //Post-process
 REAL HIT::Integrate_Field(const char* filename, std::function<REAL(int a, int b, int k3)>& funcFieldNorm) {
-	return Integrate_Field(filename, funcFieldNorm, global_acumField, last_rad);
+	return Integrate_Field(filename, funcFieldNorm, global_acumField, last_rad_max);
 };
 //Gets, sets and extracts
 const ptrdiff_t& HIT::getNx() const { return Nx;};

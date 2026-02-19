@@ -765,9 +765,9 @@ void HIT::HIT_init() {
 	convy = alloc_real(2 * alloc_local);
 	convz = alloc_real(2 * alloc_local);
 	rad2 = alloc_real(2 * alloc_local);
-	local_acumField = alloc_real(last_rad+1);
-	global_acumField = alloc_real(last_rad+1);
-	Ek = alloc_real(last_rad+1);
+	local_acumField = alloc_real(last_rad_max+1);
+	global_acumField = alloc_real(last_rad_max+1);
+	Ek = alloc_real(last_rad_max+1);
 	// Yotta stuff
 	for(int coord=0; coord<5; coord++) {
 		invG[coord] = alloc_real(2*alloc_local);
@@ -1197,7 +1197,7 @@ REAL HIT::Integrate_Field(const char* filename, std::function<REAL(int a, int b,
 };
 // Calculation of kinetic energy (total, Ek_Tot, and modal, Ek[K])
 REAL HIT::Recalculate_Energy_Cascade(const char* filename) {
-	Ek_Tot = Integrate_Field(filename, KineticEnergy, Ek, last_rad);
+	Ek_Tot = Integrate_Field(filename, KineticEnergy, Ek, last_rad_max);
 	return Ek_Tot;
 };
 // Calculation of the total kinetic energy of initial velocity field loaded from file (all done by process 0 in Input_Real_Field())
