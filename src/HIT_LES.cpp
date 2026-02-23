@@ -861,15 +861,9 @@ void HIT::HIT_init() {
 	//conjugate: Initialization of a bool vector to know wether a mode also has an associated conjugate (and 
 	//it has to be counted twice when computing the kinetic energy) or not
 	LOOP_FOURIER_k1k2k3 {
-		if (dealiased[ind]) {
-			if ((k3!=0) && (abs(k1)<=(Nx-1)/2) && (abs(k2)<=(Ny-1)/2) && (abs(k3)<=(Nz-1)/2)) {
-				conjugate[ind] = true;
-			} else {
-				conjugate[ind] = false; //Exclusion in case Nx, Ny or Nz are even
-			}
-		} else {
-			conjugate[ind] = false; //Dummy case
-		}
+		//Exclude k3=0 as well as the Nyquist XY-plane in case Nz is even (if Nz is odd, then k3=Nz/2 has an
+		//associated conjugate)
+		conjugate[ind] = dealiased[ind] && (k3 != 0) && !((Nz%2 == 0) && (k3 == Nz_2));
 	}
 
 	//local_n0_: pointer containing in local_n0_[i] the value of local_n0 corresponding to process i
