@@ -46,7 +46,7 @@ class HIT {
 			Mx_2(Mx_/2), //Half de-aliasing mesh size = N/2
 			Mz_2(Mz_/2),
 			last_rad(min((Nx_-1)/2, min((Ny_-1)/2, (Nz_-1)/2))), //Radium of the biggest circumference incribed in a Nx*Ny*Nz parallelogram
-			last_rad_max((int)std::ceil(std::sqrt(1.0*(Nx_*Nx_/4) + 1.0*(Ny_*Ny_/4) + 1.0*(Nz_*Nz_/4)))), //Radium of the biggest circumference circumscribed in a Nx*Ny*Nz parallelogram
+			last_rad_max((int)std::ceil(std::sqrt(1.0*Nx_2*Nx_2 + 1.0*Ny_2*Ny_2 + 1.0*Nz_2*Nz_2))), //Radium of the biggest circumference circumscribed in a Nx*Ny*Nz parallelogram
 			numprocs(NumProc()), //Total number of MPI processes
 			myrank(MyID()), //Current MPI process ID
 			nu(nu_), //Kinetic viscosity
