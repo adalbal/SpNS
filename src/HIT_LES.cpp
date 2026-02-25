@@ -460,15 +460,17 @@ void HIT::Complex_Conjugate_Correction() {
 };
 // Calculation of Reynolds lambda
 REAL HIT::Recalculate_Reynolds_Lambda() {
-	ReLambda = Recalculate_Energy_Cascade() / nu * sqrt(20.0 / 3.0 / Recalculate_Enstrophy());
+	ReLambda = Recalculate_Energy() / nu * sqrt(20.0 / 3.0 / Recalculate_Enstrophy());
 	return ReLambda;
 };
 // Imposition of a given Reynolds lambda
 void HIT::Forcing_Reynolds_Lambda(const REAL ReLambda_) {
-	nu = Recalculate_Energy_Cascade() / ReLambda_ * sqrt(20.0 / 3.0 / Recalculate_Enstrophy());
+	nu = Recalculate_Energy() / ReLambda_ * sqrt(20.0 / 3.0 / Recalculate_Enstrophy());
 };
-REAL HIT::Recalculate_Enstrophy(const char* filename) {
-	return Integrate_Field(Enstrophy, filename);
+REAL HIT::Recalculate_Enstrophy() {
+	const int Kmin = 1;
+	const int Kmax = last_rad_max;
+	return Integrate_Field(Enstrophy, NULL, NULL, Kmin, Kmax);
 };
 
 //=====================================================================================================================
@@ -1092,7 +1094,7 @@ void HIT::HIT_init() {
 		Recalculate_TimeStep();
 	}
 
-	Ek_init = Recalculate_Energy_Cascade();
+	Ek_init = Recalculate_Energy();
 #if(0)
 	if (myrank == 0) {
 		cout << "Initial kinetic energy: " << Ek_init << endl;

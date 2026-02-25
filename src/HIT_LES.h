@@ -156,7 +156,7 @@ class HIT {
 		// Imposition of a given Reynolds lambda
 		void Forcing_Reynolds_Lambda(const REAL ReLambda_);
 			// Calculation of Enstrophy
-			REAL Recalculate_Enstrophy(const char* filename = NULL);
+			REAL Recalculate_Enstrophy();
 
 		//===================================================
 		// POST-PROCESS

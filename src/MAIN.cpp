@@ -434,13 +434,13 @@ int main (int argc, char **argv){
 		iter++;
 #if(QA) //USED FOR QA TESTS
 		if (iter % 1 == 0) {
-			hit.Recalculate_Energy_Cascade();
+			hit.Recalculate_Energy();
 			hit.Recalculate_Reynolds_Lambda();
 			pprintf("Time: %f,    iter: %5d,    Ek: %6.3f,    ReLambda: %8.3f\n", hit.gettime(), iter, hit.getEk_Tot(), hit.getReLambda());
 		}
 #endif
 		if (iter % 100 == 0) {
-			hit.Recalculate_Energy_Cascade();
+			hit.Recalculate_Energy();
 			hit.Recalculate_Reynolds_Lambda();
 			if (myrank == 0) {
 				printf("Time: %f,    iter: %5d,    Ek: %6.3f,    ReLambda: %8.3f\n", hit.gettime(), iter, hit.getEk_Tot(), hit.getReLambda());
@@ -538,7 +538,7 @@ int main (int argc, char **argv){
 		hit.RealVelocity_to_BinaryFile(VelPhysfilename);
 	}
 	//Terminal print of execution times
-	hit.Recalculate_Energy_Cascade();
+	hit.Recalculate_Energy();
 	hit.Recalculate_Reynolds_Lambda();
 	double local_timeTot = ((double) (timeend - timebeg)) / CLOCKS_PER_SEC;
 	double local_timeLoop = ((double) (timeend - timebegloop)) / CLOCKS_PER_SEC;
