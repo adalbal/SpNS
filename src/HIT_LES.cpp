@@ -460,17 +460,22 @@ void HIT::Complex_Conjugate_Correction() {
 };
 // Calculation of Reynolds lambda
 REAL HIT::Recalculate_Reynolds_Lambda() {
-	ReLambda = Recalculate_Energy() / nu * sqrt(20.0 / 3.0 / Recalculate_Enstrophy());
+	Recalculate_Energy();
+	Recalculate_Enstrophy();
+	ReLambda = Ek_Tot / nu * sqrt(20.0 / 3.0 / Ok_Tot);
 	return ReLambda;
 };
 // Imposition of a given Reynolds lambda
 void HIT::Forcing_Reynolds_Lambda(const REAL ReLambda_) {
-	nu = Recalculate_Energy() / ReLambda_ * sqrt(20.0 / 3.0 / Recalculate_Enstrophy());
+	Recalculate_Energy();
+	Recalculate_Enstrophy();
+	nu = Ek_Tot / ReLambda_ * sqrt(20.0 / 3.0 / Ok_Tot);
 };
 REAL HIT::Recalculate_Enstrophy() {
 	const int Kmin = 1;
 	const int Kmax = last_rad_max;
-	return Integrate_Field(Enstrophy, NULL, NULL, Kmin, Kmax);
+	Ok_Tot = Integrate_Field(Enstrophy, NULL, NULL, Kmin, Kmax);
+	return Ok_Tot;
 };
 
 //=====================================================================================================================

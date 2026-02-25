@@ -195,7 +195,8 @@ class HIT {
 		inline const REAL& getReLambda() const;
 		inline const REAL& getAt() const;
 		inline const REAL& gettime() const;
-		inline const REAL& getEk_Tot();
+		inline const REAL& getOk_Tot() const;
+		inline const REAL& getEk_Tot() const;
 		inline const REAL& getEk_init() const;
 		inline const REAL& getEk_init_file() const;
 		inline const REAL& getEnstrophy_init_file() const; //Actual dissipation: epsilon = nu*Enstrophy
@@ -232,7 +233,7 @@ class HIT {
 		COMPLEX *Rx0_k, *Ry0_k, *Rz0_k, *Rx1_k, *Ry1_k, *Rz1_k;
 		bool *dealiased, *conjugate;
 		REAL *rad2, *local_acumField, *global_acumField, *Ek;
-		REAL Ek_Tot, Ek_init, Ek_init_file, Enstrophy_init_file;
+		REAL Ok_Tot, Ek_Tot, Ek_init, Ek_init_file, Enstrophy_init_file;
 		int num_dealiased, num_dealiased_real;
 		int *local_n0_, *local_n1_;
 		MPI_Offset offset_Fourier, offset_Real;
@@ -291,7 +292,8 @@ void HIT::setnu(const REAL& nu_) { nu=nu_;};
 const REAL& HIT::getReLambda() const { return ReLambda;};
 const REAL& HIT::getAt() const { return At;};
 const REAL& HIT::gettime() const { return time;};
-const REAL& HIT::getEk_Tot() { return Ek_Tot;};
+const REAL& HIT::getOk_Tot() const { return Ok_Tot;};
+const REAL& HIT::getEk_Tot() const { return Ek_Tot;};
 const REAL& HIT::getEk_init() const { return Ek_init;};
 const REAL& HIT::getEk_init_file() const { return Ek_init_file;};
 const REAL& HIT::getEnstrophy_init_file() const { return Enstrophy_init_file;};

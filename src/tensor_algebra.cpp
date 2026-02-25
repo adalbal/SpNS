@@ -85,13 +85,13 @@ void alloc_fill_rand_tensor(struct tensor *t,int traceless) {
   if(traceless) force_traceless(t);  
 }
 
-void check_tensor(struct tensor *t) {
-  int i;
-  double trace=0.0;
-  if(t->magic!=magic_tensor) crash("check_tensor\n");
-  
-  for(i=0;i<=2;i++) trace+=t->v[i][i];
-	
+void check_tensor(struct tensor * /*t*/) {
+  //int i;
+  //double trace=0.0;
+  //if(t->magic!=magic_tensor) crash("check_tensor\n");
+
+  //for(i=0;i<=2;i++) trace+=t->v[i][i];
+
   //if(!is_zero(trace)) crash("check_tensor\t it is not traceless!!!\n");
 }
 
