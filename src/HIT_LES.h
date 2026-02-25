@@ -162,9 +162,11 @@ class HIT {
 		// POST-PROCESS
 		//===================================================
 		// Integrate complex fields over spherical shells from k=1 to k=last_rad_max
-		REAL Integrate_Field(const char* filename, std::function<REAL(int a, int b, int k3)>& funcFieldNorm, REAL* inAcumField, int last_integrated_rad);
-		inline REAL Integrate_Field(const char* filename, std::function<REAL(int a, int b, int k3)>& funcFieldNorm);
+		REAL Integrate_Field(std::function<REAL(int a, int b, int k3)>& funcFieldNorm, const char* filename,
+							 REAL* inAcumField, const int kmin, const int kmax);
+		inline REAL Integrate_Field(std::function<REAL(int a, int b, int k3)>& funcFieldNorm, const char* filename);
 		// Calculation of kinetic energy cascade
+		REAL Recalculate_Energy();
 		REAL Recalculate_Energy_Cascade(const char* filename = NULL);
 		void Calculate_Ek_init_file(COMPLEX const * const uk_file, COMPLEX const * const vk_file, COMPLEX const * const wk_file);
 		// Yotta stuff
@@ -274,8 +276,10 @@ inline REAL HIT::Kopt(REAL phi0){
 	crash("Kopt fail!"); return 0;
 }
 //Post-process
-REAL HIT::Integrate_Field(const char* filename, std::function<REAL(int a, int b, int k3)>& funcFieldNorm) {
-	return Integrate_Field(filename, funcFieldNorm, global_acumField, last_rad_max);
+REAL HIT::Integrate_Field(std::function<REAL(int a, int b, int k3)>& funcFieldNorm, const char* filename) {
+	const int Kmin = 1;
+	const int Kmax = last_rad_max;
+	return Integrate_Field(funcFieldNorm, filename, global_acumField, Kmin, Kmax);
 };
 //Gets, sets and extracts
 const ptrdiff_t& HIT::getNx() const { return Nx;};

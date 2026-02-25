@@ -31,7 +31,7 @@ void HIT::New_Fractional_Step_Method() {
 
 //=========================
 // 1.) CONVECTIVE TERM IN FOURIER SPACE
-// Comment Recalculate_Velocity_Gradients_Fourier_Coefficients 
+// Comment Recalculate_Velocity_Gradients_Fourier_Coefficients
 void HIT::Recalculate_Velocity_Gradients_Fourier_Coefficients() {
 	LOOP_FOURIER_k1k2k3{ //Velocity spatial derivatives in Fourier space
 		if (dealiased[ind]) {
@@ -86,7 +86,7 @@ void HIT::Recalculate_Convective_Fourier_Coefficients() {
 		COMPLEX *graduvw_k[3] = {NULL,NULL,NULL};
 		//Alias assignation
 		switch(coord){
-			case 0: 
+			case 0:
 				for (int sub_coord=0; sub_coord<3; sub_coord++) { //x-velocity gradient
 					graduvw[sub_coord] = gradu[sub_coord];
 					graduvw_k[sub_coord] = gradu_k[sub_coord];
@@ -94,7 +94,7 @@ void HIT::Recalculate_Convective_Fourier_Coefficients() {
 				convxyz = convx;
 				convxyz_k = convx_k;
 				break;
-			case 1: 
+			case 1:
 				for (int sub_coord=0; sub_coord<3; sub_coord++) { //y-velocity gradient
 					graduvw[sub_coord] = gradv[sub_coord];
 					graduvw_k[sub_coord] = gradv_k[sub_coord];
@@ -102,7 +102,7 @@ void HIT::Recalculate_Convective_Fourier_Coefficients() {
 				convxyz = convy;
 				convxyz_k = convy_k;
 				break;
-			case 2: 
+			case 2:
 				for (int sub_coord=0; sub_coord<3; sub_coord++) { //z-velocity gradient
 					graduvw[sub_coord] = gradw[sub_coord];
 					graduvw_k[sub_coord] = gradw_k[sub_coord];
@@ -468,7 +468,7 @@ void HIT::Forcing_Reynolds_Lambda(const REAL ReLambda_) {
 	nu = Recalculate_Energy_Cascade() / ReLambda_ * sqrt(20.0 / 3.0 / Recalculate_Enstrophy());
 };
 REAL HIT::Recalculate_Enstrophy(const char* filename) {
-	return Integrate_Field(filename, Enstrophy);
+	return Integrate_Field(Enstrophy, filename);
 };
 
 //=====================================================================================================================
@@ -858,7 +858,7 @@ void HIT::HIT_init() {
 		if (dealiased[ind]) num_dealiased++; //It needs to be at the end!!!
 	}
 
-	//conjugate: Initialization of a bool vector to know wether a mode also has an associated conjugate (and 
+	//conjugate: Initialization of a bool vector to know wether a mode also has an associated conjugate (and
 	//it has to be counted twice when computing the kinetic energy) or not
 	LOOP_FOURIER_k1k2k3 {
 		//Exclude k3=0 as well as the Nyquist XY-plane in case Nz is even (if Nz is odd, then k3=Nz/2 has an
@@ -897,7 +897,7 @@ void HIT::HIT_init() {
 	//Memory freeing of auxiliar pointers
 	FREE(offset_Fourier_);
 
-	//offset_Real: Exactly as offset_Fourier but for real fields (where distinction between 
+	//offset_Real: Exactly as offset_Fourier but for real fields (where distinction between
 	//aliased/dealiased terms does not make sense, except for non-cubic domains, where terms
 	//such that k%L_factor!=0 have to be treated as the complex aliased ones)
 	//Allocate memory
@@ -1139,59 +1139,102 @@ void HIT::HIT_destroy() {
 		FREE(k); FREE(phi); FREE(c);
 	}
 };
-// Integrate complex fields over spherical shells from k=1 to k=last_rad
-REAL HIT::Integrate_Field(const char* filename, std::function<REAL(int a, int b, int k3)>& funcFieldNorm, REAL* inAcumField, int last_integrated_rad) {
-    if(last_integrated_rad>last_rad_max) crash("Invalide last_integrated_rad>last_rad_max (%ld > %ld).\n", last_integrated_rad, last_rad_max);
-    // Resize local_acumField and inAcumField according to last_integrated_rad
-    REAL* aux_ptr1 = static_cast<REAL*>(realloc(local_acumField, (last_integrated_rad+1) * sizeof(REAL)));
-    REAL* aux_ptr2 = static_cast<REAL*>(realloc(inAcumField, (last_integrated_rad+1) * sizeof(REAL)));
-    if (aux_ptr1 && aux_ptr2) {
-        local_acumField = aux_ptr1;
-        inAcumField = aux_ptr2;
-    } else {
-        crash("Realloc failed.\n");
-    }
+// Integrate complex fields over cubic boxes [Kmin,Kmax]^3. Four cases:
+//  -If  inAcumField &&  filename, then spectrum into inAcumField and print into filename
+//  -If  inAcumField && !filename, then spectrum into inAcumField and not print
+//  -If !inAcumField &&  filename, then spectrum into global_acumField and print into filename
+//  -If !inAcumField && !filename, then no spectrum and no print
+//(*Regardless of inAcumField and filename, the integral within [Kmin,Kmax]^3 is always returned)
+REAL HIT::Integrate_Field(std::function<REAL(int a, int b, int k3)>& funcFieldNorm, const char* filename,
+						  REAL* inAcumField, const int Kmin, const int Kmax) {
+	//Check consistency
+	if(Kmin<0) crash("Invalid Kmin<0 (%ld < 0).\n", Kmin);
+	if(Kmax>last_rad_max) crash("Invalid Kmax>last_rad_max (%ld > %ld).\n", Kmax, last_rad_max);
 
-	//Reset local_acumField and inAcumField
-	for (int K=0; K<=last_integrated_rad; K++) {
-		local_acumField[K] = 0.0;
-		inAcumField[K] = 0.0;
+	//If inAcumField not passed but spectra print required, then use auxiliary array
+	REAL sum_glo;
+	REAL* ptr_loc;
+	REAL* ptr_glo;
+	if (!inAcumField && !filename) {
+		ptr_loc = NULL;
+		ptr_glo = NULL;
+	} else {
+		ptr_loc = local_acumField;
+		if (inAcumField) ptr_glo = inAcumField;
+		else ptr_glo = global_acumField;
 	}
-	//Recalculation of vector local_acumField[K]
-	LOOP_FOURIER {
-		if (dealiased[ind]) {
-			int K = static_cast<int>(round(sqrt(rad2[ind])));
-			if (K<=last_integrated_rad) {
-				REAL aux = funcFieldNorm(a, b, k3);
-				if (conjugate[ind]) {
-					local_acumField[K] += (2 * aux);
-				} else {
-					local_acumField[K] += aux;
+
+	if (ptr_loc && ptr_glo) {
+		//Compute spectrum and (conditionally) print to file
+		//Reset ptr_loc and ptr_glo
+		for (int K=Kmin; K<=Kmax; K++) {
+			ptr_loc[K] = 0.0;
+			ptr_glo[K] = 0.0;
+		}
+		//Recalculation of vector ptr_loc[K]
+		LOOP_FOURIER {
+			if (dealiased[ind]) {
+				int K = static_cast<int>(round(sqrt(rad2[ind])));
+				if (Kmin<=K && K<=Kmax) {
+					REAL aux = funcFieldNorm(a, b, k3);
+					if (conjugate[ind]) {
+						ptr_loc[K] += (2 * aux);
+					} else {
+						ptr_loc[K] += aux;
+					}
 				}
 			}
 		}
-	}
-	//Sum accross processes
-	MPI_Allreduce(local_acumField+1, inAcumField+1, last_integrated_rad, REAL_MPI, MPI_SUM, MCW);
-	//If filename is valid, output distribution
-	if (!myrank && filename) {
-		std::ofstream outFile(filename);
-		if (!outFile.is_open()) printf("WARNING: HIT::Integrate_Field(): Error opening \"%s\".\n", filename);
-		for (int K=1; K<=last_integrated_rad; K++) {
-			outFile << K << "\t" << inAcumField[K] << "\t" << (tcurrprint - tlastprint) << "\n";
+		//Sum accross processes
+		MPI_Allreduce(ptr_loc+Kmin, ptr_glo+Kmin, Kmax-Kmin+1, REAL_MPI, MPI_SUM, MCW);
+		//If filename is valid, output distribution
+		if (!myrank && filename) {
+			std::ofstream outFile(filename);
+			if (!outFile.is_open()) printf("WARNING: HIT::Integrate_Field(): Error opening \"%s\".\n", filename);
+			for (int K=Kmin; K<=Kmax; K++) {
+				outFile << K << "\t" << ptr_glo[K] << "\t" << (tcurrprint - tlastprint) << "\n";
+			}
+			outFile.close();
 		}
-		outFile.close();
+		//Return the integral of the field on the sphere of radium Kmax
+		sum_glo = 0.0;
+		for (int K=Kmin; K<=Kmax; K++) {
+			sum_glo += ptr_glo[K];
+		}
+	} else {
+		//Compute integral within [Kmin,Kmax]^3
+		//Recalculation of local sum
+		REAL sum_loc = 0.0;
+		LOOP_FOURIER {
+			if (dealiased[ind]) {
+				int K = static_cast<int>(round(sqrt(rad2[ind])));
+				if (Kmin<=K && K<=Kmax) {
+					REAL aux = funcFieldNorm(a, b, k3);
+					if (conjugate[ind]) {
+						sum_loc += (2 * aux);
+					} else {
+						sum_loc += aux;
+					}
+				}
+			}
+		}
+		//Sum accross processes
+		MPI_Allreduce(&sum_loc, &sum_glo, 1, REAL_MPI, MPI_SUM, MCW);
 	}
-	//Return the integral of the field on the sphere of radium last_integrated_rad
-	REAL acumFieldTotal = 0.0;
-	for (int K=1; K<=last_integrated_rad; K++) {
-		acumFieldTotal += inAcumField[K];
-	}
-	return acumFieldTotal;
+	return sum_glo;
+};
+// Calculation of total kinetic energy (Ek_Tot)
+REAL HIT::Recalculate_Energy() {
+	const int Kmin = 1;
+	const int Kmax = last_rad_max;
+	Ek_Tot = Integrate_Field(KineticEnergy, NULL, NULL, Kmin, Kmax);
+	return Ek_Tot;
 };
 // Calculation of kinetic energy (total, Ek_Tot, and modal, Ek[K])
 REAL HIT::Recalculate_Energy_Cascade(const char* filename) {
-	Ek_Tot = Integrate_Field(filename, KineticEnergy, Ek, last_rad_max);
+	const int Kmin = 1;
+	const int Kmax = last_rad_max;
+	Ek_Tot = Integrate_Field(KineticEnergy, filename, Ek, Kmin, Kmax);
 	return Ek_Tot;
 };
 // Calculation of the total kinetic energy of initial velocity field loaded from file (all done by process 0 in Input_Real_Field())
@@ -1245,22 +1288,22 @@ void HIT::Recalculate_Invariants_Distribution(const char* filename[5]) {
 		//Forward transform the invariants
 		fftw.FFTWr2c(invG[coord], invGk[coord]); //FFT (r2c)
 		fftw.Fourier_Normalization(invGk[coord], dealiased); //Normalization of relevant coefficients
-		Integrate_Field(filename[coord], GradientInvariants[coord]);
+		Integrate_Field(GradientInvariants[coord], filename[coord]);
 	}
 };
 //Calculation of initial Poisson's residual distribution
 REAL HIT::Recalculate_Residual_Distribution(const char* filename) {
-	return Integrate_Field(filename, PoissonResidual);
+	return Integrate_Field(PoissonResidual, filename);
 };
 //Calculation of Poisson's RHS distribution
 REAL HIT::Recalculate_RHS_Distribution(const char* filename) {
-	return Integrate_Field(filename, PoissonRHS);
+	return Integrate_Field(PoissonRHS, filename);
 };
 //Calculation of kinetic energy associated to the predictor velocity
 REAL HIT::Recalculate_Predictor_Energy_Cascade(const char* filename) {
-	return Integrate_Field(filename, PredictorEnergy);
+	return Integrate_Field(PredictorEnergy, filename);
 };
 //Calculation of pressure field distribution
 REAL HIT::Recalculate_Pressure_Distribution(const char* filename) {
-	return Integrate_Field(filename, PressureField);
+	return Integrate_Field(PressureField, filename);
 };
