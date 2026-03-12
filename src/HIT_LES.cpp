@@ -720,9 +720,7 @@ void HIT::Truncate_Input_File_Fourier_Coefficients (COMPLEX const * const uk_fil
 	LOOP_FOURIER_k1k2k3 {
 		for (int ic=0; ic<=1; ic++) { //ic=0 => Real part, ic=1 => Imaginary part
 			if (dealiased[ind]) {
-				if (((abs(k1) <= (Nx_file-1)/2) || (k1 == Nx_file/2)) && // In case Nx_file is even, or clause: (k1 == Nx_file/2)
-					((abs(k2) <= (Ny_file-1)/2) || (k2 == Ny_file/2)) && // In case Ny_file is even, or clause: (k2 == Ny_file/2)
-					((abs(k3) <= (Nz_file-1)/2) || (k3 == Nz_file/2))) { // In case Nz_file is even, or clause: (k3 == Nz_file/2)
+				if ((abs(k1) <= (Nx_file-1)/2) && (abs(k2) <= (Ny_file-1)/2) && (k3 <= (Nz_file-1)/2)) {
 					int a_file = ((k1 >= 0) ? a : (Nx_file+k1)); // k1<0 => Nx_file+k1 = Nx_file-|k1|
 					int b_file = ((k2 >= 0) ? (local_1_start+b) : (Ny_file+k2)); // k2<0 => Ny_file+k2 = Ny_file-|k2|
 					int c_file = ((k3 >= 0) ? k3 : (Nz_file+k3)); // k3<0 => Nz_file+k3 = Nz_file-|k3|
@@ -846,12 +844,6 @@ void HIT::HIT_init() {
 		//Exclusion of aliased terms (3/2 rule implemented)
 		if (abs(k1)<=Nx_2 && abs(k2)<=Ny_2 && k3<=Nz_2) {
 			dealiased[ind] = true;
-			if (Nx%2==0 && k1==-Nx_2) {
-				dealiased[ind] =false; //Exclusion in case Nx is even
-			}
-			if (Ny%2==0 && k2==-Ny_2) {
-				dealiased[ind] =false; //Exclusion in case Ny is even
-			}
 		} else {
 			dealiased[ind] = false;
 		}
@@ -870,7 +862,7 @@ void HIT::HIT_init() {
 	LOOP_FOURIER_k1k2k3 {
 		//Exclude k3=0 as well as the Nyquist XY-plane in case Nz is even (if Nz is odd, then k3=Nz/2 has an
 		//associated conjugate)
-		conjugate[ind] = dealiased[ind] && (k3 != 0) && !((Nz%2 == 0) && (k3 == Nz_2));
+		conjugate[ind] = dealiased[ind] && (k3 != 0) && !((Mz%2 == 0) && (k3 == Mz_2));
 	}
 
 	//local_n0_: pointer containing in local_n0_[i] the value of local_n0 corresponding to process i
