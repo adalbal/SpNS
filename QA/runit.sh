@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Trap SIGINT (Ctrl+C) and exit the script
+trap 'echo -e "\n\nScript interrupted by user. Exiting..."; exit 130' INT
+
 # Record start time
 start_time=$(date +%s)
 
