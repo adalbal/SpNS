@@ -507,6 +507,8 @@ void HIT::Input_K41_Field() {
 			}
 		}
 	}
+	//Correction of explicit complex conjugates (due to numerical instabilities)
+	Complex_Conjugate_Correction();
 	//Initialize K41 energy cascade
 	REAL *K41_Ek = alloc_real(last_rad+1);
 	K41_Ek[0] = 0.0; //Dummy case
@@ -946,7 +948,7 @@ void HIT::HIT_init() {
 	//===================================================
 	// 4. COMPLEX CONJUGATE CORRECTION
 	//===================================================
-	if (isComplexConjugateCorrected) {
+	if (isComplexConjugateCorrected || !(isInitialFieldFromBinaryFile || isInitialFieldFromASCIIFile)) {
 		// COMPLEX*
 		local_uk_k3_0 = alloc_complex(Mx * local_n1 * 1); //Only for k3=0
 		local_vk_k3_0 = alloc_complex(Mx * local_n1 * 1); //Only for k3=0
@@ -1129,7 +1131,7 @@ void HIT::HIT_destroy() {
 		FREE(SGS_31_k); FREE(SGS_32_k); FREE(SGS_33_k);
 		FREE(divSGSx_k); FREE(divSGSy_k); FREE(divSGSz_k);
 	}
-	if (isComplexConjugateCorrected) {
+	if (isComplexConjugateCorrected || !(isInitialFieldFromBinaryFile || isInitialFieldFromASCIIFile)) {
 		FREE(local_uk_k3_0); FREE(local_vk_k3_0); FREE(local_wk_k3_0);
 		FREE(uk_k3_0); FREE(vk_k3_0); FREE(wk_k3_0);
 		FREE(displs_k3_0); FREE(recvcounts_k3_0);
