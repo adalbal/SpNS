@@ -11,6 +11,35 @@ double tcurrprint = 0.0;
 //=====================================================================================================================
 
 void HIT::New_Fractional_Step_Method() {
+    ////////////////////////////////////////////////////////////////////////////////
+    if(iter%1000==0){
+       double EkComp = 0, local_EkComp = 0;
+       LOOP_FOURIER {
+          if (dealiased[ind]) {
+             REAL aux = 0.5 * (uk_1[ind][0]*uk_1[ind][0] + uk_1[ind][1]*uk_1[ind][1] +
+                               vk_1[ind][0]*vk_1[ind][0] + vk_1[ind][1]*vk_1[ind][1] +
+                               wk_1[ind][0]*wk_1[ind][0] + wk_1[ind][1]*wk_1[ind][1]);
+             if (conjugate[ind]) {
+                local_EkComp += (2 * aux);
+             } else {
+                local_EkComp += aux;
+             }
+          }
+       }
+       MPI_Allreduce(&local_EkComp, &EkComp, 1, REAL_MPI, MPI_SUM, MCW);
+
+       Recalculate_Velocity_Antitransform(); //Compute u,v,w from uk_1, vk_1, wk_1
+       double EkReal = 0, local_EkReal = 0;
+       LOOP_REAL {
+          local_EkReal += u[ind] * u[ind] + v[ind] * v[ind] + w[ind] * w[ind];
+       }
+       MPI_Allreduce(&local_EkReal, &EkReal, 1, REAL_MPI, MPI_SUM, MCW);
+       EkReal = 0.5*EkReal/(Mx*My*Mz);
+       Recalculate_Energy();
+       if(!myrank) {printf("--------------------> [time %f, iter %3d] E_tot: %e\tEk_tot: %e\t [DIFF: %.2e / COMP: %.2e]\n",
+             time, iter, EkReal, EkComp, fabs(EkReal-EkComp), fabs(Ek_Tot-EkComp));fflush(stdout);}
+    }
+    ////////////////////////////////////////////////////////////////////////////////
 	//Calculation of R vector
 	Recalculate_R_vector_Fourier_Coefficients();
 	//Calculation of the predictor velocity at the following timestep (from R vector)
@@ -236,6 +265,54 @@ void HIT::Recalculate_R_vector_Fourier_Coefficients() {
 			}
 		}
 	}
+	/////////////////////////////////////////////////////////////////////////////////////////////////////////
+	#if 0
+	const bool isForcing = true;
+	const int Kfmin = 1;
+	const int Kfmax = 2;
+	const REAL eps_in = 1.0;
+	if (isForcing) {
+		// Compute forced-band energy Ef
+		REAL Ef = Integrate_Field(KineticEnergy, NULL, Ek, Kfmin, Kfmax);
+
+		// Compute alpha = eps_in / (2*Ef)
+		const REAL tiny = 1e-30;
+		REAL alpha = 0.0;
+		if (Ef > tiny) alpha = eps_in / (2.0 * Ef);
+
+		// Add forcing term to RHS: R += alpha*u for Kfmin <= K <= Kfmax
+		LOOP_FOURIER {
+			int K = static_cast<int>(round(sqrt(rad2[ind])));
+			if (dealiased[ind]) {
+				if (Kfmin<=K && K <= Kfmax) {
+					for (int ic=0; ic<=1; ic++){ //ic=0 => Real part, ic=1 => Imaginary part
+						Rx1_k[ind][ic] += alpha * uk_1[ind][ic];
+						Ry1_k[ind][ic] += alpha * vk_1[ind][ic];
+						Rz1_k[ind][ic] += alpha * wk_1[ind][ic];
+					}
+				} else if (K==0) {
+					for (int ic=0; ic<=1; ic++){ //ic=0 => Real part, ic=1 => Imaginary part
+						Rx1_k[ind][ic] = 0.0;
+						Ry1_k[ind][ic] = 0.0;
+						Rz1_k[ind][ic] = 0.0;
+					}
+				}
+			}
+		}
+	}
+    //#else
+    //LOOP_FOURIER {
+    //    int K = static_cast<int>(round(sqrt(rad2[ind])));
+    //    if (K==0) {
+    //        for (int ic=0; ic<=1; ic++){ //ic=0 => Real part, ic=1 => Imaginary part
+    //            Rx1_k[ind][ic] = 0.0;
+    //            Ry1_k[ind][ic] = 0.0;
+    //            Rz1_k[ind][ic] = 0.0;
+    //        }
+    //    }
+    //}
+	#endif
+	/////////////////////////////////////////////////////////////////////////////////////////////////////////
 };
 
 //===================================================

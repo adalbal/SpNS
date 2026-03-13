@@ -435,13 +435,13 @@ int main (int argc, char **argv){
 #if(QA) //USED FOR QA TESTS
 		if (iter % 1 == 0) {
 			hit.Recalculate_Reynolds_Lambda(); //It also recalculates energy and enstrophy
-			pprintf("Time: %f,    iter: %8d,    Dt: %e,    Ek: %e,    Ok: %e,    ReLambda: %8.3f\n", hit.gettime(), iter, hit.getAt(), hit.getEk_Tot(), hit.getOk_Tot(), hit.getReLambda());
+			pprintf("Time: %f,    iter: %8d,    Dt: %e,    Ek: %e,    Om: %e,    ReLambda: %8.3f\n", hit.gettime(), iter, hit.getAt(), hit.getEk_Tot(), hit.getOk_Tot(), hit.getReLambda());
 		}
 #endif
-		if (iter % 100 == 0) {
+		if (iter % 1 == 0) {
 			hit.Recalculate_Reynolds_Lambda(); //It also recalculates energy and enstrophy
 			if (myrank == 0) {
-				printf("Time: %f,    iter: %8d,    Dt: %e,    Ek: %e,    Ok: %e,    ReLambda: %8.3f\n", hit.gettime(), iter, hit.getAt(), hit.getEk_Tot(), hit.getOk_Tot(), hit.getReLambda());
+				printf("Time: %f,    iter: %8d,    Dt: %e,    Ek: %e,    Om: %e,    ReLambda: %8.3f\n", hit.gettime(), iter, hit.getAt(), hit.getEk_Tot(), hit.getOk_Tot(), hit.getReLambda());
 			}
 		}
 		//Data output (Energy cascade and Fourier velocity use iter+1 instead of iter because new real velocity is not computed
