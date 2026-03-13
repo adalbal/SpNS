@@ -12,7 +12,7 @@ double tcurrprint = 0.0;
 
 void HIT::New_Fractional_Step_Method() {
     ////////////////////////////////////////////////////////////////////////////////
-    if(iter%1000==0){
+    if(iter%5000==0){
        double EkComp = 0, local_EkComp = 0;
        LOOP_FOURIER {
           if (dealiased[ind]) {
