@@ -2,13 +2,13 @@
 #################### NEEDED ####################
 ################################################
 #### Significant Fourier coefficients to be computed (note that mesh size will be: (3/2*Nx)x(3/2*Ny)x(3/2*Nz))
-Nx	512
-Ny	512
-Nz	512
+Nx	1024
+Ny	1024
+Nz	1024
 
 #### Either kinematic viscosity or Reynolds lambda number has to be fixed
-nu					9.23e-4	### Kinematic viscosity
-#Reynolds_lambda		187.1		### Reynolds lambda
+nu					3.66e-4	### Kinematic viscosity
+#Reynolds_lambda		297.1		### Reynolds lambda
 #Reynolds_lambda_Freq	10			### Reynolds lambda forcing frequency. (Omitted/equal to zero => Only force at the beginning of the simulation)
 
 Final_Time	500.0	### Last instant of time to be simulated
@@ -26,12 +26,12 @@ Energy_Cascade			1	### Total kinetic energy in Fourier space for each |k|
 #### Output frequency in terms of the number of iterations. (Omitted/equal to zero => Output only at the end of the simulation)
 #Velocity_Phys_Freq		2500
 #Velocity_Four_Freq		2500
-Energy_Cascade_Freq		900
+Energy_Cascade_Freq		2000
 #### Storage location of output files relative path from "./build". (Omitted => folder containing the executable ("./build"))
-#Velocity_Phys_Folder	/gpfs/scratch/upc61/upc61716/hit/nu6e-4_/injected_decay/n512
-#Velocity_Four_Folder	/gpfs/scratch/upc61/upc61716/hit/nu6e-4_/injected_decay/n512
-Energy_Cascade_Folder	./yotta512/data
-Yotta_Folder	        ./yotta512/data
+#Velocity_Phys_Folder	/gpfs/scratch/upc61/upc61716/hit/nu6e-4_/injected_decay/n1024
+#Velocity_Four_Folder	/gpfs/scratch/upc61/upc61716/hit/nu6e-4_/injected_decay/n1024
+Energy_Cascade_Folder	./yotta1024/data
+Yotta_Folder	        ./yotta1024/data
 
 #### Initial velocity in physical space from either ASCII or binary file (missing fields => Dummy initial distribution 1/|k|^2)
 #### ASCII input file containing three columns: u, v, w; and Nx_file*Ny_file*Nz_file values

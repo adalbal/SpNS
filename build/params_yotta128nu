@@ -7,7 +7,7 @@ Ny	128
 Nz	128
 
 #### Either kinematic viscosity or Reynolds lambda number has to be fixed
-nu					2.179e-2	### Kinematic viscosity
+nu					5.86e-3	### Kinematic viscosity
 #Reynolds_lambda		74.3		### Reynolds lambda
 #Reynolds_lambda_Freq	10			### Reynolds lambda forcing frequency. (Omitted/equal to zero => Only force at the beginning of the simulation)
 
@@ -26,7 +26,7 @@ Energy_Cascade			1	### Total kinetic energy in Fourier space for each |k|
 #### Output frequency in terms of the number of iterations. (Omitted/equal to zero => Output only at the end of the simulation)
 #Velocity_Phys_Freq		2500
 #Velocity_Four_Freq		2500
-Energy_Cascade_Freq		10
+Energy_Cascade_Freq		100
 #### Storage location of output files relative path from "./build". (Omitted => folder containing the executable ("./build"))
 #Velocity_Phys_Folder	/gpfs/scratch/upc61/upc61716/hit/nu6e-4_/injected_decay/n512
 #Velocity_Four_Folder	/gpfs/scratch/upc61/upc61716/hit/nu6e-4_/injected_decay/n512
@@ -75,7 +75,7 @@ C_At	0.85		### Constant for self-adaptive timestep (Omitted => C_At = 1.0)
 #### Correction of machine error on the complex conjugates present in plane k3=0 (z=0):
 ##		ComplexConjugateCorrection = 1  =>  Correction
 ##		Elsewhere (or omitted)			=>  Omission (less stable but faster)
-#ComplexConjugateCorrection	0
+ComplexConjugateCorrection	0
 
 #### Parallelization
 #OMP_Threads	1	### Number of OpenMP threads assigned to each process (Omitted/equal to 1 => MPI-only)
