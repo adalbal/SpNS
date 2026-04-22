@@ -169,12 +169,10 @@ class HIT {
 		REAL Recalculate_Energy();
 		REAL Recalculate_Energy_Cascade(const char* filename = NULL);
 		void Calculate_Ek_init_file(COMPLEX const * const uk_file, COMPLEX const * const vk_file, COMPLEX const * const wk_file);
-		// Yotta stuff
+		// Velocity gradient invariants spectra
 		void Recalculate_Invariants_Distribution(const char* filename[5] = NULL);
+		// Pressure spectrum
 		REAL Recalculate_Pressure_Distribution(const char* filename = NULL);
-		REAL Recalculate_Residual_Distribution(const char* filename = NULL);
-		REAL Recalculate_RHS_Distribution(const char* filename = NULL);
-		REAL Recalculate_Predictor_Energy_Cascade(const char* filename = NULL);
 		// I/O functions (implemented in HIT_LES_output.cpp)
 		void DealiasedComplex3DimField_to_BinaryFile(COMPLEX const * const field_x, COMPLEX const * const field_y, COMPLEX const * const field_z, char const * const filename) const;
 		void Real3DimField_to_BinaryFile(REAL const * const field_x, REAL const * const field_y, REAL const * const field_z, char const * const filename) const;
@@ -223,8 +221,8 @@ class HIT {
 		REAL *u, *v, *w;
 		REAL *gradu[3], *gradv[3], *gradw[3];
 		REAL *convx, *convy, *convz;
-		REAL *invG[5];
-		COMPLEX *invGk[5];
+		REAL *velGradInv[5];
+		COMPLEX *velGradInvk[5];
 		COMPLEX *RHSk_0, *RHSk_1;
 		COMPLEX *upk, *vpk, *wpk;
 		COMPLEX *uk_aux, *vk_aux, *wk_aux, *uk_0, *vk_0, *wk_0, *uk_1, *vk_1, *wk_1;
@@ -246,11 +244,7 @@ class HIT {
 		// Complex field integrals
 		std::function<REAL(int a, int b, int k3)> KineticEnergy;
 		std::function<REAL(int a, int b, int k3)> Enstrophy;
-		// Yotta stuff
-		std::function<REAL(int a, int b, int k3)> GradientInvariants[5];
-		std::function<REAL(int a, int b, int k3)> PoissonResidual;
-		std::function<REAL(int a, int b, int k3)> PoissonRHS;
-		std::function<REAL(int a, int b, int k3)> PredictorEnergy;
+		std::function<REAL(int a, int b, int k3)> VelGradInvariants[5];
 		std::function<REAL(int a, int b, int k3)> PressureField;
 	};
 

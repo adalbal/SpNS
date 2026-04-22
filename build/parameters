@@ -30,7 +30,7 @@ Energy_Cascade_Freq		0
 #### Storage location of output files relative path from "./build". (Omitted => folder containing the executable ("./build"))
 Velocity_Phys_Folder	output
 Velocity_Four_Folder	output
-Energy_Cascade_Folder	output
+Spectra_Folder			output
 
 #### Initial velocity in physical space from either ASCII or binary file (missing fields => K41 initial distribution |k|^{-5/3})
 #### ASCII input file containing three columns: u, v, w; and Nx_file*Ny_file*Nz_file values

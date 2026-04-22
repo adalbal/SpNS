@@ -854,8 +854,8 @@ void HIT::HIT_init() {
 	Ek = alloc_real(last_rad_max+1);
 	// Yotta stuff
 	for(int coord=0; coord<5; coord++) {
-		invG[coord] = alloc_real(2*alloc_local);
-		invGk[coord] = alloc_complex(alloc_local);
+		velGradInv[coord] = alloc_real(2*alloc_local);
+		velGradInvk[coord] = alloc_complex(alloc_local);
 	}
 	RHSk_0 = alloc_complex(alloc_local);
 	RHSk_1 = alloc_complex(alloc_local);
@@ -1067,41 +1067,25 @@ void HIT::HIT_init() {
 	};
 
 	//Yotta stuff
-	GradientInvariants[0] = [&](int a, int b, int k3)->REAL{
+	VelGradInvariants[0] = [&](int a, int b, int k3)->REAL{
 		int ind = (b*Mx+a)*(Mz_2+1)+k3;
-		return invGk[0][ind][0]*invGk[0][ind][0] + invGk[0][ind][1]*invGk[0][ind][1];
+		return velGradInvk[0][ind][0]*velGradInvk[0][ind][0] + velGradInvk[0][ind][1]*velGradInvk[0][ind][1];
 	};
-	GradientInvariants[1] = [&](int a, int b, int k3)->REAL{
+	VelGradInvariants[1] = [&](int a, int b, int k3)->REAL{
 		int ind = (b*Mx+a)*(Mz_2+1)+k3;
-		return invGk[1][ind][0]*invGk[1][ind][0] + invGk[1][ind][1]*invGk[1][ind][1];
+		return velGradInvk[1][ind][0]*velGradInvk[1][ind][0] + velGradInvk[1][ind][1]*velGradInvk[1][ind][1];
 	};
-	GradientInvariants[2] = [&](int a, int b, int k3)->REAL{
+	VelGradInvariants[2] = [&](int a, int b, int k3)->REAL{
 		int ind = (b*Mx+a)*(Mz_2+1)+k3;
-		return invGk[2][ind][0]*invGk[2][ind][0] + invGk[2][ind][1]*invGk[2][ind][1];
+		return velGradInvk[2][ind][0]*velGradInvk[2][ind][0] + velGradInvk[2][ind][1]*velGradInvk[2][ind][1];
 	};
-	GradientInvariants[3] = [&](int a, int b, int k3)->REAL{
+	VelGradInvariants[3] = [&](int a, int b, int k3)->REAL{
 		int ind = (b*Mx+a)*(Mz_2+1)+k3;
-		return invGk[3][ind][0]*invGk[3][ind][0] + invGk[3][ind][1]*invGk[3][ind][1];
+		return velGradInvk[3][ind][0]*velGradInvk[3][ind][0] + velGradInvk[3][ind][1]*velGradInvk[3][ind][1];
 	};
-	GradientInvariants[4] = [&](int a, int b, int k3)->REAL{
+	VelGradInvariants[4] = [&](int a, int b, int k3)->REAL{
 		int ind = (b*Mx+a)*(Mz_2+1)+k3;
-		return invGk[4][ind][0]*invGk[4][ind][0] + invGk[4][ind][1]*invGk[4][ind][1];
-	};
-	PoissonResidual = [&](int a, int b, int k3)->REAL{
-		int ind = (b*Mx+a)*(Mz_2+1)+k3;
-		REAL res_real = RHSk_0[ind][0] - RHSk_1[ind][0];
-		REAL res_imag = RHSk_0[ind][1] - RHSk_1[ind][1];
-		return res_real*res_real + res_imag*res_imag;
-	};
-	PoissonRHS = [&](int a, int b, int k3)->REAL{
-		int ind = (b*Mx+a)*(Mz_2+1)+k3;
-		return RHSk_1[ind][0]*RHSk_1[ind][0] + RHSk_1[ind][1]*RHSk_1[ind][1];
-	};
-	PredictorEnergy = [&](int a, int b, int k3)->REAL{
-		int ind = (b*Mx+a)*(Mz_2+1)+k3;
-		return upk[ind][0]*upk[ind][0] + upk[ind][1]*upk[ind][1] +
-			   vpk[ind][0]*vpk[ind][0] + vpk[ind][1]*vpk[ind][1] +
-			   wpk[ind][0]*wpk[ind][0] + wpk[ind][1]*wpk[ind][1];
+		return velGradInvk[4][ind][0]*velGradInvk[4][ind][0] + velGradInvk[4][ind][1]*velGradInvk[4][ind][1];
 	};
 	PressureField = [&](int a, int b, int k3)->REAL{
 		int ind = (b*Mx+a)*(Mz_2+1)+k3;
@@ -1195,8 +1179,8 @@ void HIT::HIT_destroy() {
 	}
 	// Yotta stuff
 	for(int coord=0; coord<5; coord++) {
-		FREE(invG[coord]);
-		FREE(invGk[coord]);
+		FREE(velGradInv[coord]);
+		FREE(velGradInvk[coord]);
 	}
 	FREE(RHSk_0); FREE(RHSk_1);
 	FREE(upk); FREE(vpk); FREE(wpk);
@@ -1356,30 +1340,18 @@ void HIT::Recalculate_Invariants_Distribution(const char* filename[5]) {
 			G.v[1][coord] = gradv[coord][ind];
 			G.v[2][coord] = gradw[coord][ind];
 		}
-		invG[0][ind] = calc_QG(&G);
-		invG[1][ind] = calc_QS(&G);
-		invG[2][ind] = calc_RG(&G);
-		invG[3][ind] = calc_RS(&G);
-		invG[4][ind] = calc_V2(&G);
+		velGradInv[0][ind] = calc_QG(&G);
+		velGradInv[1][ind] = calc_QS(&G);
+		velGradInv[2][ind] = calc_RG(&G);
+		velGradInv[3][ind] = calc_RS(&G);
+		velGradInv[4][ind] = calc_V2(&G);
 	}
 	for(int coord=0; coord<5; coord++) {
 		//Forward transform the invariants
-		fftw.FFTWr2c(invG[coord], invGk[coord]); //FFT (r2c)
-		fftw.Fourier_Normalization(invGk[coord], dealiased); //Normalization of relevant coefficients
-		Integrate_Field(GradientInvariants[coord], filename[coord]);
+		fftw.FFTWr2c(velGradInv[coord], velGradInvk[coord]); //FFT (r2c)
+		fftw.Fourier_Normalization(velGradInvk[coord], dealiased); //Normalization of relevant coefficients
+		Integrate_Field(VelGradInvariants[coord], filename[coord]);
 	}
-};
-//Calculation of initial Poisson's residual distribution
-REAL HIT::Recalculate_Residual_Distribution(const char* filename) {
-	return Integrate_Field(PoissonResidual, filename);
-};
-//Calculation of Poisson's RHS distribution
-REAL HIT::Recalculate_RHS_Distribution(const char* filename) {
-	return Integrate_Field(PoissonRHS, filename);
-};
-//Calculation of kinetic energy associated to the predictor velocity
-REAL HIT::Recalculate_Predictor_Energy_Cascade(const char* filename) {
-	return Integrate_Field(PredictorEnergy, filename);
 };
 //Calculation of pressure field distribution
 REAL HIT::Recalculate_Pressure_Distribution(const char* filename) {
