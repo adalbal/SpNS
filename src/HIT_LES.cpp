@@ -346,7 +346,6 @@ void HIT::Recalculate_Predictor_Velocity_Fourier_Coefficients() {
 			if (dealiased[ind]) {
 				for (int ic=0; ic<=1; ic++){ //ic=0 => Real part, ic=1 => Imaginary part
 					//Adaptive timestep
-					_kappa05 = (1.0/(kappa+0.5));
 					uk_1[ind][ic]=_kappa05*(2.0*kappa*uk_0[ind][ic]+At*((1.0+kappa)*Rx1_k[ind][ic]
 											   -kappa*Rx0_k[ind][ic])-(kappa-0.5)*uk_aux[ind][ic]);
 					vk_1[ind][ic]=_kappa05*(2.0*kappa*vk_0[ind][ic]+At*((1.0+kappa)*Ry1_k[ind][ic]
@@ -409,7 +408,7 @@ void HIT::Recalculate_Divergence_Free_Projection() {
 	LOOP_FOURIER_k1k2k3 {
 		if (dealiased[ind]) {
 			for (int ic=0; ic<=1; ic++){ //ic=0 => Real part, ic=1 => Imaginary part
-				aux = ((rad2[ind]>0) ? ((k1*uk_1[ind][ic]+k2*vk_1[ind][ic]+k3*wk_1[ind][ic])/rad2[ind]) : 0.0);
+				aux = (k1*uk_1[ind][ic]+k2*vk_1[ind][ic]+k3*wk_1[ind][ic])/rad2[ind];
 				uk_1[ind][ic] -= aux * k1;
 				vk_1[ind][ic] -= aux * k2;
 				wk_1[ind][ic] -= aux * k3;
@@ -577,7 +576,7 @@ void HIT::Input_K41_Field() {
 					vk_1[ind][ic] = 0.0;
 					wk_1[ind][ic] = 0.0;
 				}
-			} else { //Aliased terms
+			} else { //Aliased (and mean flow) terms
 				uk_1[ind][ic] = 0.0;
 				vk_1[ind][ic] = 0.0;
 				wk_1[ind][ic] = 0.0;
@@ -812,7 +811,7 @@ void HIT::Truncate_Input_File_Fourier_Coefficients (COMPLEX const * const uk_fil
 					vk_1[ind][ic] = 0.0;
 					wk_1[ind][ic] = 0.0;	
 				}
-			} else { //Aliased terms (abs(k*) = N*_2+1, ..., M*_2)
+			} else { //Aliased (and mean flow) terms (abs(k*) = N*_2+1, ..., M*_2)
 				uk_1[ind][ic] = 0.0;
 				vk_1[ind][ic] = 0.0;
 				wk_1[ind][ic] = 0.0;					
@@ -910,16 +909,22 @@ void HIT::HIT_init() {
 	}
 
 	//dealiased: Initialization of a bool vector to know wether a mode is significant. Two cases:
-	//A) Exclusion of aliased terms:
+	//A) Exclusion of mean flow term: (k1,k2,k3) == (0,0,0)
+	//B) Exclusion of aliased terms:
 	//	-If N is odd, all k in [-N_2, N_2] are included, and abs(k) in [N_2, M_2] are excluded
 	//	-If N is even, k=-N_2 is also excluded (complex z-dimension is only computed from [0,N_2])
 	//(*If Nz is even, no exclusion has to be made as only k3>0 are considered and k3 == -Nz_2 cannot happen)
-	//B) Exclusion of undesired coefficients (due to non-cubic domains, i.e., length factors >1):
+	//C) Exclusion of undesired coefficients (due to non-cubic domains, i.e., length factors >1):
 	//	-FFTW assumes the same length for x, y and z-directions (in the exponential term of DFTs)
 	//	-This is overcome by setting to 0 all modes irrelevant to each direction (dealiased[ind]=false)
-	//C) num_dealiased: Number of dealiased terms present in current process
+	//D) num_dealiased: Number of dealiased terms present in current process
 	num_dealiased = 0;
 	LOOP_FOURIER_k1k2k3 {
+		//Exclusion of mean flow term
+		if (!k1 && !k2 && !k3) {
+			dealiased[ind] = false;
+			continue;
+		}
 		//Exclusion of aliased terms (3/2 rule implemented)
 		if (abs(k1)<=Nx_2 && abs(k2)<=Ny_2 && k3<=Nz_2) {
 			dealiased[ind] = true;
