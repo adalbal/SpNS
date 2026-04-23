@@ -1300,7 +1300,7 @@ REAL HIT::Recalculate_Energy_Cascade(const char* filename) {
 	return Ek_Tot;
 };
 // Calculation of the total kinetic energy of initial velocity field loaded from file (all done by process 0 in Input_Real_Field())
-void HIT::Calculate_Ek_init_file (COMPLEX const * const uk_file, COMPLEX const * const vk_file, COMPLEX const * const wk_file) {
+void HIT::Calculate_Ek_init_file(COMPLEX const * const uk_file, COMPLEX const * const vk_file, COMPLEX const * const wk_file) {
 	printf("WARNING: Before using it, double-check function HIT::Calculate_Ek_init_file()\n");
 	Ek_init_file = 0.0;
 	Enstrophy_init_file = 0.0;
@@ -1310,10 +1310,9 @@ void HIT::Calculate_Ek_init_file (COMPLEX const * const uk_file, COMPLEX const *
 		int k1 = FOURIER_FREQ(a,Nx_file);
 		int k2 = FOURIER_FREQ(b,Ny_file);
 		int rad2_file = k1*k1+k2*k2+k3*k3;
-		bool relevant_file = ((k1%Lx_factor == 0) || (k2%Ly_factor == 0) || (k3%Lz_factor == 0));
+		bool relevant_file = ((k1%Lx_factor == 0) && (k2%Ly_factor == 0) && (k3%Lz_factor == 0));
 		if (relevant_file) {
-			//bool conjugate_file = ((k3!=0) && (abs(k1)<=(Nx_file-1)/2) && (abs(k2)<=(Ny_file-1)/2) && (abs(k3)<=(Nz_file-1)/2));
-			bool conjugate_file = ((k3!=0) && (k1!=16) && (k2!=16) && (k3!=16));
+			bool conjugate_file = (k3 != 0) && !((Nz_file % 2 == 0) && (k3 == Nz_file / 2));
 			REAL Ek_file =  (uk_file[ind][0] * uk_file[ind][0]) + (uk_file[ind][1] * uk_file[ind][1]);
 			Ek_file += (vk_file[ind][0] * vk_file[ind][0]) + (vk_file[ind][1] * vk_file[ind][1]);
 			Ek_file += (wk_file[ind][0] * wk_file[ind][0]) + (wk_file[ind][1] * wk_file[ind][1]);

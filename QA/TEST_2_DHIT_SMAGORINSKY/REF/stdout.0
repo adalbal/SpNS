@@ -13,7 +13,6 @@ FileBuffer: loading params2_DHIT_SMAGORINSKY
            Energy_Cascade_Freq: 0
           Velocity_Phys_Folder: OUTPUT
           Velocity_Four_Folder: OUTPUT
-         Energy_Cascade_Folder: OUTPUT
          Binary_Input_Filename: DATA/vel_48x48x48.bin
                        Nx_file: 48
                        Ny_file: 48
@@ -22,67 +21,67 @@ FileBuffer: loading params2_DHIT_SMAGORINSKY
                           C_At: 0.50
 Default used for parameters:
                             nu: 0.00
-                  Yotta_Folder: ¥ç
-          ASCII_Input_Filename: ð·6•ê
-               InputEkFilename: 
-                        Last_K: 0
+                Spectra_Folder: 
+          ASCII_Input_Filename: 
+               InputEkFilename: )?¬þ
+                        Last_K: -297110878
               Nullify_MissingK: 0
              Final_Forced_Time: 0.00
-                            Lx: 0
+                            Lx: -1405150552
                             Ly: 0
                             Lz: 0
                        omega_x: 0.00
                        omega_y: 0.00
                        omega_z: 0.00
           SelfAdaptiveTimestep: 0
-    ComplexConjugateCorrection: 0
+    ComplexConjugateCorrection: 1
 
 
-Time: 0.012033,    iter:        1,    Dt: 1.203300e-02,    Ek: 2.753232e-01,    Om: 6.387867e+01,    ReLambda:  295.000
-Time: 0.023952,    iter:        2,    Dt: 1.191872e-02,    Ek: 2.718371e-01,    Om: 6.296610e+01,    ReLambda:  295.000
-Time: 0.035915,    iter:        3,    Dt: 1.196306e-02,    Ek: 2.686277e-01,    Om: 6.216215e+01,    ReLambda:  295.000
-Time: 0.047962,    iter:        4,    Dt: 1.204681e-02,    Ek: 2.654723e-01,    Om: 6.137575e+01,    ReLambda:  295.000
-Time: 0.060143,    iter:        5,    Dt: 1.218137e-02,    Ek: 2.623553e-01,    Om: 6.060104e+01,    ReLambda:  295.000
-Time: 0.072512,    iter:        6,    Dt: 1.236920e-02,    Ek: 2.592641e-01,    Om: 5.983459e+01,    ReLambda:  295.000
-Time: 0.085126,    iter:        7,    Dt: 1.261346e-02,    Ek: 2.561858e-01,    Om: 5.907285e+01,    ReLambda:  295.000
-Time: 0.097966,    iter:        8,    Dt: 1.284019e-02,    Ek: 2.531080e-01,    Om: 5.831240e+01,    ReLambda:  295.000
-Time: 0.110690,    iter:        9,    Dt: 1.272369e-02,    Ek: 2.500345e-01,    Om: 5.755349e+01,    ReLambda:  295.000
-Time: 0.123341,    iter:       10,    Dt: 1.265118e-02,    Ek: 2.470392e-01,    Om: 5.681223e+01,    ReLambda:  295.000
-Time: 0.135967,    iter:       11,    Dt: 1.262582e-02,    Ek: 2.441191e-01,    Om: 5.608991e+01,    ReLambda:  295.000
-Time: 0.148612,    iter:       12,    Dt: 1.264569e-02,    Ek: 2.412612e-01,    Om: 5.538307e+01,    ReLambda:  295.000
-Time: 0.161322,    iter:       13,    Dt: 1.271001e-02,    Ek: 2.384537e-01,    Om: 5.468856e+01,    ReLambda:  295.000
-Time: 0.174141,    iter:       14,    Dt: 1.281864e-02,    Ek: 2.356856e-01,    Om: 5.400354e+01,    ReLambda:  295.000
-Time: 0.187113,    iter:       15,    Dt: 1.297202e-02,    Ek: 2.329472e-01,    Om: 5.332543e+01,    ReLambda:  295.000
-Time: 0.200142,    iter:       16,    Dt: 1.302939e-02,    Ek: 2.302292e-01,    Om: 5.265180e+01,    ReLambda:  295.000
-Time: 0.213191,    iter:       17,    Dt: 1.304871e-02,    Ek: 2.275485e-01,    Om: 5.198618e+01,    ReLambda:  295.000
-Time: 0.226317,    iter:       18,    Dt: 1.312611e-02,    Ek: 2.249139e-01,    Om: 5.133098e+01,    ReLambda:  295.000
-Time: 0.239579,    iter:       19,    Dt: 1.326206e-02,    Ek: 2.223149e-01,    Om: 5.068407e+01,    ReLambda:  295.000
-Time: 0.253037,    iter:       20,    Dt: 1.345790e-02,    Ek: 2.197398e-01,    Om: 5.004252e+01,    ReLambda:  295.000
-Time: 0.266753,    iter:       21,    Dt: 1.371632e-02,    Ek: 2.171776e-01,    Om: 4.940354e+01,    ReLambda:  295.000
-Time: 0.280706,    iter:       22,    Dt: 1.395226e-02,    Ek: 2.146176e-01,    Om: 4.876445e+01,    ReLambda:  295.000
-Time: 0.294624,    iter:       23,    Dt: 1.391866e-02,    Ek: 2.120635e-01,    Om: 4.812582e+01,    ReLambda:  295.000
-Time: 0.308572,    iter:       24,    Dt: 1.394728e-02,    Ek: 2.095599e-01,    Om: 4.749779e+01,    ReLambda:  295.000
-Time: 0.322610,    iter:       25,    Dt: 1.403847e-02,    Ek: 2.071013e-01,    Om: 4.688053e+01,    ReLambda:  295.000
-Time: 0.336801,    iter:       26,    Dt: 1.419145e-02,    Ek: 2.046758e-01,    Om: 4.627112e+01,    ReLambda:  295.000
-Time: 0.351209,    iter:       27,    Dt: 1.440791e-02,    Ek: 2.022726e-01,    Om: 4.566688e+01,    ReLambda:  295.000
-Time: 0.365901,    iter:       28,    Dt: 1.469129e-02,    Ek: 1.998815e-01,    Om: 4.506529e+01,    ReLambda:  295.000
-Time: 0.380694,    iter:       29,    Dt: 1.479354e-02,    Ek: 1.974925e-01,    Om: 4.446392e+01,    ReLambda:  295.000
-Time: 0.395483,    iter:       30,    Dt: 1.478834e-02,    Ek: 1.951313e-01,    Om: 4.386832e+01,    ReLambda:  295.000
-Time: 0.410037,    iter:       31,    Dt: 1.455404e-02,    Ek: 1.928160e-01,    Om: 4.328353e+01,    ReLambda:  295.000
-Time: 0.424331,    iter:       32,    Dt: 1.429466e-02,    Ek: 1.905784e-01,    Om: 4.271730e+01,    ReLambda:  295.000
-Time: 0.438450,    iter:       33,    Dt: 1.411851e-02,    Ek: 1.884228e-01,    Om: 4.217167e+01,    ReLambda:  295.000
-Time: 0.452466,    iter:       34,    Dt: 1.401671e-02,    Ek: 1.863355e-01,    Om: 4.164359e+01,    ReLambda:  295.000
-Time: 0.466448,    iter:       35,    Dt: 1.398168e-02,    Ek: 1.843029e-01,    Om: 4.112963e+01,    ReLambda:  295.000
-Time: 0.480457,    iter:       36,    Dt: 1.400882e-02,    Ek: 1.823136e-01,    Om: 4.062690e+01,    ReLambda:  295.000
-Time: 0.494553,    iter:       37,    Dt: 1.409574e-02,    Ek: 1.803575e-01,    Om: 4.013288e+01,    ReLambda:  295.000
-Time: 0.508795,    iter:       38,    Dt: 1.424184e-02,    Ek: 1.784258e-01,    Om: 3.964535e+01,    ReLambda:  295.000
+Time: 0.012033,    iter:        1,    Dt: 1.203300e-02,    Ek: 2.753264e-01,    Om: 6.388014e+01,    ReLambda:  295.000
+Time: 0.023952,    iter:        2,    Dt: 1.191863e-02,    Ek: 2.718391e-01,    Om: 6.296703e+01,    ReLambda:  295.000
+Time: 0.035915,    iter:        3,    Dt: 1.196300e-02,    Ek: 2.686297e-01,    Om: 6.216306e+01,    ReLambda:  295.000
+Time: 0.047961,    iter:        4,    Dt: 1.204675e-02,    Ek: 2.654742e-01,    Om: 6.137664e+01,    ReLambda:  295.000
+Time: 0.060143,    iter:        5,    Dt: 1.218131e-02,    Ek: 2.623572e-01,    Om: 6.060191e+01,    ReLambda:  295.000
+Time: 0.072512,    iter:        6,    Dt: 1.236914e-02,    Ek: 2.592659e-01,    Om: 5.983543e+01,    ReLambda:  295.000
+Time: 0.085125,    iter:        7,    Dt: 1.261340e-02,    Ek: 2.561876e-01,    Om: 5.907368e+01,    ReLambda:  295.000
+Time: 0.097965,    iter:        8,    Dt: 1.284014e-02,    Ek: 2.531097e-01,    Om: 5.831320e+01,    ReLambda:  295.000
+Time: 0.110689,    iter:        9,    Dt: 1.272364e-02,    Ek: 2.500362e-01,    Om: 5.755427e+01,    ReLambda:  295.000
+Time: 0.123340,    iter:       10,    Dt: 1.265113e-02,    Ek: 2.470408e-01,    Om: 5.681298e+01,    ReLambda:  295.000
+Time: 0.135966,    iter:       11,    Dt: 1.262577e-02,    Ek: 2.441207e-01,    Om: 5.609065e+01,    ReLambda:  295.000
+Time: 0.148612,    iter:       12,    Dt: 1.264564e-02,    Ek: 2.412628e-01,    Om: 5.538379e+01,    ReLambda:  295.000
+Time: 0.161322,    iter:       13,    Dt: 1.270996e-02,    Ek: 2.384551e-01,    Om: 5.468926e+01,    ReLambda:  295.000
+Time: 0.174140,    iter:       14,    Dt: 1.281860e-02,    Ek: 2.356871e-01,    Om: 5.400422e+01,    ReLambda:  295.000
+Time: 0.187112,    iter:       15,    Dt: 1.297197e-02,    Ek: 2.329486e-01,    Om: 5.332608e+01,    ReLambda:  295.000
+Time: 0.200141,    iter:       16,    Dt: 1.302936e-02,    Ek: 2.302305e-01,    Om: 5.265244e+01,    ReLambda:  295.000
+Time: 0.213190,    iter:       17,    Dt: 1.304867e-02,    Ek: 2.275499e-01,    Om: 5.198680e+01,    ReLambda:  295.000
+Time: 0.226316,    iter:       18,    Dt: 1.312606e-02,    Ek: 2.249152e-01,    Om: 5.133158e+01,    ReLambda:  295.000
+Time: 0.239578,    iter:       19,    Dt: 1.326201e-02,    Ek: 2.223161e-01,    Om: 5.068466e+01,    ReLambda:  295.000
+Time: 0.253036,    iter:       20,    Dt: 1.345785e-02,    Ek: 2.197411e-01,    Om: 5.004309e+01,    ReLambda:  295.000
+Time: 0.266752,    iter:       21,    Dt: 1.371627e-02,    Ek: 2.171788e-01,    Om: 4.940409e+01,    ReLambda:  295.000
+Time: 0.280705,    iter:       22,    Dt: 1.395222e-02,    Ek: 2.146187e-01,    Om: 4.876498e+01,    ReLambda:  295.000
+Time: 0.294623,    iter:       23,    Dt: 1.391861e-02,    Ek: 2.120646e-01,    Om: 4.812634e+01,    ReLambda:  295.000
+Time: 0.308570,    iter:       24,    Dt: 1.394722e-02,    Ek: 2.095610e-01,    Om: 4.749829e+01,    ReLambda:  295.000
+Time: 0.322609,    iter:       25,    Dt: 1.403842e-02,    Ek: 2.071024e-01,    Om: 4.688102e+01,    ReLambda:  295.000
+Time: 0.336800,    iter:       26,    Dt: 1.419140e-02,    Ek: 2.046769e-01,    Om: 4.627160e+01,    ReLambda:  295.000
+Time: 0.351208,    iter:       27,    Dt: 1.440785e-02,    Ek: 2.022736e-01,    Om: 4.566735e+01,    ReLambda:  295.000
+Time: 0.365899,    iter:       28,    Dt: 1.469123e-02,    Ek: 1.998825e-01,    Om: 4.506574e+01,    ReLambda:  295.000
+Time: 0.380693,    iter:       29,    Dt: 1.479350e-02,    Ek: 1.974934e-01,    Om: 4.446436e+01,    ReLambda:  295.000
+Time: 0.395481,    iter:       30,    Dt: 1.478830e-02,    Ek: 1.951322e-01,    Om: 4.386875e+01,    ReLambda:  295.000
+Time: 0.410035,    iter:       31,    Dt: 1.455401e-02,    Ek: 1.928169e-01,    Om: 4.328395e+01,    ReLambda:  295.000
+Time: 0.424330,    iter:       32,    Dt: 1.429462e-02,    Ek: 1.905793e-01,    Om: 4.271771e+01,    ReLambda:  295.000
+Time: 0.438448,    iter:       33,    Dt: 1.411846e-02,    Ek: 1.884237e-01,    Om: 4.217207e+01,    ReLambda:  295.000
+Time: 0.452465,    iter:       34,    Dt: 1.401667e-02,    Ek: 1.863364e-01,    Om: 4.164397e+01,    ReLambda:  295.000
+Time: 0.466446,    iter:       35,    Dt: 1.398163e-02,    Ek: 1.843037e-01,    Om: 4.113000e+01,    ReLambda:  295.000
+Time: 0.480455,    iter:       36,    Dt: 1.400877e-02,    Ek: 1.823144e-01,    Om: 4.062726e+01,    ReLambda:  295.000
+Time: 0.494551,    iter:       37,    Dt: 1.409568e-02,    Ek: 1.803583e-01,    Om: 4.013324e+01,    ReLambda:  295.000
+Time: 0.508793,    iter:       38,    Dt: 1.424177e-02,    Ek: 1.784266e-01,    Om: 3.964570e+01,    ReLambda:  295.000
 
 Final time-steps: 38
-Final time:       0.508795
-Final energy:     0.178426
+Final time:       0.508793
+Final energy:     0.178427
 Final ReLambda:   295.000
 
-Total time: 0.885539
-Loop time:  0.573144
-Time/iter:  0.015083
+Total time: 0.860237
+Loop time:  0.568137
+Time/iter:  0.014951
 
