@@ -417,8 +417,7 @@ void HIT::Forcing_Energy_Cascade(REAL const * const Forced_Ek, const ptrdiff_t& 
 	int last_eff_rad = min(last_input_rad, last_rad);
 	REAL *FT = alloc_real(last_eff_rad+1);
 	//Calculation of FT corresponding to the current energy cascade (Ek)
-	FT[0] = 0.0; //Dummy case
-	for (int K=1; K<=last_eff_rad; K++) {
+	for (int K=0; K<=last_eff_rad; K++) {
 		FT[K] = ((Ek[K]>0.0) ? sqrt(Forced_Ek[K] / Ek[K]) : 0.0); //Beware of Ek[K]=0!!!
 	}
 	//Scaling of velocity to force the energy cascade to be as Forced_Ek
@@ -492,7 +491,7 @@ void HIT::Forcing_Reynolds_Lambda(const REAL ReLambda_) {
 	nu = Ek_Tot / ReLambda_ * sqrt(20.0 / 3.0 / Ok_Tot);
 };
 REAL HIT::Recalculate_Enstrophy() {
-	const int Kmin = 1;
+	const int Kmin = 1; //Ok[0] = 0.0 by definition
 	const int Kmax = last_rad_max;
 	Ok_Tot = Integrate_Field(Enstrophy, NULL, NULL, Kmin, Kmax);
 	return Ok_Tot;
@@ -531,7 +530,9 @@ void HIT::Input_K41_Field() {
 	Complex_Conjugate_Correction();
 	//Initialize K41 energy cascade
 	REAL *K41_Ek = alloc_real(last_rad+1);
-	K41_Ek[0] = 0.0; //Dummy case
+	// We impose no mean flow, K41_Ek[0]=0.0. However, this makes initial Ek[0]=0.0 and, since it is preserved
+	// throughout the simulation, then Ek[0] is fixed to 0.0, making any value passed to Forced_Ek[0], ignored.
+	K41_Ek[0] = 0.0; //No mean flow
 	for (int K=1; K<=last_rad; K++) {
 		K41_Ek[K] = pow(K, -5.0/3.0);
 	}
@@ -1268,14 +1269,14 @@ void HIT::Check_PhysFour_Energy(const REAL atol) {
 };
 // Calculation of total kinetic energy (Ek_Tot)
 REAL HIT::Recalculate_Energy() {
-	const int Kmin = 1;
+	const int Kmin = 0;
 	const int Kmax = last_rad_max;
 	Ek_Tot = Integrate_Field(KineticEnergy, NULL, NULL, Kmin, Kmax);
 	return Ek_Tot;
 };
 // Calculation of kinetic energy (total, Ek_Tot, and modal, Ek[K])
 REAL HIT::Recalculate_Energy_Cascade(const char* filename) {
-	const int Kmin = 1;
+	const int Kmin = 0;
 	const int Kmax = last_rad_max;
 	Ek_Tot = Integrate_Field(KineticEnergy, filename, Ek, Kmin, Kmax);
 	return Ek_Tot;

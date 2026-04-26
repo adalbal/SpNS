@@ -22,7 +22,7 @@ extern double tcurrprint;
 //=====================================================================================================================
 // Input functions
 //=====================================================================================================================
-void Read_Ek_Input_File (const int& Last_K, REAL* Ek_input, const int& dumb_columns, const char* EkFilename);
+void Read_Ek_Input_File (const int& Last_K, REAL* Ek_input, const char* EkFilename);
 
 //=====================================================================================================================
 // main program
@@ -322,7 +322,7 @@ int main (int argc, char **argv){
 		//Memory allocation
 		Forced_Ek = alloc_real(last_input_rad+1);
 		//Reading input file
-		Read_Ek_Input_File (last_input_rad, Forced_Ek, 1, EkFilename);
+		Read_Ek_Input_File (last_input_rad, Forced_Ek, EkFilename);
 	}
 
 	//If Reynolds lambda is passed, then nu has to be set accordingly
@@ -559,33 +559,32 @@ int main (int argc, char **argv){
 // Auxiliary functions
 //=====================================================================================================================
 //Read and load of energy cascade from input file of known size
-void Read_Ek_Input_File (const int& Last_K, REAL* Ek_input, const int& dumb_columns, const char* EkFilename) {
-	const int myrank = MyID();
-
-	if (!myrank) {
-		ifstream infile(EkFilename);
-		if(infile.fail()) {
-			crash("Read_Ek_Input_File(): Forced energy cascade input file is missing!!! Include \"%s\", please\n", EkFilename);
-		}
-
-		int row = 0;
-		int col = 0;
-		REAL shit;
-		Ek_input[0] = 0.0;
-		while((!infile.eof()) && (row < Last_K)) {
-			if (col < dumb_columns) {
-				infile >> shit;
-				if (static_cast<int>(shit) != row+1) crash("Read_Ek_Input_File(): invalid entry in (row,col)=(%d,%d)\n", row, col);
-				col++;
-			} else {
-				infile >> Ek_input[row+1]; //Ek for |k|=i is stored in Ek_input[i] and Ek[0] is unused (and must not be set in input file)
-				row++;
-				col=0;
-			}
-		}
-		infile.close();
+void Read_Ek_Input_File(const int& Last_K, REAL* Ek_input, const char* EkFilename) {
+	// Open file
+	ifstream infile(EkFilename);
+	if (infile.fail()) {
+		crash("Read_Ek_Input_File(): Forced energy cascade input file is missing!!! Include \"%s\", please\n", EkFilename);
 	}
 
-	//Broadcast energy cascade to all ranks
-	MPI_Bcast(Ek_input, Last_K+1, REAL_MPI, 0, MPI_COMM_WORLD);
+	// Initialise to zero (handles K=0 mean flow and any missing entries)
+	for (int K = 0; K <= Last_K; K++) Ek_input[K] = 0.0;
+
+	// Read (K, Ek[K]) pairs directly (no need for a particular order)
+	int K;
+	REAL val;
+	while (infile >> K >> val) {
+		if (K < 0 || K > Last_K) {
+			crash("Read_Ek_Input_File(): K=%d out of range [0, %d] in \"%s\"\n", K, Last_K, EkFilename);
+		}
+		Ek_input[K] = val;
+	}
+
+	// Close file
+	infile.close();
+
+	// Warn if setting non-zero mean flow. If crash is removed, make sure HIT::Check_PhysFour_Energy() is passed
+	// also with non-zero mean flow
+	if (Ek_input[0] > 0.0) {
+		crash("WARNING: Read_Ek_Input_File(): Passed Ek_input[0]=%f, but it is ignored if initial field is set through HIT::Input_K41_Fiel()\n", Ek_input[0]);
+	}
 };
