@@ -13,7 +13,6 @@ FileBuffer: loading params8_DHIT_SMAGORINSKY_ROTATING_NONCUBIC
            Energy_Cascade_Freq: 0
           Velocity_Phys_Folder: OUTPUT
           Velocity_Four_Folder: OUTPUT
-         Energy_Cascade_Folder: OUTPUT
                             Lx: 1
                             Ly: 2
                             Lz: 3
@@ -24,33 +23,33 @@ FileBuffer: loading params8_DHIT_SMAGORINSKY_ROTATING_NONCUBIC
                           C_At: 0.50
 Default used for parameters:
                             nu: 0.00
-                  Yotta_Folder: еч
+                Spectra_Folder: Ё'#N
           ASCII_Input_Filename: 
-         Binary_Input_Filename: ж~6И~
+         Binary_Input_Filename: 
                        Nx_file: 0
                        Ny_file: 0
-                       Nz_file: 0
-               InputEkFilename: 
-                        Last_K: 0
-              Nullify_MissingK: 0
+                       Nz_file: 32767
+               InputEkFilename: 0|ъ 
+                        Last_K: -367432816
+              Nullify_MissingK: 575304354
              Final_Forced_Time: 0.00
-          SelfAdaptiveTimestep: 0
-    ComplexConjugateCorrection: 0
+          SelfAdaptiveTimestep: 32767
+    ComplexConjugateCorrection: -367432448
 
 
 Time: 0.001543,    iter:        1,    Dt: 1.543288e-03,    Ek: 5.887270e-01,    Om: 9.668356e+01,    ReLambda:  295.000
-Time: 0.003334,    iter:        2,    Dt: 1.790323e-03,    Ek: 5.890063e-01,    Om: 9.656628e+01,    ReLambda:  295.000
-Time: 0.005127,    iter:        3,    Dt: 1.793768e-03,    Ek: 5.888421e-01,    Om: 9.645826e+01,    ReLambda:  295.000
-Time: 0.006924,    iter:        4,    Dt: 1.796282e-03,    Ek: 5.886732e-01,    Om: 9.635252e+01,    ReLambda:  295.000
-Time: 0.008721,    iter:        5,    Dt: 1.797472e-03,    Ek: 5.885042e-01,    Om: 9.625577e+01,    ReLambda:  295.000
-Time: 0.010521,    iter:        6,    Dt: 1.799710e-03,    Ek: 5.883352e-01,    Om: 9.616801e+01,    ReLambda:  295.000
+Time: 0.003334,    iter:        2,    Dt: 1.790881e-03,    Ek: 5.890063e-01,    Om: 9.656628e+01,    ReLambda:  295.000
+Time: 0.005128,    iter:        3,    Dt: 1.794137e-03,    Ek: 5.888421e-01,    Om: 9.645825e+01,    ReLambda:  295.000
+Time: 0.006925,    iter:        4,    Dt: 1.796655e-03,    Ek: 5.886732e-01,    Om: 9.635248e+01,    ReLambda:  295.000
+Time: 0.008723,    iter:        5,    Dt: 1.797843e-03,    Ek: 5.885041e-01,    Om: 9.625572e+01,    ReLambda:  295.000
+Time: 0.010523,    iter:        6,    Dt: 1.800080e-03,    Ek: 5.883351e-01,    Om: 9.616795e+01,    ReLambda:  295.000
 
 Final time-steps: 6
-Final time:       0.010521
+Final time:       0.010523
 Final energy:     0.588335
 Final ReLambda:   295.000
 
-Total time: 5.179755
-Loop time:  3.633605
-Time/iter:  0.605601
+Total time: 4.546274
+Loop time:  3.004165
+Time/iter:  0.500694
 
