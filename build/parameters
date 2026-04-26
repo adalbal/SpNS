@@ -23,10 +23,12 @@ Final_Time	0.5	### Last instant of time to be simulated
 Velocity_Physical		0	### Velocity field in physical space
 Velocity_Fourier		0	### Velocity field in Fourier space
 Energy_Cascade			0	### Total kinetic energy in Fourier space for each |k|
+VelGradInv_Spectra		0	### Velocity Gradient invariants spectra in Fourier space for each |k|
 #### Output frequency in terms of the number of iterations. (Omitted/equal to zero => Output only at the end of the simulation)
 Velocity_Phys_Freq		0
 Velocity_Four_Freq		0
 Energy_Cascade_Freq		0
+VelGradInv_Spectra_Freq	0
 #### Storage location of output files relative path from "./build". (Omitted => folder containing the executable ("./build"))
 Velocity_Phys_Folder	output
 Velocity_Four_Folder	output

@@ -16,9 +16,6 @@
 
 using namespace std;
 
-extern double tlastprint;
-extern double tcurrprint;
-
 //=====================================================================================================================
 // Input functions
 //=====================================================================================================================
@@ -48,8 +45,8 @@ int main (int argc, char **argv){
 	//OPTIONAL:
 	//Outputting obtained results
 	char VelPhysfolder[256], VelFourfolder[256], Spectrafolder[256];
-	int Velocity_Physical, Velocity_Fourier, Energy_Cascade;  // (1:Output field / elsewhere:No output of the field)
-	int Velocity_Phys_Freq, Velocity_Four_Freq, Energy_Cascade_Freq; // Output frequency (in terms of iteration number)
+	int Velocity_Physical, Velocity_Fourier, Energy_Cascade, VelGradInv_Spectra;  // (1:Output field / elsewhere:No output of the field)
+	int Velocity_Phys_Freq, Velocity_Four_Freq, Energy_Cascade_Freq, VelGradInv_Spectra_Freq; // Output frequency (in terms of iteration number)
 	//Inputting velocity in phycical space from file
 	char ASCII_Input_Filename[256];
 	char Binary_Input_Filename[256];
@@ -70,7 +67,7 @@ int main (int argc, char **argv){
 	// -----------------------------------------------------------
 	// Derived parameters ----------------------------------------
 	bool isReLambda, isReLambda_iter, isInitialFieldFromBinaryFile, isInitialFieldFromASCIIFile, isForcedEk, isNullifyMissingEk, isNotCubic, isRotating, isLES, isSelfAdaptive, isComplexConjugateCorrected, isOpenMP;
-	bool isVelPhysOut, isVelPhysOut_iter, isVelFourOut, isVelFourOut_iter, isEkOut, isEkOut_iter;
+	bool isVelPhysOut, isVelPhysOut_iter, isVelFourOut, isVelFourOut_iter, isEkOut, isEkOut_iter, isVelGradInvkOut, isVelGradInvkOut_iter;
 	int Mx, My, Mz; //De-aliasing mesh size = 3*(N/2) != (3*N)/2 !!!!
 	// -----------------------------------------------------------
 	// Output parameters -----------------------------------------
@@ -88,6 +85,7 @@ int main (int argc, char **argv){
 	int VelPhys_file_iter = 0;
 	int VelFour_file_iter = 0;
 	int Ek_file_iter = 0;
+	int VelGradInvk_file_iter = 0;
 	// -----------------------------------------------------------
 
 	{ //read of number of OMP threads per process in order to initiate parallelization (and parallel output of log file)
@@ -140,9 +138,11 @@ int main (int argc, char **argv){
 		PM.RequestParameter(Velocity_Physical,"Velocity_Physical",TYPE_INT,IO_DONTCRASH); //(1=true/elsewhere=false)
 		PM.RequestParameter(Velocity_Fourier,"Velocity_Fourier",TYPE_INT,IO_DONTCRASH); //(1=true/elsewhere=false)
 		PM.RequestParameter(Energy_Cascade,"Energy_Cascade",TYPE_INT,IO_DONTCRASH); //(1=true/elsewhere=false)
+		PM.RequestParameter(VelGradInv_Spectra,"VelGradInv_Spectra",TYPE_INT,IO_DONTCRASH); //(1=true/elsewhere=false)
 		PM.RequestParameter(Velocity_Phys_Freq,"Velocity_Phys_Freq",TYPE_INT,IO_DONTCRASH,GE,0);
 		PM.RequestParameter(Velocity_Four_Freq,"Velocity_Four_Freq",TYPE_INT,IO_DONTCRASH,GE,0);
 		PM.RequestParameter(Energy_Cascade_Freq,"Energy_Cascade_Freq",TYPE_INT,IO_DONTCRASH,GE,0);
+		PM.RequestParameter(VelGradInv_Spectra_Freq,"VelGradInv_Spectra_Freq",TYPE_INT,IO_DONTCRASH,GE,0);
 		PM.RequestParameter(VelPhysfolder,"Velocity_Phys_Folder",TYPE_WORD,IO_DONTCRASH);
 		PM.RequestParameter(VelFourfolder,"Velocity_Four_Folder",TYPE_WORD,IO_DONTCRASH);
 		PM.RequestParameter(Spectrafolder,"Spectra_Folder",TYPE_WORD,IO_DONTCRASH);
@@ -308,6 +308,14 @@ int main (int argc, char **argv){
 			isEkOut = false;
 			isEkOut_iter = false;
 		}
+		if (PM["VelGradInv_Spectra"].GetIsSet() && (VelGradInv_Spectra == 1)) {
+			isVelGradInvkOut = true;
+			isVelGradInvkOut_iter = ((PM["VelGradInv_Spectra_Freq"].GetIsSet() && (VelGradInv_Spectra_Freq > 0)) ? true : false);
+			if (!PM["Spectra_Folder"].GetIsSet()) snprintf(Spectrafolder , 256, ".");
+		} else {
+			isVelGradInvkOut = false;
+			isVelGradInvkOut_iter = false;
+		}
 	}
 
 	//===================================================
@@ -443,23 +451,21 @@ int main (int argc, char **argv){
 		//Thus, in order that all output fields correspond to the same iteration, this modification has to be made)
 		if (isEkOut_iter) {
 			if ((iter+1) % Energy_Cascade_Freq == 0) {
-				//update printing times
-				tlastprint = tcurrprint;
-				tcurrprint = hit.gettime();
-
-				if (myrank == 0) printf("iter: %6d, snapshot: %d, tlastprint: %f, tcurrprint: %f, Dtprint: %f\n", iter, Ek_file_iter, tlastprint,tcurrprint,tcurrprint-tlastprint);
-
 				snprintf(fname, 512, "%s/%s_%08d.%s", Spectrafolder, base_Ekfilename.c_str(), Ek_file_iter, ASCII_fileformat.c_str());
 				hit.Recalculate_Energy_Cascade(fname); //must be called from all ranks
 
-				// Yotta stuff
+				Ek_file_iter++;
+			}
+		}
+		if (isVelGradInvkOut_iter) {
+			if ((iter+1) % VelGradInv_Spectra_Freq == 0) {
 				for(int coord=0; coord<5; coord++) {
-					snprintf(fname, 512, "%s/%s_%08d.%s", Spectrafolder, base_VelGradInvfilename[coord].c_str(), Ek_file_iter, ASCII_fileformat.c_str());
+					snprintf(fname, 512, "%s/%s_%08d.%s", Spectrafolder, base_VelGradInvfilename[coord].c_str(), VelGradInvk_file_iter, ASCII_fileformat.c_str());
 					strcpy(const_cast<char*>(VelGradInvfname[coord]), fname);
 				}
 				hit.Recalculate_Invariants_Distribution(VelGradInvfname); //must be called from all ranks
 
-				Ek_file_iter++;
+				VelGradInvk_file_iter++;
 			}
 		}
 		if (isVelFourOut_iter) {
@@ -486,8 +492,9 @@ int main (int argc, char **argv){
 	if (isEkOut) {
 		snprintf(fname, 512, "%s/%s.%s", Spectrafolder, base_Ekfilename.c_str(), ASCII_fileformat.c_str());
 		hit.Recalculate_Energy_Cascade(fname);
-
-		// Yotta stuff
+	}
+	//Output of velocity gradient invariants spectra (ASCII)
+	if (isVelGradInvkOut) {
 		for(int coord=0; coord<5; coord++) {
 			snprintf(fname, 512, "%s/%s.%s", Spectrafolder, base_VelGradInvfilename[coord].c_str(), ASCII_fileformat.c_str());
 			strcpy(const_cast<char*>(VelGradInvfname[coord]), fname);

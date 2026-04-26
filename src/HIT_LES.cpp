@@ -2,9 +2,6 @@
 
 int iter = 0;
 
-double tlastprint = 0.0;
-double tcurrprint = 0.0;
-
 //=====================================================================================================================
 // FRACTIONAL STEP METHOD
 //=====================================================================================================================
@@ -1184,7 +1181,7 @@ REAL HIT::Integrate_Field(std::function<REAL(int a, int b, int k3)>& funcFieldNo
 			std::ofstream outFile(filename);
 			if (!outFile.is_open()) printf("WARNING: HIT::Integrate_Field(): Error opening \"%s\".\n", filename);
 			for (int K=Kmin; K<=Kmax; K++) {
-				outFile << K << "\t" << ptr_glo[K] << "\t" << (tcurrprint - tlastprint) << "\n";
+				outFile << K << "\t" << ptr_glo[K] << "\n";
 			}
 			outFile.close();
 		}

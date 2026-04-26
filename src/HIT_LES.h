@@ -271,7 +271,7 @@ inline REAL HIT::Kopt(REAL phi0){
 }
 //Post-process
 REAL HIT::Integrate_Field(std::function<REAL(int a, int b, int k3)>& funcFieldNorm, const char* filename) {
-	const int Kmin = 1;
+	const int Kmin = 0;
 	const int Kmax = last_rad_max;
 	return Integrate_Field(funcFieldNorm, filename, global_acumField, Kmin, Kmax);
 };
