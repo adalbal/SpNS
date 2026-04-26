@@ -165,6 +165,8 @@ class HIT {
 		REAL Integrate_Field(std::function<REAL(int a, int b, int k3)>& funcFieldNorm, const char* filename,
 							 REAL* inAcumField, const int kmin, const int kmax);
 		inline REAL Integrate_Field(std::function<REAL(int a, int b, int k3)>& funcFieldNorm, const char* filename);
+		// Calculation of kinetic energy cascade both in the physical and Fourier space (useful for debugging)
+		void Check_PhysFour_Energy(const REAL atol = 1e-12);
 		// Calculation of kinetic energy cascade
 		REAL Recalculate_Energy();
 		REAL Recalculate_Energy_Cascade(const char* filename = NULL);

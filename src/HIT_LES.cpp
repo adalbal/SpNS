@@ -5,41 +5,14 @@ int iter = 0;
 double tlastprint = 0.0;
 double tcurrprint = 0.0;
 
-
 //=====================================================================================================================
 // FRACTIONAL STEP METHOD
 //=====================================================================================================================
 
 void HIT::New_Fractional_Step_Method() {
-    ////////////////////////////////////////////////////////////////////////////////
-    if(iter%5000==0){
-       double EkComp = 0, local_EkComp = 0;
-       LOOP_FOURIER {
-          if (dealiased[ind]) {
-             REAL aux = 0.5 * (uk_1[ind][0]*uk_1[ind][0] + uk_1[ind][1]*uk_1[ind][1] +
-                               vk_1[ind][0]*vk_1[ind][0] + vk_1[ind][1]*vk_1[ind][1] +
-                               wk_1[ind][0]*wk_1[ind][0] + wk_1[ind][1]*wk_1[ind][1]);
-             if (conjugate[ind]) {
-                local_EkComp += (2 * aux);
-             } else {
-                local_EkComp += aux;
-             }
-          }
-       }
-       MPI_Allreduce(&local_EkComp, &EkComp, 1, REAL_MPI, MPI_SUM, MCW);
-
-       Recalculate_Velocity_Antitransform(); //Compute u,v,w from uk_1, vk_1, wk_1
-       double EkReal = 0, local_EkReal = 0;
-       LOOP_REAL {
-          local_EkReal += u[ind] * u[ind] + v[ind] * v[ind] + w[ind] * w[ind];
-       }
-       MPI_Allreduce(&local_EkReal, &EkReal, 1, REAL_MPI, MPI_SUM, MCW);
-       EkReal = 0.5*EkReal/(Mx*My*Mz);
-       Recalculate_Energy();
-       if(!myrank) {printf("--------------------> [time %f, iter %3d] E_tot: %e\tEk_tot: %e\t [DIFF: %.2e / COMP: %.2e]\n",
-             time, iter, EkReal, EkComp, fabs(EkReal-EkComp), fabs(Ek_Tot-EkComp));fflush(stdout);}
-    }
-    ////////////////////////////////////////////////////////////////////////////////
+#if(QA) //USED FOR QA TESTS
+	Check_PhysFour_Energy(1e-13);
+#endif
 	//Calculation of R vector
 	Recalculate_R_vector_Fourier_Coefficients();
 	//Calculation of the predictor velocity at the following timestep (from R vector)
@@ -231,13 +204,18 @@ void HIT::Recalculate_R_vector_Fourier_Coefficients() {
 	//Calculate new R vector in Fourier space
 	Recalculate_Convective_Fourier_Coefficients();
 	REAL ct;
+	bool isMeanVelTerm;
 	LOOP_FOURIER {
 		if (dealiased[ind]) {
 			ct = nu * rad2[ind];
+			isMeanVelTerm = !(rad2[ind] > 0.0);
 			for (int ic=0; ic<=1; ic++){ //ic=0 => Real part, ic=1 => Imaginary part
-				Rx1_k[ind][ic] = - convx_k[ind][ic] - ct * uk_1[ind][ic];
-				Ry1_k[ind][ic] = - convy_k[ind][ic] - ct * vk_1[ind][ic];
-				Rz1_k[ind][ic] = - convz_k[ind][ic] - ct * wk_1[ind][ic];
+				// Convective term is zero at K=0 by incompressibility+periodicity;
+				// zeroing it here prevents FP residuals from contaminating the mean flow.
+				// The mean flow is thereby conserved exactly at its initial value.
+				Rx1_k[ind][ic] = - (isMeanVelTerm ? 0.0 : convx_k[ind][ic]) - ct * uk_1[ind][ic];
+				Ry1_k[ind][ic] = - (isMeanVelTerm ? 0.0 : convy_k[ind][ic]) - ct * vk_1[ind][ic];
+				Rz1_k[ind][ic] = - (isMeanVelTerm ? 0.0 : convz_k[ind][ic]) - ct * wk_1[ind][ic];
 			}
 		}
 	}
@@ -300,17 +278,6 @@ void HIT::Recalculate_R_vector_Fourier_Coefficients() {
 			}
 		}
 	}
-    //#else
-    //LOOP_FOURIER {
-    //    int K = static_cast<int>(round(sqrt(rad2[ind])));
-    //    if (K==0) {
-    //        for (int ic=0; ic<=1; ic++){ //ic=0 => Real part, ic=1 => Imaginary part
-    //            Rx1_k[ind][ic] = 0.0;
-    //            Ry1_k[ind][ic] = 0.0;
-    //            Rz1_k[ind][ic] = 0.0;
-    //        }
-    //    }
-    //}
 	#endif
 	/////////////////////////////////////////////////////////////////////////////////////////////////////////
 };
@@ -380,35 +347,12 @@ void HIT::Recalculate_Predictor_Velocity_Fourier_Coefficients() {
 
 // Divergence-free projection of predictor velocity (result of substracting the gradient of pseudo-pressure -> operator (k^t·k)/(k·k))
 void HIT::Recalculate_Divergence_Free_Projection() {
-	//Keep predictor velocity (upk,vpk,wpk)
-	memcpy(upk, uk_1, sizeof(COMPLEX) * alloc_local);
-	memcpy(vpk, vk_1, sizeof(COMPLEX) * alloc_local);
-	memcpy(wpk, wk_1, sizeof(COMPLEX) * alloc_local);
-	//Poisson's RHS calculation:
-	//Old RHS: RHSk_0 = RHSk_1
-	//New RHS: RHSk_1 = (i*k1*uk_1 + i*k2*vk_1 + i*k3*wk_1)/At
-	memcpy(RHSk_0, RHSk_1, sizeof(COMPLEX) * alloc_local);
-	LOOP_FOURIER_k1k2k3{ //Predictor velocity divergence in Fourier space
-		if (dealiased[ind]) {
-			RHSk_1[ind][0]  = - k1 * uk_1[ind][1] - k2 * vk_1[ind][1] - k3 * wk_1[ind][1];
-			RHSk_1[ind][1]  =   k1 * uk_1[ind][0] + k2 * vk_1[ind][0] + k3 * wk_1[ind][0];
-			RHSk_1[ind][0] /= At;
-			RHSk_1[ind][1] /= At;
-		} else { //For de-aliasing purposes
-			for (int coord=0; coord<3; coord++) {
-				for (int ic=0; ic<=1; ic++){ //ic=0 => Real part, ic=1 => Imaginary part
-					RHSk_1[ind][ic] = 0.0;
-				}
-			}
-		}
-	}
-
 	REAL aux;
 	//Projection of Predictor velocity and calculation of uk_n+1 (stored in ukxyz_1 replacing predictor velocity)
 	LOOP_FOURIER_k1k2k3 {
 		if (dealiased[ind]) {
 			for (int ic=0; ic<=1; ic++){ //ic=0 => Real part, ic=1 => Imaginary part
-				aux = (k1*uk_1[ind][ic]+k2*vk_1[ind][ic]+k3*wk_1[ind][ic])/rad2[ind];
+				aux = ((rad2[ind]>0) ? ((k1*uk_1[ind][ic]+k2*vk_1[ind][ic]+k3*wk_1[ind][ic])/rad2[ind]) : 0.0);
 				uk_1[ind][ic] -= aux * k1;
 				vk_1[ind][ic] -= aux * k2;
 				wk_1[ind][ic] -= aux * k3;
@@ -909,22 +853,16 @@ void HIT::HIT_init() {
 	}
 
 	//dealiased: Initialization of a bool vector to know wether a mode is significant. Two cases:
-	//A) Exclusion of mean flow term: (k1,k2,k3) == (0,0,0)
-	//B) Exclusion of aliased terms:
+	//A) Exclusion of aliased terms:
 	//	-If N is odd, all k in [-N_2, N_2] are included, and abs(k) in [N_2, M_2] are excluded
 	//	-If N is even, k=-N_2 is also excluded (complex z-dimension is only computed from [0,N_2])
 	//(*If Nz is even, no exclusion has to be made as only k3>0 are considered and k3 == -Nz_2 cannot happen)
-	//C) Exclusion of undesired coefficients (due to non-cubic domains, i.e., length factors >1):
+	//B) Exclusion of undesired coefficients (due to non-cubic domains, i.e., length factors >1):
 	//	-FFTW assumes the same length for x, y and z-directions (in the exponential term of DFTs)
 	//	-This is overcome by setting to 0 all modes irrelevant to each direction (dealiased[ind]=false)
-	//D) num_dealiased: Number of dealiased terms present in current process
+	//C) num_dealiased: Number of dealiased terms present in current process
 	num_dealiased = 0;
 	LOOP_FOURIER_k1k2k3 {
-		//Exclusion of mean flow term
-		if (!k1 && !k2 && !k3) {
-			dealiased[ind] = false;
-			continue;
-		}
 		//Exclusion of aliased terms (3/2 rule implemented)
 		if (abs(k1)<=Nx_2 && abs(k2)<=Ny_2 && k3<=Nz_2) {
 			dealiased[ind] = true;
@@ -1290,6 +1228,44 @@ REAL HIT::Integrate_Field(std::function<REAL(int a, int b, int k3)>& funcFieldNo
 	}
 	return sum_glo;
 };
+// Calculation of kinetic energy cascade both in the physical and Fourier space (useful for debugging)
+void HIT::Check_PhysFour_Energy(const REAL atol) {
+	// Calculate total kinetic energy in the Fourier space
+	double EkFour = 0, local_EkFour = 0;
+	LOOP_FOURIER {
+		if (dealiased[ind]) {
+			REAL aux = 0.5 * (uk_1[ind][0]*uk_1[ind][0] + uk_1[ind][1]*uk_1[ind][1] +
+							  vk_1[ind][0]*vk_1[ind][0] + vk_1[ind][1]*vk_1[ind][1] +
+							  wk_1[ind][0]*wk_1[ind][0] + wk_1[ind][1]*wk_1[ind][1]);
+			if (conjugate[ind]) {
+			 local_EkFour += (2 * aux);
+			} else {
+			 local_EkFour += aux;
+			}
+		}
+	}
+	MPI_Allreduce(&local_EkFour, &EkFour, 1, REAL_MPI, MPI_SUM, MCW);
+	
+	// Calculate total kinetic energy in the physical space
+	Recalculate_Velocity_Antitransform(); //Compute u,v,w from uk_1, vk_1, wk_1
+	double EkReal = 0, local_EkReal = 0;
+	LOOP_REAL {
+		local_EkReal += u[ind] * u[ind] + v[ind] * v[ind] + w[ind] * w[ind];
+	}
+	MPI_Allreduce(&local_EkReal, &EkReal, 1, REAL_MPI, MPI_SUM, MCW);
+	EkReal = 0.5 * EkReal / (Mx * My * Mz);
+
+	// Calculate total kinetic energy using SpNS running method (in the Fourier space)
+	REAL EkSpNS = Recalculate_Energy();
+	
+	// Confront values
+	REAL diff1 = fabs(EkReal - EkFour);
+	REAL diff2 = fabs(EkSpNS - EkFour);
+	if (diff1>atol || diff2>atol) {
+		crash("Ek differences exceed tolerance [EkReal vs EkFour %e, EkSpNS vs EkFour: %e]\n", diff1, diff2);
+	}
+
+};
 // Calculation of total kinetic energy (Ek_Tot)
 REAL HIT::Recalculate_Energy() {
 	const int Kmin = 1;
@@ -1318,7 +1294,7 @@ void HIT::Calculate_Ek_init_file(COMPLEX const * const uk_file, COMPLEX const * 
 		bool relevant_file = ((k1%Lx_factor == 0) && (k2%Ly_factor == 0) && (k3%Lz_factor == 0));
 		if (relevant_file) {
 			bool conjugate_file = (k3 != 0) && !((Nz_file % 2 == 0) && (k3 == Nz_file / 2));
-			REAL Ek_file =  (uk_file[ind][0] * uk_file[ind][0]) + (uk_file[ind][1] * uk_file[ind][1]);
+			REAL Ek_file = (uk_file[ind][0] * uk_file[ind][0]) + (uk_file[ind][1] * uk_file[ind][1]);
 			Ek_file += (vk_file[ind][0] * vk_file[ind][0]) + (vk_file[ind][1] * vk_file[ind][1]);
 			Ek_file += (wk_file[ind][0] * wk_file[ind][0]) + (wk_file[ind][1] * wk_file[ind][1]);
 			Ek_file *= 0.5;
