@@ -447,7 +447,7 @@ int main (int argc, char **argv){
 			}
 		}
 		//Data output (Energy cascade and Fourier velocity use iter+1 instead of iter because new real velocity is not computed
-		//until New_Fractional_Step_Method() is called (IFFT of Fourier velocity done in Recalculate_R_vector_Fourier_Coefficients())
+		//until New_Fractional_Step_Method() is called (IFFT of Fourier velocity done in Recalculate_Velocity_Antitransform())
 		//Thus, in order that all output fields correspond to the same iteration, this modification has to be made)
 		if (isEkOut_iter) {
 			if ((iter+1) % Energy_Cascade_Freq == 0) {
@@ -508,7 +508,7 @@ int main (int argc, char **argv){
 	}
 	//Output of velocity field (binary)
 	if (isVelPhysOut) {
-		hit.Recalculate_R_vector_Fourier_Coefficients(); //In order to compute IFFT of velocity (otherwise Fourier velocity-iteration n, and real veocity-iteration n-1)
+		hit.Recalculate_Velocity_Antitransform(); //In order to compute IFFT of velocity (otherwise Fourier velocity-iteration n, and real veocity-iteration n-1)
 		snprintf(fname, 512, "%s/%s.%s", VelPhysfolder, base_VelPhysfilename.c_str(), Binary_fileformat.c_str());
 		hit.RealVelocity_to_BinaryFile(fname);
 	}
@@ -546,6 +546,8 @@ int main (int argc, char **argv){
 #endif
 
 	//Free memory
+	for(int coord=0; coord<5; coord++) delete[] VelGradInvfname[coord];
+	delete[] VelGradInvfname;
 	FREE(Forced_Ek);
 
 	//Ending of parallelization
@@ -585,6 +587,6 @@ void Read_Ek_Input_File(const int& Last_K, REAL* Ek_input, const char* EkFilenam
 	// Warn if setting non-zero mean flow. If crash is removed, make sure HIT::Check_PhysFour_Energy() is passed
 	// also with non-zero mean flow
 	if (Ek_input[0] > 0.0) {
-		crash("WARNING: Read_Ek_Input_File(): Passed Ek_input[0]=%f, but it is ignored if initial field is set through HIT::Input_K41_Fiel()\n", Ek_input[0]);
+		crash("ERROR: Read_Ek_Input_File(): Passed Ek_input[0]=%f, but it is ignored if initial field is set through HIT::Input_K41_Fiel()\n", Ek_input[0]);
 	}
 };

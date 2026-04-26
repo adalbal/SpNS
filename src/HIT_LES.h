@@ -223,8 +223,6 @@ class HIT {
 		REAL *convx, *convy, *convz;
 		REAL *velGradInv[5];
 		COMPLEX *velGradInvk[5];
-		COMPLEX *RHSk_0, *RHSk_1;
-		COMPLEX *upk, *vpk, *wpk;
 		COMPLEX *uk_aux, *vk_aux, *wk_aux, *uk_0, *vk_0, *wk_0, *uk_1, *vk_1, *wk_1;
 		COMPLEX *gradu_k[3], *gradv_k[3], *gradw_k[3];
 		COMPLEX *convx_k, *convy_k, *convz_k;
