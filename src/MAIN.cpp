@@ -76,11 +76,11 @@ int main (int argc, char **argv){
 	// Output parameters -----------------------------------------
 	char fname[512];
 	const char** VelGradInvfname = new const char*[5];
+	for(int coord=0; coord<5; coord++) VelGradInvfname[coord] = new char[512];
 	//Output files can be easily stored in folders modifying base_* variables
 	const string base_VelPhysfilename = "Velocity";
 	const string base_VelFourfilename = "Velocity_Fourier";
 	const string base_Ekfilename = "Energy_Cascade";
-	const string base_pfilename = "p";
 	const string base_VelGradInvfilename[5] = {"QG", "QS", "RG", "RS", "V2"};
 	//File extensions
 	const string ASCII_fileformat = "dat"; //ASCII
@@ -459,9 +459,6 @@ int main (int argc, char **argv){
 				}
 				hit.Recalculate_Invariants_Distribution(VelGradInvfname); //must be called from all ranks
 
-				snprintf(fname, 512, "%s/%s_%08d.%s", Spectrafolder, base_pfilename.c_str(), Ek_file_iter, ASCII_fileformat.c_str());
-				hit.Recalculate_Pressure_Distribution(fname); //must be called from all ranks
-
 				Ek_file_iter++;
 			}
 		}
@@ -496,9 +493,6 @@ int main (int argc, char **argv){
 			strcpy(const_cast<char*>(VelGradInvfname[coord]), fname);
 		}
 		hit.Recalculate_Invariants_Distribution(VelGradInvfname); //must be called from all ranks
-
-		snprintf(fname, 512, "%s/%s_%08d.%s", Spectrafolder, base_pfilename.c_str(), Ek_file_iter, ASCII_fileformat.c_str());
-		hit.Recalculate_Pressure_Distribution(fname); //must be called from all ranks
 	}
 	//Output of velocity Fourier coefficients (binary)
 	if (isVelFourOut) {
@@ -512,8 +506,7 @@ int main (int argc, char **argv){
 		hit.RealVelocity_to_BinaryFile(fname);
 	}
 	//Terminal print of execution times
-	hit.Recalculate_Energy();
-	hit.Recalculate_Reynolds_Lambda();
+	hit.Recalculate_Reynolds_Lambda(); //It also recalculates energy and enstrophy
 	double local_timeTot = ((double) (timeend - timebeg)) / CLOCKS_PER_SEC;
 	double local_timeLoop = ((double) (timeend - timebegloop)) / CLOCKS_PER_SEC;
 	double timeTot = 0.0;

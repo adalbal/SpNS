@@ -173,8 +173,6 @@ class HIT {
 		void Calculate_Ek_init_file(COMPLEX const * const uk_file, COMPLEX const * const vk_file, COMPLEX const * const wk_file);
 		// Velocity gradient invariants spectra
 		void Recalculate_Invariants_Distribution(const char* filename[5] = NULL);
-		// Pressure spectrum
-		REAL Recalculate_Pressure_Distribution(const char* filename = NULL);
 		// I/O functions (implemented in HIT_LES_output.cpp)
 		void DealiasedComplex3DimField_to_BinaryFile(COMPLEX const * const field_x, COMPLEX const * const field_y, COMPLEX const * const field_z, char const * const filename) const;
 		void Real3DimField_to_BinaryFile(REAL const * const field_x, REAL const * const field_y, REAL const * const field_z, char const * const filename) const;
@@ -247,7 +245,6 @@ class HIT {
 		std::function<REAL(int a, int b, int k3)> KineticEnergy;
 		std::function<REAL(int a, int b, int k3)> Enstrophy;
 		std::function<REAL(int a, int b, int k3)> VelGradInvariants[5];
-		std::function<REAL(int a, int b, int k3)> PressureField;
 	};
 
 //Auxiliary functions related to the calculation of self-adaptive timestep

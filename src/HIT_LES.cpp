@@ -801,11 +801,6 @@ void HIT::HIT_init() {
 		velGradInv[coord] = alloc_real(2*alloc_local);
 		velGradInvk[coord] = alloc_complex(alloc_local);
 	}
-	RHSk_0 = alloc_complex(alloc_local);
-	RHSk_1 = alloc_complex(alloc_local);
-	upk = alloc_complex(alloc_local);
-	vpk = alloc_complex(alloc_local);
-	wpk = alloc_complex(alloc_local);
 	// COMPLEX*
 	uk_aux = alloc_complex(alloc_local);
 	vk_aux = alloc_complex(alloc_local);
@@ -1031,13 +1026,6 @@ void HIT::HIT_init() {
 		int ind = (b*Mx+a)*(Mz_2+1)+k3;
 		return velGradInvk[4][ind][0]*velGradInvk[4][ind][0] + velGradInvk[4][ind][1]*velGradInvk[4][ind][1];
 	};
-	PressureField = [&](int a, int b, int k3)->REAL{
-		int ind = (b*Mx+a)*(Mz_2+1)+k3;
-		REAL p_real = ((rad2[ind]>0) ? (-RHSk_1[ind][0]/rad2[ind]) : 0.0);
-		REAL p_imag = ((rad2[ind]>0) ? (-RHSk_1[ind][1]/rad2[ind]) : 0.0);
-		//TODO: Confirm if Recalculate_Pressure_Distribution() is called after Recalculate_timestep()
-		return (p_real * p_real) + (p_imag * p_imag);
-	};
 
 	//===================================================
 	// 6. INITIAL VELOCITY FIELD
@@ -1126,8 +1114,6 @@ void HIT::HIT_destroy() {
 		FREE(velGradInv[coord]);
 		FREE(velGradInvk[coord]);
 	}
-	FREE(RHSk_0); FREE(RHSk_1);
-	FREE(upk); FREE(vpk); FREE(wpk);
 	if (isLES) {
 		FREE(nu_eddy);
 		FREE(SGS_11); FREE(SGS_21); FREE(SGS_22);
@@ -1333,8 +1319,4 @@ void HIT::Recalculate_Invariants_Distribution(const char* filename[5]) {
 		fftw.Fourier_Normalization(velGradInvk[coord], dealiased); //Normalization of relevant coefficients
 		Integrate_Field(VelGradInvariants[coord], filename[coord]);
 	}
-};
-//Calculation of pressure field distribution
-REAL HIT::Recalculate_Pressure_Distribution(const char* filename) {
-	return Integrate_Field(PressureField, filename);
 };
