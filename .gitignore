@@ -36,4 +36,5 @@
 
 # QA
 stdout.*
+QA/TEST*CBC/Energy_Cascade.dat
 !QA/TEST*/REF/*
