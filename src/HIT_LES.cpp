@@ -8,20 +8,20 @@ int iter = 0;
 
 void HIT::New_Fractional_Step_Method() {
 #if(QA) //USED FOR QA TESTS
-    Check_PhysFour_Energy(1e-13);
+	Check_PhysFour_Energy(1e-13);
 #endif
-    //Calculation of R vector
-    Recalculate_R_vector_Fourier_Coefficients();
-    //Calculation of the predictor velocity at the following timestep (from R vector)
-    Recalculate_Predictor_Velocity_Fourier_Coefficients();
-    //Calculation of the new timesteps velocity distribution (from predictor velocity)
-    Recalculate_Divergence_Free_Projection();
-    //Obtention of new timestep
-    Recalculate_TimeStep();
-    //Update of total simulated time
-    time=time+At;
-    //Update of intern iteration counter
-    iter++;
+	//Calculation of R vector
+	Recalculate_R_vector_Fourier_Coefficients();
+	//Calculation of the predictor velocity at the following timestep (from R vector)
+	Recalculate_Predictor_Velocity_Fourier_Coefficients();
+	//Calculation of the new timesteps velocity distribution (from predictor velocity)
+	Recalculate_Divergence_Free_Projection();
+	//Obtention of new timestep
+	Recalculate_TimeStep();
+	//Update of total simulated time
+	time=time+At;
+	//Update of intern iteration counter
+	iter++;
 };
 
 //===================================================
@@ -32,251 +32,251 @@ void HIT::New_Fractional_Step_Method() {
 // 1.) CONVECTIVE TERM IN FOURIER SPACE
 // Comment Recalculate_Velocity_Gradients_Fourier_Coefficients
 void HIT::Recalculate_Velocity_Gradients_Fourier_Coefficients() {
-    LOOP_FOURIER_k1k2k3{ //Velocity spatial derivatives in Fourier space
-        if (dealiased[ind]) {
-            gradu_k[0][ind][0] = -k1 * uk_1[ind][1];  gradu_k[0][ind][1] = k1 * uk_1[ind][0]; //dudx_k
-            gradu_k[1][ind][0] = -k2 * uk_1[ind][1];  gradu_k[1][ind][1] = k2 * uk_1[ind][0]; //dudy_k
-            gradu_k[2][ind][0] = -k3 * uk_1[ind][1];  gradu_k[2][ind][1] = k3 * uk_1[ind][0]; //dudz_k
+	LOOP_FOURIER_k1k2k3{ //Velocity spatial derivatives in Fourier space
+		if (dealiased[ind]) {
+			gradu_k[0][ind][0] = -k1 * uk_1[ind][1];  gradu_k[0][ind][1] = k1 * uk_1[ind][0]; //dudx_k
+			gradu_k[1][ind][0] = -k2 * uk_1[ind][1];  gradu_k[1][ind][1] = k2 * uk_1[ind][0]; //dudy_k
+			gradu_k[2][ind][0] = -k3 * uk_1[ind][1];  gradu_k[2][ind][1] = k3 * uk_1[ind][0]; //dudz_k
 
-            gradv_k[0][ind][0] = -k1 * vk_1[ind][1];  gradv_k[0][ind][1] = k1 * vk_1[ind][0]; //dvdx_k
-            gradv_k[1][ind][0] = -k2 * vk_1[ind][1];  gradv_k[1][ind][1] = k2 * vk_1[ind][0]; //dvdy_k
-            gradv_k[2][ind][0] = -k3 * vk_1[ind][1];  gradv_k[2][ind][1] = k3 * vk_1[ind][0]; //dvdz_k
+			gradv_k[0][ind][0] = -k1 * vk_1[ind][1];  gradv_k[0][ind][1] = k1 * vk_1[ind][0]; //dvdx_k
+			gradv_k[1][ind][0] = -k2 * vk_1[ind][1];  gradv_k[1][ind][1] = k2 * vk_1[ind][0]; //dvdy_k
+			gradv_k[2][ind][0] = -k3 * vk_1[ind][1];  gradv_k[2][ind][1] = k3 * vk_1[ind][0]; //dvdz_k
 
-            gradw_k[0][ind][0] = -k1 * wk_1[ind][1];  gradw_k[0][ind][1] = k1 * wk_1[ind][0]; //dwdx_k
-            gradw_k[1][ind][0] = -k2 * wk_1[ind][1];  gradw_k[1][ind][1] = k2 * wk_1[ind][0]; //dwdy_k
-            gradw_k[2][ind][0] = -k3 * wk_1[ind][1];  gradw_k[2][ind][1] = k3 * wk_1[ind][0]; //dwdz_k
-        } else { //For de-aliasing purposes
-            for (int coord=0; coord<3; coord++) {
-                for (int ic=0; ic<=1; ic++){ //ic=0 => Real part, ic=1 => Imaginary part
-                    gradu_k[coord][ind][ic] = 0.0;
-                    gradv_k[coord][ind][ic] = 0.0;
-                    gradw_k[coord][ind][ic] = 0.0;
-                }
-            }
-        }
-    }
+			gradw_k[0][ind][0] = -k1 * wk_1[ind][1];  gradw_k[0][ind][1] = k1 * wk_1[ind][0]; //dwdx_k
+			gradw_k[1][ind][0] = -k2 * wk_1[ind][1];  gradw_k[1][ind][1] = k2 * wk_1[ind][0]; //dwdy_k
+			gradw_k[2][ind][0] = -k3 * wk_1[ind][1];  gradw_k[2][ind][1] = k3 * wk_1[ind][0]; //dwdz_k
+		} else { //For de-aliasing purposes
+			for (int coord=0; coord<3; coord++) {
+				for (int ic=0; ic<=1; ic++){ //ic=0 => Real part, ic=1 => Imaginary part
+					gradu_k[coord][ind][ic] = 0.0;
+					gradv_k[coord][ind][ic] = 0.0;
+					gradw_k[coord][ind][ic] = 0.0;
+				}
+			}
+		}
+	}
 };
 // Calculation of physical velocity using Fourier series expansion
 void HIT::Recalculate_Velocity_Antitransform() {
-    //Auxiliary copy needed because c2r leaves garbage at input
-    memcpy(uk_aux, uk_1, sizeof(COMPLEX) * alloc_local);
-    memcpy(vk_aux, vk_1, sizeof(COMPLEX) * alloc_local);
-    memcpy(wk_aux, wk_1, sizeof(COMPLEX) * alloc_local);
-    //IFFT: Vxy
-    fftw.IFFTWc2r(uk_aux,u);
-    fftw.IFFTWc2r(vk_aux,v);
-    fftw.IFFTWc2r(wk_aux,w);
+	//Auxiliary copy needed because c2r leaves garbage at input
+	memcpy(uk_aux, uk_1, sizeof(COMPLEX) * alloc_local);
+	memcpy(vk_aux, vk_1, sizeof(COMPLEX) * alloc_local);
+	memcpy(wk_aux, wk_1, sizeof(COMPLEX) * alloc_local);
+	//IFFT: Vxy
+	fftw.IFFTWc2r(uk_aux,u);
+	fftw.IFFTWc2r(vk_aux,v);
+	fftw.IFFTWc2r(wk_aux,w);
 };
 // Recalculate_Convective_Fourier_Coefficients():
 //	1.) Calculation of gradu, gradv and gradw
 //	2.) Calculation convective term in Physical space
 //	3.) Calculation convective term in Fourier space
 void HIT::Recalculate_Convective_Fourier_Coefficients() {
-    //Recalculate gradients of velocity in Fourier space
-    Recalculate_Velocity_Gradients_Fourier_Coefficients();
-    //Obtention of the velocity field in the Physical space (via the IFFT)
-    Recalculate_Velocity_Antitransform();
-    //Calculation of the convective term in Fourier space. Loop over [coord] (1=x, 2=y, 3=z)
-    for(int coord=0; coord<3; coord++){
-        //Temporary aliases
-        REAL *convxyz = NULL;
-        REAL *graduvw[3] = {NULL,NULL,NULL};
-        COMPLEX *convxyz_k = NULL;
-        COMPLEX *graduvw_k[3] = {NULL,NULL,NULL};
-        //Alias assignation
-        switch(coord){
-            case 0:
-                for (int sub_coord=0; sub_coord<3; sub_coord++) { //x-velocity gradient
-                    graduvw[sub_coord] = gradu[sub_coord];
-                    graduvw_k[sub_coord] = gradu_k[sub_coord];
-                }
-                convxyz = convx;
-                convxyz_k = convx_k;
-                break;
-            case 1:
-                for (int sub_coord=0; sub_coord<3; sub_coord++) { //y-velocity gradient
-                    graduvw[sub_coord] = gradv[sub_coord];
-                    graduvw_k[sub_coord] = gradv_k[sub_coord];
-                }
-                convxyz = convy;
-                convxyz_k = convy_k;
-                break;
-            case 2:
-                for (int sub_coord=0; sub_coord<3; sub_coord++) { //z-velocity gradient
-                    graduvw[sub_coord] = gradw[sub_coord];
-                    graduvw_k[sub_coord] = gradw_k[sub_coord];
-                }
-                convxyz = convz;
-                convxyz_k = convz_k;
-                break;
-        }
-        //IFFT of each component of the gradient of velocity (c2r)
-        for(int sub_coord=0; sub_coord<3; sub_coord++){
-            fftw.IFFTWc2r(graduvw_k[sub_coord],graduvw[sub_coord]);
-        }
-        //Calculation of the [coord]-convective term in Physical space
-        LOOP_REAL {
-            convxyz[ind] = u[ind] * graduvw[0][ind] + v[ind] * graduvw[1][ind] + w[ind] * graduvw[2][ind];
-        }
-        //Calculation of the [coord]-convective term in Fourier space
-        fftw.FFTWr2c(convxyz,convxyz_k); //FFT (r2c)
-        fftw.Fourier_Normalization(convxyz_k,dealiased); //Normalization of relevant coefficients
-    }
+	//Recalculate gradients of velocity in Fourier space
+	Recalculate_Velocity_Gradients_Fourier_Coefficients();
+	//Obtention of the velocity field in the Physical space (via the IFFT)
+	Recalculate_Velocity_Antitransform();
+	//Calculation of the convective term in Fourier space. Loop over [coord] (1=x, 2=y, 3=z)
+	for(int coord=0; coord<3; coord++){
+		//Temporary aliases
+		REAL *convxyz = NULL;
+		REAL *graduvw[3] = {NULL,NULL,NULL};
+		COMPLEX *convxyz_k = NULL;
+		COMPLEX *graduvw_k[3] = {NULL,NULL,NULL};
+		//Alias assignation
+		switch(coord){
+			case 0:
+				for (int sub_coord=0; sub_coord<3; sub_coord++) { //x-velocity gradient
+					graduvw[sub_coord] = gradu[sub_coord];
+					graduvw_k[sub_coord] = gradu_k[sub_coord];
+				}
+				convxyz = convx;
+				convxyz_k = convx_k;
+				break;
+			case 1:
+				for (int sub_coord=0; sub_coord<3; sub_coord++) { //y-velocity gradient
+					graduvw[sub_coord] = gradv[sub_coord];
+					graduvw_k[sub_coord] = gradv_k[sub_coord];
+				}
+				convxyz = convy;
+				convxyz_k = convy_k;
+				break;
+			case 2:
+				for (int sub_coord=0; sub_coord<3; sub_coord++) { //z-velocity gradient
+					graduvw[sub_coord] = gradw[sub_coord];
+					graduvw_k[sub_coord] = gradw_k[sub_coord];
+				}
+				convxyz = convz;
+				convxyz_k = convz_k;
+				break;
+		}
+		//IFFT of each component of the gradient of velocity (c2r)
+		for(int sub_coord=0; sub_coord<3; sub_coord++){
+			fftw.IFFTWc2r(graduvw_k[sub_coord],graduvw[sub_coord]);
+		}
+		//Calculation of the [coord]-convective term in Physical space
+		LOOP_REAL {
+			convxyz[ind] = u[ind] * graduvw[0][ind] + v[ind] * graduvw[1][ind] + w[ind] * graduvw[2][ind];
+		}
+		//Calculation of the [coord]-convective term in Fourier space
+		fftw.FFTWr2c(convxyz,convxyz_k); //FFT (r2c)
+		fftw.Fourier_Normalization(convxyz_k,dealiased); //Normalization of relevant coefficients
+	}
 };
 
 //=========================
 // 2.) DIVERGENCE OF SGS TENSOR IN FOURIER SPACE (LES MODELLING)
 // Calculation of eddy viscosity
 void HIT::Recalculate_Eddy_Viscosity() {
-    // Smagorinsky model
-    const REAL ct = C_Smag * C_Smag * delta * delta;
-    LOOP_REAL {
-        nu_eddy[ind] = 2.0 * gradu[0][ind] * gradu[0][ind];
-        nu_eddy[ind] += 2.0 * gradv[1][ind] * gradv[1][ind];
-        nu_eddy[ind] += 2.0 * gradw[2][ind] * gradw[2][ind];
-        nu_eddy[ind] += (gradu[1][ind] + gradv[0][ind]) * (gradu[1][ind] + gradv[0][ind]);
-        nu_eddy[ind] += (gradu[2][ind] + gradw[0][ind]) * (gradu[2][ind] + gradw[0][ind]);
-        nu_eddy[ind] += (gradv[2][ind] + gradw[1][ind]) * (gradv[2][ind] + gradw[1][ind]);
-        nu_eddy[ind] = ct * sqrt(nu_eddy[ind]);
-    }
+	// Smagorinsky model
+	const REAL ct = C_Smag * C_Smag * delta * delta;
+	LOOP_REAL {
+		nu_eddy[ind] = 2.0 * gradu[0][ind] * gradu[0][ind];
+		nu_eddy[ind] += 2.0 * gradv[1][ind] * gradv[1][ind];
+		nu_eddy[ind] += 2.0 * gradw[2][ind] * gradw[2][ind];
+		nu_eddy[ind] += (gradu[1][ind] + gradv[0][ind]) * (gradu[1][ind] + gradv[0][ind]);
+		nu_eddy[ind] += (gradu[2][ind] + gradw[0][ind]) * (gradu[2][ind] + gradw[0][ind]);
+		nu_eddy[ind] += (gradv[2][ind] + gradw[1][ind]) * (gradv[2][ind] + gradw[1][ind]);
+		nu_eddy[ind] = ct * sqrt(nu_eddy[ind]);
+	}
 };
 // Calculation of SGS tensor components in Physical space
 void HIT::Recalculate_SGS_Tensor_Components() {
-    Recalculate_Eddy_Viscosity();
-    LOOP_REAL {
-        SGS_11[ind] = (-2.0) * nu_eddy[ind] * gradu[0][ind];
-        SGS_21[ind] = (-1.0) * nu_eddy[ind] * (gradu[1][ind] + gradv[0][ind]);
-        SGS_22[ind] = (-2.0) * nu_eddy[ind] * gradv[1][ind];
-        SGS_31[ind] = (-1.0) * nu_eddy[ind] * (gradu[2][ind] + gradw[0][ind]);
-        SGS_32[ind] = (-1.0) * nu_eddy[ind] * (gradv[2][ind] + gradw[1][ind]);
-        SGS_33[ind] = (-2.0) * nu_eddy[ind] * gradw[2][ind];
-    }
+	Recalculate_Eddy_Viscosity();
+	LOOP_REAL {
+		SGS_11[ind] = (-2.0) * nu_eddy[ind] * gradu[0][ind];
+		SGS_21[ind] = (-1.0) * nu_eddy[ind] * (gradu[1][ind] + gradv[0][ind]);
+		SGS_22[ind] = (-2.0) * nu_eddy[ind] * gradv[1][ind];
+		SGS_31[ind] = (-1.0) * nu_eddy[ind] * (gradu[2][ind] + gradw[0][ind]);
+		SGS_32[ind] = (-1.0) * nu_eddy[ind] * (gradv[2][ind] + gradw[1][ind]);
+		SGS_33[ind] = (-2.0) * nu_eddy[ind] * gradw[2][ind];
+	}
 };
 // Calculation of SGS tensor components in Fourier space
 void HIT::Recalculate_SGS_Tensor_Transform() {
-    //FFT: SGS_Tensor
-    fftw.FFTWr2c(SGS_11,SGS_11_k);
-    fftw.FFTWr2c(SGS_21,SGS_21_k);
-    fftw.FFTWr2c(SGS_22,SGS_22_k);
-    fftw.FFTWr2c(SGS_31,SGS_31_k);
-    fftw.FFTWr2c(SGS_32,SGS_32_k);
-    fftw.FFTWr2c(SGS_33,SGS_33_k);
-    //Normalization
-    fftw.Fourier_Normalization(SGS_11_k,dealiased);
-    fftw.Fourier_Normalization(SGS_21_k,dealiased);
-    fftw.Fourier_Normalization(SGS_22_k,dealiased);
-    fftw.Fourier_Normalization(SGS_31_k,dealiased);
-    fftw.Fourier_Normalization(SGS_32_k,dealiased);
-    fftw.Fourier_Normalization(SGS_33_k,dealiased);
+	//FFT: SGS_Tensor
+	fftw.FFTWr2c(SGS_11,SGS_11_k);
+	fftw.FFTWr2c(SGS_21,SGS_21_k);
+	fftw.FFTWr2c(SGS_22,SGS_22_k);
+	fftw.FFTWr2c(SGS_31,SGS_31_k);
+	fftw.FFTWr2c(SGS_32,SGS_32_k);
+	fftw.FFTWr2c(SGS_33,SGS_33_k);
+	//Normalization
+	fftw.Fourier_Normalization(SGS_11_k,dealiased);
+	fftw.Fourier_Normalization(SGS_21_k,dealiased);
+	fftw.Fourier_Normalization(SGS_22_k,dealiased);
+	fftw.Fourier_Normalization(SGS_31_k,dealiased);
+	fftw.Fourier_Normalization(SGS_32_k,dealiased);
+	fftw.Fourier_Normalization(SGS_33_k,dealiased);
 };
 // Calculation of SGS tensor divergence in Fourier space
 void HIT::Recalculate_SGS_Tensor_Divergence_Fourier_Coefficients() {
-    //SGS tensor components in Physical space
-    Recalculate_SGS_Tensor_Components();
-    //SGS tensor components in Fourier space
-    Recalculate_SGS_Tensor_Transform();
-    //SGS tensor divergence components in Fourier space
-    LOOP_FOURIER_k1k2k3 {
-        if (dealiased[ind]) {
-            // divSGSx_k
-            divSGSx_k[ind][0] = - k1 * SGS_11_k[ind][1] - k2 * SGS_21_k[ind][1] - k3 * SGS_31_k[ind][1];
-            divSGSx_k[ind][1] =   k1 * SGS_11_k[ind][0] + k2 * SGS_21_k[ind][0] + k3 * SGS_31_k[ind][0];
-            // divSGSy_k // SGS_12 = SGS_21
-            divSGSy_k[ind][0] = - k1 * SGS_21_k[ind][1] - k2 * SGS_22_k[ind][1] - k3 * SGS_32_k[ind][1];
-            divSGSy_k[ind][1] =   k1 * SGS_21_k[ind][0] + k2 * SGS_22_k[ind][0] + k3 * SGS_32_k[ind][0];
-            // divSGSz_k // SGS_13 = SGS_31 // SGS_23 = SGS_32
-            divSGSz_k[ind][0] = - k1 * SGS_31_k[ind][1] - k2 * SGS_32_k[ind][1] - k3 * SGS_33_k[ind][1];
-            divSGSz_k[ind][1] =   k1 * SGS_31_k[ind][0] + k2 * SGS_32_k[ind][0] + k3 * SGS_33_k[ind][0];
-        }
-    }
+	//SGS tensor components in Physical space
+	Recalculate_SGS_Tensor_Components();
+	//SGS tensor components in Fourier space
+	Recalculate_SGS_Tensor_Transform();
+	//SGS tensor divergence components in Fourier space
+	LOOP_FOURIER_k1k2k3 {
+		if (dealiased[ind]) {
+			// divSGSx_k
+			divSGSx_k[ind][0] = - k1 * SGS_11_k[ind][1] - k2 * SGS_21_k[ind][1] - k3 * SGS_31_k[ind][1];
+			divSGSx_k[ind][1] =   k1 * SGS_11_k[ind][0] + k2 * SGS_21_k[ind][0] + k3 * SGS_31_k[ind][0];
+			// divSGSy_k // SGS_12 = SGS_21
+			divSGSy_k[ind][0] = - k1 * SGS_21_k[ind][1] - k2 * SGS_22_k[ind][1] - k3 * SGS_32_k[ind][1];
+			divSGSy_k[ind][1] =   k1 * SGS_21_k[ind][0] + k2 * SGS_22_k[ind][0] + k3 * SGS_32_k[ind][0];
+			// divSGSz_k // SGS_13 = SGS_31 // SGS_23 = SGS_32
+			divSGSz_k[ind][0] = - k1 * SGS_31_k[ind][1] - k2 * SGS_32_k[ind][1] - k3 * SGS_33_k[ind][1];
+			divSGSz_k[ind][1] =   k1 * SGS_31_k[ind][0] + k2 * SGS_32_k[ind][0] + k3 * SGS_33_k[ind][0];
+		}
+	}
 };
 
 //=========================
 // 3.) R VECTOR
 void HIT::Recalculate_R_vector_Fourier_Coefficients() {
-    //Update last timestep value of R vector
-    memcpy(Rx0_k, Rx1_k, sizeof(COMPLEX) * alloc_local);
-    memcpy(Ry0_k, Ry1_k, sizeof(COMPLEX) * alloc_local);
-    memcpy(Rz0_k, Rz1_k, sizeof(COMPLEX) * alloc_local);
-    //Calculate new R vector in Fourier space
-    Recalculate_Convective_Fourier_Coefficients();
-    REAL ct;
-    bool isMeanVelTerm;
-    LOOP_FOURIER {
-        if (dealiased[ind]) {
-            ct = nu * rad2[ind];
-            isMeanVelTerm = !(rad2[ind] > 0.0);
-            for (int ic=0; ic<=1; ic++){ //ic=0 => Real part, ic=1 => Imaginary part
-                                         // Convective term is zero at K=0 by incompressibility+periodicity;
-                                         // zeroing it here prevents FP residuals from contaminating the mean flow.
-                                         // The mean flow is thereby conserved exactly at its initial value.
-                Rx1_k[ind][ic] = - (isMeanVelTerm ? 0.0 : convx_k[ind][ic]) - ct * uk_1[ind][ic];
-                Ry1_k[ind][ic] = - (isMeanVelTerm ? 0.0 : convy_k[ind][ic]) - ct * vk_1[ind][ic];
-                Rz1_k[ind][ic] = - (isMeanVelTerm ? 0.0 : convz_k[ind][ic]) - ct * wk_1[ind][ic];
-            }
-        }
-    }
-    if (isLES) {
-        Recalculate_SGS_Tensor_Divergence_Fourier_Coefficients();
-        LOOP_FOURIER {
-            if (dealiased[ind]) {
-                for (int ic=0; ic<=1; ic++){ //ic=0 => Real part, ic=1 => Imaginary part
-                    Rx1_k[ind][ic] -= divSGSx_k[ind][ic];
-                    Ry1_k[ind][ic] -= divSGSy_k[ind][ic];
-                    Rz1_k[ind][ic] -= divSGSz_k[ind][ic];
-                }
-            }
-        }
-    }
-    if (isRotating) {
-        //Considering the system is rotating with angular rotation velocity (omega_x,omega_y,omega_z)
-        LOOP_FOURIER {
-            if (dealiased[ind]) {
-                for (int ic=0; ic<=1; ic++){ //ic=0 => Real part, ic=1 => Imaginary part
-                    Rx1_k[ind][ic] += 2 * (omega_z * vk_1[ind][ic] - omega_y * wk_1[ind][ic]);
-                    Ry1_k[ind][ic] += 2 * (omega_x * wk_1[ind][ic] - omega_z * uk_1[ind][ic]);
-                    Rz1_k[ind][ic] += 2 * (omega_y * uk_1[ind][ic] - omega_x * vk_1[ind][ic]);
-                }
-            }
-        }
-    }
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////
-#if 0
-    const bool isForcing = true;
-    const int Kfmin = 1;
-    const int Kfmax = 2;
-    const REAL eps_in = 1.0;
-    if (isForcing) {
-        // Compute forced-band energy Ef
-        REAL Ef = Integrate_Field(KineticEnergy, NULL, Ek, Kfmin, Kfmax);
+	//Update last timestep value of R vector
+	memcpy(Rx0_k, Rx1_k, sizeof(COMPLEX) * alloc_local);
+	memcpy(Ry0_k, Ry1_k, sizeof(COMPLEX) * alloc_local);
+	memcpy(Rz0_k, Rz1_k, sizeof(COMPLEX) * alloc_local);
+	//Calculate new R vector in Fourier space
+	Recalculate_Convective_Fourier_Coefficients();
+	REAL ct;
+	bool isMeanVelTerm;
+	LOOP_FOURIER {
+		if (dealiased[ind]) {
+			ct = nu * rad2[ind];
+			isMeanVelTerm = !(rad2[ind] > 0.0);
+			for (int ic=0; ic<=1; ic++){ //ic=0 => Real part, ic=1 => Imaginary part
+				// Convective term is zero at K=0 by incompressibility+periodicity;
+				// zeroing it here prevents FP residuals from contaminating the mean flow.
+				// The mean flow is thereby conserved exactly at its initial value.
+				Rx1_k[ind][ic] = - (isMeanVelTerm ? 0.0 : convx_k[ind][ic]) - ct * uk_1[ind][ic];
+				Ry1_k[ind][ic] = - (isMeanVelTerm ? 0.0 : convy_k[ind][ic]) - ct * vk_1[ind][ic];
+				Rz1_k[ind][ic] = - (isMeanVelTerm ? 0.0 : convz_k[ind][ic]) - ct * wk_1[ind][ic];
+			}
+		}
+	}
+	if (isLES) {
+		Recalculate_SGS_Tensor_Divergence_Fourier_Coefficients();
+		LOOP_FOURIER {
+			if (dealiased[ind]) {
+				for (int ic=0; ic<=1; ic++){ //ic=0 => Real part, ic=1 => Imaginary part
+					Rx1_k[ind][ic] -= divSGSx_k[ind][ic];
+					Ry1_k[ind][ic] -= divSGSy_k[ind][ic];
+					Rz1_k[ind][ic] -= divSGSz_k[ind][ic];
+				}
+			}
+		}
+	}
+	if (isRotating) {
+		//Considering the system is rotating with angular rotation velocity (omega_x,omega_y,omega_z)
+		LOOP_FOURIER {
+			if (dealiased[ind]) {
+				for (int ic=0; ic<=1; ic++){ //ic=0 => Real part, ic=1 => Imaginary part
+					Rx1_k[ind][ic] += 2 * (omega_z * vk_1[ind][ic] - omega_y * wk_1[ind][ic]);
+					Ry1_k[ind][ic] += 2 * (omega_x * wk_1[ind][ic] - omega_z * uk_1[ind][ic]);
+					Rz1_k[ind][ic] += 2 * (omega_y * uk_1[ind][ic] - omega_x * vk_1[ind][ic]);
+				}
+			}
+		}
+	}
+	/////////////////////////////////////////////////////////////////////////////////////////////////////////
+	#if 0
+	const bool isForcing = true;
+	const int Kfmin = 1;
+	const int Kfmax = 2;
+	const REAL eps_in = 1.0;
+	if (isForcing) {
+		// Compute forced-band energy Ef
+		REAL Ef = Integrate_Field(KineticEnergy, NULL, Ek, Kfmin, Kfmax);
 
-        // Compute alpha = eps_in / (2*Ef)
-        const REAL tiny = 1e-30;
-        REAL alpha = 0.0;
-        if (Ef > tiny) alpha = eps_in / (2.0 * Ef);
+		// Compute alpha = eps_in / (2*Ef)
+		const REAL tiny = 1e-30;
+		REAL alpha = 0.0;
+		if (Ef > tiny) alpha = eps_in / (2.0 * Ef);
 
-        // Add forcing term to RHS: R += alpha*u for Kfmin <= K <= Kfmax
-        LOOP_FOURIER {
-            int K = static_cast<int>(round(sqrt(rad2[ind])));
-            if (dealiased[ind]) {
-                if (Kfmin<=K && K <= Kfmax) {
-                    for (int ic=0; ic<=1; ic++){ //ic=0 => Real part, ic=1 => Imaginary part
-                        Rx1_k[ind][ic] += alpha * uk_1[ind][ic];
-                        Ry1_k[ind][ic] += alpha * vk_1[ind][ic];
-                        Rz1_k[ind][ic] += alpha * wk_1[ind][ic];
-                    }
-                } else if (K==0) {
-                    for (int ic=0; ic<=1; ic++){ //ic=0 => Real part, ic=1 => Imaginary part
-                        Rx1_k[ind][ic] = 0.0;
-                        Ry1_k[ind][ic] = 0.0;
-                        Rz1_k[ind][ic] = 0.0;
-                    }
-                }
-            }
-        }
-    }
-#endif
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////
+		// Add forcing term to RHS: R += alpha*u for Kfmin <= K <= Kfmax
+		LOOP_FOURIER {
+			int K = static_cast<int>(round(sqrt(rad2[ind])));
+			if (dealiased[ind]) {
+				if (Kfmin<=K && K <= Kfmax) {
+					for (int ic=0; ic<=1; ic++){ //ic=0 => Real part, ic=1 => Imaginary part
+						Rx1_k[ind][ic] += alpha * uk_1[ind][ic];
+						Ry1_k[ind][ic] += alpha * vk_1[ind][ic];
+						Rz1_k[ind][ic] += alpha * wk_1[ind][ic];
+					}
+				} else if (K==0) {
+					for (int ic=0; ic<=1; ic++){ //ic=0 => Real part, ic=1 => Imaginary part
+						Rx1_k[ind][ic] = 0.0;
+						Ry1_k[ind][ic] = 0.0;
+						Rz1_k[ind][ic] = 0.0;
+					}
+				}
+			}
+		}
+	}
+	#endif
+	/////////////////////////////////////////////////////////////////////////////////////////////////////////
 };
 
 //===================================================
@@ -293,49 +293,49 @@ void HIT::Recalculate_R_vector_Fourier_Coefficients() {
 //		ukxyz_0 ->		Current distribution of velocity (in Fourier space)
 //		ukxyz_1 ->		New Predictor velocity (in Fourier space)
 void HIT::Recalculate_Predictor_Velocity_Fourier_Coefficients() {
-    if (isSelfAdaptive) {
-        //Update old values
-        if (iter > 0) { //Initial old velocity field equal to 0.0 unstabilities
-            memcpy(uk_aux, uk_0, sizeof(COMPLEX) * alloc_local);
-            memcpy(vk_aux, vk_0, sizeof(COMPLEX) * alloc_local);
-            memcpy(wk_aux, wk_0, sizeof(COMPLEX) * alloc_local);
-        }
-        memcpy(uk_0, uk_1, sizeof(COMPLEX) * alloc_local);
-        memcpy(vk_0, vk_1, sizeof(COMPLEX) * alloc_local);
-        memcpy(wk_0, wk_1, sizeof(COMPLEX) * alloc_local);
-        //Related to self-adaptive timestep
-        _kappa05 = (1.0/(kappa+0.5));
-        //Calculation of new coefficients
-        LOOP_FOURIER {
-            if (dealiased[ind]) {
-                for (int ic=0; ic<=1; ic++){ //ic=0 => Real part, ic=1 => Imaginary part
-                                             //Adaptive timestep
-                    uk_1[ind][ic]=_kappa05*(2.0*kappa*uk_0[ind][ic]+At*((1.0+kappa)*Rx1_k[ind][ic]
-                                -kappa*Rx0_k[ind][ic])-(kappa-0.5)*uk_aux[ind][ic]);
-                    vk_1[ind][ic]=_kappa05*(2.0*kappa*vk_0[ind][ic]+At*((1.0+kappa)*Ry1_k[ind][ic]
-                                -kappa*Ry0_k[ind][ic])-(kappa-0.5)*vk_aux[ind][ic]);
-                    wk_1[ind][ic]=_kappa05*(2.0*kappa*wk_0[ind][ic]+At*((1.0+kappa)*Rz1_k[ind][ic]
-                                -kappa*Rz0_k[ind][ic])-(kappa-0.5)*wk_aux[ind][ic]);
-                }
-            }
-        }
-    } else {
-        //Update old values
-        memcpy(uk_0, uk_1, sizeof(COMPLEX) * alloc_local);
-        memcpy(vk_0, vk_1, sizeof(COMPLEX) * alloc_local);
-        memcpy(wk_0, wk_1, sizeof(COMPLEX) * alloc_local);
-        //Calculation of new coefficients
-        LOOP_FOURIER {
-            if (dealiased[ind]) {
-                for (int ic=0; ic<=1; ic++){ //ic=0 => Real part, ic=1 => Imaginary part
-                                             //Adams-Bashforth method
-                    uk_1[ind][ic] = uk_0[ind][ic] + At * (1.5 * Rx1_k[ind][ic] - 0.5 * Rx0_k[ind][ic]);
-                    vk_1[ind][ic] = vk_0[ind][ic] + At * (1.5 * Ry1_k[ind][ic] - 0.5 * Ry0_k[ind][ic]);
-                    wk_1[ind][ic] = wk_0[ind][ic] + At * (1.5 * Rz1_k[ind][ic] - 0.5 * Rz0_k[ind][ic]);
-                }
-            }
-        }
-    }
+	if (isSelfAdaptive) {
+		//Update old values
+		if (iter > 0) { //Initial old velocity field equal to 0.0 unstabilities
+			memcpy(uk_aux, uk_0, sizeof(COMPLEX) * alloc_local);
+			memcpy(vk_aux, vk_0, sizeof(COMPLEX) * alloc_local);
+			memcpy(wk_aux, wk_0, sizeof(COMPLEX) * alloc_local);
+		}
+		memcpy(uk_0, uk_1, sizeof(COMPLEX) * alloc_local);
+		memcpy(vk_0, vk_1, sizeof(COMPLEX) * alloc_local);
+		memcpy(wk_0, wk_1, sizeof(COMPLEX) * alloc_local);
+		//Related to self-adaptive timestep
+		_kappa05 = (1.0/(kappa+0.5));
+		//Calculation of new coefficients
+		LOOP_FOURIER {
+			if (dealiased[ind]) {
+				for (int ic=0; ic<=1; ic++){ //ic=0 => Real part, ic=1 => Imaginary part
+					//Adaptive timestep
+					uk_1[ind][ic]=_kappa05*(2.0*kappa*uk_0[ind][ic]+At*((1.0+kappa)*Rx1_k[ind][ic]
+											   -kappa*Rx0_k[ind][ic])-(kappa-0.5)*uk_aux[ind][ic]);
+					vk_1[ind][ic]=_kappa05*(2.0*kappa*vk_0[ind][ic]+At*((1.0+kappa)*Ry1_k[ind][ic]
+											   -kappa*Ry0_k[ind][ic])-(kappa-0.5)*vk_aux[ind][ic]);
+					wk_1[ind][ic]=_kappa05*(2.0*kappa*wk_0[ind][ic]+At*((1.0+kappa)*Rz1_k[ind][ic]
+											   -kappa*Rz0_k[ind][ic])-(kappa-0.5)*wk_aux[ind][ic]);
+				}
+			}
+		}
+	} else {
+		//Update old values
+		memcpy(uk_0, uk_1, sizeof(COMPLEX) * alloc_local);
+		memcpy(vk_0, vk_1, sizeof(COMPLEX) * alloc_local);
+		memcpy(wk_0, wk_1, sizeof(COMPLEX) * alloc_local);
+		//Calculation of new coefficients
+		LOOP_FOURIER {
+			if (dealiased[ind]) {
+				for (int ic=0; ic<=1; ic++){ //ic=0 => Real part, ic=1 => Imaginary part
+					//Adams-Bashforth method
+					uk_1[ind][ic] = uk_0[ind][ic] + At * (1.5 * Rx1_k[ind][ic] - 0.5 * Rx0_k[ind][ic]);
+					vk_1[ind][ic] = vk_0[ind][ic] + At * (1.5 * Ry1_k[ind][ic] - 0.5 * Ry0_k[ind][ic]);
+					wk_1[ind][ic] = wk_0[ind][ic] + At * (1.5 * Rz1_k[ind][ic] - 0.5 * Rz0_k[ind][ic]);
+				}
+			}
+		}
+	}
 };
 
 //===================================================
@@ -344,18 +344,18 @@ void HIT::Recalculate_Predictor_Velocity_Fourier_Coefficients() {
 
 // Divergence-free projection of predictor velocity (result of substracting the gradient of pseudo-pressure -> operator (k^t·k)/(k·k))
 void HIT::Recalculate_Divergence_Free_Projection() {
-    REAL aux;
-    //Projection of Predictor velocity and calculation of uk_n+1 (stored in ukxyz_1 replacing predictor velocity)
-    LOOP_FOURIER_k1k2k3 {
-        if (dealiased[ind]) {
-            for (int ic=0; ic<=1; ic++){ //ic=0 => Real part, ic=1 => Imaginary part
-                aux = ((rad2[ind]>0) ? ((k1*uk_1[ind][ic]+k2*vk_1[ind][ic]+k3*wk_1[ind][ic])/rad2[ind]) : 0.0);
-                uk_1[ind][ic] -= aux * k1;
-                vk_1[ind][ic] -= aux * k2;
-                wk_1[ind][ic] -= aux * k3;
-            }
-        }
-    }
+	REAL aux;
+	//Projection of Predictor velocity and calculation of uk_n+1 (stored in ukxyz_1 replacing predictor velocity)
+	LOOP_FOURIER_k1k2k3 {
+		if (dealiased[ind]) {
+			for (int ic=0; ic<=1; ic++){ //ic=0 => Real part, ic=1 => Imaginary part
+				aux = ((rad2[ind]>0) ? ((k1*uk_1[ind][ic]+k2*vk_1[ind][ic]+k3*wk_1[ind][ic])/rad2[ind]) : 0.0);
+				uk_1[ind][ic] -= aux * k1;
+				vk_1[ind][ic] -= aux * k2;
+				wk_1[ind][ic] -= aux * k3;
+			}
+		}
+	}
 };
 
 //===================================================
@@ -363,43 +363,43 @@ void HIT::Recalculate_Divergence_Free_Projection() {
 //===================================================
 //Obtention of new timestep
 void HIT::Recalculate_TimeStep() {
-    if (isSelfAdaptive) {
-        Recalculate_SelfAdaptive_TimeStep();
-    } else {
-        Recalculate_CFL_TimeStep();
-    }
+	if (isSelfAdaptive) {
+		Recalculate_SelfAdaptive_TimeStep();
+	} else {
+		Recalculate_CFL_TimeStep();
+	}
 }
 // Calculation of new self-adaptive timestep
 void HIT::Recalculate_SelfAdaptive_TimeStep() {
-    //Compute local maximums at each process
-    REAL local_MaxVel = 0.0;
-    LOOP_REAL {
-        local_MaxVel = max(local_MaxVel, (fabs(u[ind])/Ax + fabs(v[ind])/Ay + fabs(w[ind])/Az));
-    }
-    //Compute maximum accros processes
-    MaxVel = 0.0;
-    MPI_Allreduce(&local_MaxVel, &MaxVel, 1, REAL_MPI, MPI_MAX, MCW);
-    //Recalculate self-adaptive timestep
-    phi0 = atan(MaxVel*Ah*Ah/(0.35*nu*12.0)); //0.35 per la constant Cc
-    At = Topt(phi0)/sqrt((MaxVel*MaxVel)/(0.35*0.35)+(144.0*nu*nu/(Ah*Ah*Ah*Ah)));
-    kappa = Kopt(phi0);
-    At = C_At*At;
+	//Compute local maximums at each process
+	REAL local_MaxVel = 0.0;
+	LOOP_REAL {
+		local_MaxVel = max(local_MaxVel, (fabs(u[ind])/Ax + fabs(v[ind])/Ay + fabs(w[ind])/Az));
+	}
+	//Compute maximum accros processes
+	MaxVel = 0.0;
+	MPI_Allreduce(&local_MaxVel, &MaxVel, 1, REAL_MPI, MPI_MAX, MCW);
+	//Recalculate self-adaptive timestep
+	phi0 = atan(MaxVel*Ah*Ah/(0.35*nu*12.0)); //0.35 per la constant Cc
+	At = Topt(phi0)/sqrt((MaxVel*MaxVel)/(0.35*0.35)+(144.0*nu*nu/(Ah*Ah*Ah*Ah)));
+	kappa = Kopt(phi0);
+	At = C_At*At;
 };
 // Calculation of new CFL timestep
 void HIT::Recalculate_CFL_TimeStep() {
-    //Compute local maximums at each process
-    REAL local_MaxVel = 0.0;
-    LOOP_REAL {
-        local_MaxVel = max(local_MaxVel, max(fabs(u[ind])/Ax, max(fabs(v[ind])/Ay, fabs(w[ind])/Az)));
-    }
-    //Compute maximum accros processes
-    MaxVel = 0.0;
-    MPI_Allreduce(&local_MaxVel, &MaxVel, 1, REAL_MPI, MPI_MAX, MCW);
-    //Recalculate CFL timestep
-    C_visc = 0.2 * min(Ax*Ax, min(Ay*Ay, Az*Az)) / nu;
-    C_conv = 0.35 / MaxVel;
-    At = min(C_visc, C_conv);
-    At = C_At * At;
+	//Compute local maximums at each process
+	REAL local_MaxVel = 0.0;
+	LOOP_REAL {
+		local_MaxVel = max(local_MaxVel, max(fabs(u[ind])/Ax, max(fabs(v[ind])/Ay, fabs(w[ind])/Az)));
+	}
+	//Compute maximum accros processes
+	MaxVel = 0.0;
+	MPI_Allreduce(&local_MaxVel, &MaxVel, 1, REAL_MPI, MPI_MAX, MCW);
+	//Recalculate CFL timestep
+	C_visc = 0.2 * min(Ax*Ax, min(Ay*Ay, Az*Az)) / nu;
+	C_conv = 0.35 / MaxVel;
+	At = min(C_visc, C_conv);
+	At = C_At * At;
 };
 
 //=====================================================================================================================
@@ -408,91 +408,95 @@ void HIT::Recalculate_CFL_TimeStep() {
 
 // Imposition of a given Energy distribution ("normalizing" current Fourier coefficients)
 void HIT::Forcing_Energy_Cascade(REAL const * const Forced_Ek, const ptrdiff_t& last_input_rad, const bool& isNullifyMissingEk) {
-    //Update Ek in order to calculate forcing term scaling factors FT[k]
-    Recalculate_Energy_Cascade();
-    //Internal temporary variables
-    int last_eff_rad = min(last_input_rad, last_rad);
-    REAL *FT = alloc_real(last_eff_rad+1);
-    //Calculation of FT corresponding to the current energy cascade (Ek)
-    for (int K=0; K<=last_eff_rad; K++) {
-        FT[K] = ((Ek[K]>0.0) ? sqrt(Forced_Ek[K] / Ek[K]) : 0.0); //Beware of Ek[K]=0!!!
-    }
-    //Scaling of velocity to force the energy cascade to be as Forced_Ek
-    LOOP_FOURIER {
-        if (dealiased[ind]) {
-            int K = static_cast<int>(round(sqrt(rad2[ind])));
-            if (K <= last_eff_rad) {
-                for (int ic=0; ic<=1; ic++){ //ic=0 => Real part, ic=1 => Imaginary part
-                    uk_1[ind][ic] *= FT[K];
-                    vk_1[ind][ic] *= FT[K];
-                    wk_1[ind][ic] *= FT[K];
-                }
-            } else if(isNullifyMissingEk) { //Nullify extra modes (with respect to Forced_Ek)
-                for (int ic=0; ic<=1; ic++){ //ic=0 => Real part, ic=1 => Imaginary part
-                    uk_1[ind][ic] = 0.0;
-                    vk_1[ind][ic] = 0.0;
-                    wk_1[ind][ic] = 0.0;
-                }
-            }
-        }
-    }
-    FREE(FT);
-    if (isComplexConjugateCorrected) {
-        //Correction of explicit complex conjugates (due to numerical instabilities)
-        Complex_Conjugate_Correction();
-    }
+	//Update Ek in order to calculate forcing term scaling factors FT[k]
+	Recalculate_Energy_Cascade();
+	//Internal temporary variables
+	int last_eff_rad = min(last_input_rad, last_rad);
+	REAL *FT = alloc_real(last_eff_rad+1);
+	//Calculation of FT corresponding to the current energy cascade (Ek)
+	for (int K=0; K<=last_eff_rad; K++) {
+		FT[K] = ((Ek[K]>0.0) ? sqrt(Forced_Ek[K] / Ek[K]) : 0.0); //Beware of Ek[K]=0!!!
+	}
+	//Scaling of velocity to force the energy cascade to be as Forced_Ek
+	LOOP_FOURIER {
+		if (dealiased[ind]) {
+			int K = static_cast<int>(round(sqrt(rad2[ind])));
+			if (K <= last_eff_rad) {
+				for (int ic=0; ic<=1; ic++){ //ic=0 => Real part, ic=1 => Imaginary part
+					uk_1[ind][ic] *= FT[K];
+					vk_1[ind][ic] *= FT[K];
+					wk_1[ind][ic] *= FT[K];
+				}
+			} else if(isNullifyMissingEk) { //Nullify extra modes (with respect to Forced_Ek)
+				for (int ic=0; ic<=1; ic++){ //ic=0 => Real part, ic=1 => Imaginary part
+					uk_1[ind][ic] = 0.0;
+					vk_1[ind][ic] = 0.0;
+					wk_1[ind][ic] = 0.0;
+				}
+			}
+		}
+	}
+	FREE(FT);
+	if (isComplexConjugateCorrected) {
+		//Correction of explicit complex conjugates (due to numerical instabilities)
+		Complex_Conjugate_Correction();
+	}
 };
 // Imposition of correct complex conjugation for k3=0
 void HIT::Complex_Conjugate_Correction() {
-    //Load of velocity Fourier coefficients at k3=0 into local_uvwk_k3_0
-    LOOP_2D(b,0,local_n1, a,0,Mx) { //For plane k3=0
-        int ind = (b*Mx+a)*(Mz_2+1)+0;
-        int ind_k3_0 = b*Mx+a;
-        for (int ic=0; ic<=1; ic++){ //ic=0 => Real part, ic=1 => Imaginary part
-            local_uk_k3_0[ind_k3_0][ic] = uk_1[ind][ic];
-            local_vk_k3_0[ind_k3_0][ic] = vk_1[ind][ic];
-            local_wk_k3_0[ind_k3_0][ic] = wk_1[ind][ic];
-        }
-    }
-    //Gathering of velocity Fourier coefficients at plane k3=0 and distribution to all processes
-    MPI_Allgatherv(local_uk_k3_0, recvcounts_k3_0[myrank], MPI_BYTE, uk_k3_0, recvcounts_k3_0, displs_k3_0, MPI_BYTE, MCW);
-    MPI_Allgatherv(local_vk_k3_0, recvcounts_k3_0[myrank], MPI_BYTE, vk_k3_0, recvcounts_k3_0, displs_k3_0, MPI_BYTE, MCW);
-    MPI_Allgatherv(local_wk_k3_0, recvcounts_k3_0[myrank], MPI_BYTE, wk_k3_0, recvcounts_k3_0, displs_k3_0, MPI_BYTE, MCW);
-    //Complex conjugate correction for k3=0
-    LOOP_2D(b,0,local_n1, a,0,Mx) { //For plane k3=0
-        int k1 = FOURIER_FREQ(a,Mx);
-        int k2 = FOURIER_FREQ(b,local_1_start,My);
-        if (k1<0 || (k1==0 && k2<0)) {
-            int k1_conj = -k1, k2_conj = -k2;
-            int ind = (b*Mx+a)*(Mz_2+1)+0;
-            int a_conj = k1_conj; //k1 <= 0 => k1_conj >= 0
-            int b_conj = ((k2_conj >= 0) ? k2_conj : (My+k2_conj));
-            int ind_k3_0 = b_conj*Mx+a_conj;
-            uk_1[ind][0] = uk_k3_0[ind_k3_0][0];  uk_1[ind][1] = -uk_k3_0[ind_k3_0][1];
-            vk_1[ind][0] = vk_k3_0[ind_k3_0][0];  vk_1[ind][1] = -vk_k3_0[ind_k3_0][1];
-            wk_1[ind][0] = wk_k3_0[ind_k3_0][0];  wk_1[ind][1] = -wk_k3_0[ind_k3_0][1];
-        }
-    }
+	//Load of velocity Fourier coefficients at k3=0 into local_uvwk_k3_0
+	LOOP_2D(b,0,local_n1, a,0,Mx) { //For plane k3=0
+		int ind = (b*Mx+a)*(Mz_2+1)+0;
+		int ind_k3_0 = b*Mx+a;
+		for (int ic=0; ic<=1; ic++){ //ic=0 => Real part, ic=1 => Imaginary part
+			local_uk_k3_0[ind_k3_0][ic] = uk_1[ind][ic];
+			local_vk_k3_0[ind_k3_0][ic] = vk_1[ind][ic];
+			local_wk_k3_0[ind_k3_0][ic] = wk_1[ind][ic];
+		}
+	}
+	//Gathering of velocity Fourier coefficients at plane k3=0 and distribution to all processes
+	MPI_Allgatherv(local_uk_k3_0, recvcounts_k3_0[myrank], MPI_BYTE, uk_k3_0, recvcounts_k3_0, displs_k3_0, MPI_BYTE, MCW);
+	MPI_Allgatherv(local_vk_k3_0, recvcounts_k3_0[myrank], MPI_BYTE, vk_k3_0, recvcounts_k3_0, displs_k3_0, MPI_BYTE, MCW);
+	MPI_Allgatherv(local_wk_k3_0, recvcounts_k3_0[myrank], MPI_BYTE, wk_k3_0, recvcounts_k3_0, displs_k3_0, MPI_BYTE, MCW);
+	//Complex conjugate correction for k3=0
+	LOOP_2D(b,0,local_n1, a,0,Mx) { //For plane k3=0
+		int k1 = FOURIER_FREQ(a,Mx);
+		int k2 = FOURIER_FREQ(b,local_1_start,My);
+		if (k1<0 || (k1==0 && k2<0)) {
+			int k1_conj = -k1, k2_conj = -k2;
+			int ind = (b*Mx+a)*(Mz_2+1)+0;
+			int a_conj = k1_conj; //k1 <= 0 => k1_conj >= 0
+			int b_conj = ((k2_conj >= 0) ? k2_conj : (My+k2_conj));
+			int ind_k3_0 = b_conj*Mx+a_conj;
+			uk_1[ind][0] = uk_k3_0[ind_k3_0][0];  uk_1[ind][1] = -uk_k3_0[ind_k3_0][1];
+			vk_1[ind][0] = vk_k3_0[ind_k3_0][0];  vk_1[ind][1] = -vk_k3_0[ind_k3_0][1];
+			wk_1[ind][0] = wk_k3_0[ind_k3_0][0];  wk_1[ind][1] = -wk_k3_0[ind_k3_0][1];
+		}
+	}
 };
 // Calculation of Reynolds lambda
 REAL HIT::Recalculate_Reynolds_Lambda() {
-    Recalculate_Energy();
-    Recalculate_Enstrophy();
-    ReLambda = Ek_Tot / nu * sqrt(20.0 / 3.0 / Ok_Tot);
-    return ReLambda;
+	Recalculate_Energy();
+	Recalculate_Enstrophy();
+	ReLambda = Ek_Tot / nu * sqrt(20.0 / 3.0 / Ok_Tot);
+	return ReLambda;
 };
 // Imposition of a given Reynolds lambda
 void HIT::Forcing_Reynolds_Lambda(const REAL ReLambda_) {
-    Recalculate_Energy();
-    Recalculate_Enstrophy();
-    nu = Ek_Tot / ReLambda_ * sqrt(20.0 / 3.0 / Ok_Tot);
+	Recalculate_Energy();
+	Recalculate_Enstrophy();
+	nu = Ek_Tot / ReLambda_ * sqrt(20.0 / 3.0 / Ok_Tot);
 };
 REAL HIT::Recalculate_Enstrophy() {
-    const int Kmin = 1; //Ok[0] = 0.0 by definition
-    const int Kmax = last_rad_max;
-    Ok_Tot = Integrate_Field(Enstrophy, NULL, NULL, Kmin, Kmax);
-    return Ok_Tot;
+	const int Kmin = 1; //Ok[0] = 0.0 by definition
+	const int Kmax = last_rad_max;
+	Ok_Tot = Integrate_Field(Enstrophy, NULL, NULL, Kmin, Kmax);
+	return Ok_Tot;
 };
+
+//=====================================================================================================================
+// INPUTTING INITIAL VELOCITY FIELD
+//=====================================================================================================================
 
 //=====================================================================================================================
 // INPUTTING INITIAL VELOCITY FIELD
@@ -500,43 +504,43 @@ REAL HIT::Recalculate_Enstrophy() {
 
 // Initialization of velocity field in Fourier space using K41 distibution |k|^{-5/3}
 void HIT::Input_K41_Field() {
-    //Set random velocity field in Fourier space
-    srand(0); //Set fixed seed
-    LOOP_FOURIER {
-        for (int ic=0; ic<=1; ic++) { //ic=0 => Real part, ic=1 => Imaginary part
-            if (dealiased[ind]) {
-                int K = static_cast<int>(round(sqrt(rad2[ind])));
-                //As K41 is not forced to them, set to 0 velocities with K>last_rad
-                if (K<=last_rad) {
-                    uk_1[ind][ic] = (((REAL)rand()/RAND_MAX)*2.0 - 1.0);
-                    vk_1[ind][ic] = (((REAL)rand()/RAND_MAX)*2.0 - 1.0);
-                    wk_1[ind][ic] = (((REAL)rand()/RAND_MAX)*2.0 - 1.0);
-                } else {
-                    uk_1[ind][ic] = 0.0;
-                    vk_1[ind][ic] = 0.0;
-                    wk_1[ind][ic] = 0.0;
-                }
-            } else { //Aliased (and mean flow) terms
-                uk_1[ind][ic] = 0.0;
-                vk_1[ind][ic] = 0.0;
-                wk_1[ind][ic] = 0.0;
-            }
-        }
-    }
-    //Correction of explicit complex conjugates (due to numerical instabilities)
-    Complex_Conjugate_Correction();
-    //Initialize K41 energy cascade
-    REAL *K41_Ek = alloc_real(last_rad+1);
-    // We impose no mean flow, K41_Ek[0]=0.0. However, this makes initial Ek[0]=0.0 and, since it is preserved
-    // throughout the simulation, then Ek[0] is fixed to 0.0, making any value passed to Forced_Ek[0], ignored.
-    K41_Ek[0] = 0.0; //No mean flow
-    for (int K=1; K<=last_rad; K++) {
-        K41_Ek[K] = pow(K, -5.0/3.0);
-    }
-    //Force K41 energy cascade
-    Forcing_Energy_Cascade(K41_Ek, last_rad, false);
-    //Free of mallocated memory
-    FREE(K41_Ek);
+	//Set random velocity field in Fourier space
+	srand(0); //Set fixed seed
+	LOOP_FOURIER {
+		for (int ic=0; ic<=1; ic++) { //ic=0 => Real part, ic=1 => Imaginary part
+			if (dealiased[ind]) {
+				int K = static_cast<int>(round(sqrt(rad2[ind])));
+				//As K41 is not forced to them, set to 0 velocities with K>last_rad
+				if (K<=last_rad) {
+					uk_1[ind][ic] = (((REAL)rand()/RAND_MAX)*2.0 - 1.0);
+					vk_1[ind][ic] = (((REAL)rand()/RAND_MAX)*2.0 - 1.0);
+					wk_1[ind][ic] = (((REAL)rand()/RAND_MAX)*2.0 - 1.0);
+				} else {
+					uk_1[ind][ic] = 0.0;
+					vk_1[ind][ic] = 0.0;
+					wk_1[ind][ic] = 0.0;
+				}
+			} else { //Aliased (and mean flow) terms
+				uk_1[ind][ic] = 0.0;
+				vk_1[ind][ic] = 0.0;
+				wk_1[ind][ic] = 0.0;
+			}
+		}
+	}
+	//Correction of explicit complex conjugates (due to numerical instabilities)
+	Complex_Conjugate_Correction();
+	//Initialize K41 energy cascade
+	REAL *K41_Ek = alloc_real(last_rad+1);
+	// We impose no mean flow, K41_Ek[0]=0.0. However, this makes initial Ek[0]=0.0 and, since it is preserved
+	// throughout the simulation, then Ek[0] is fixed to 0.0, making any value passed to Forced_Ek[0], ignored.
+	K41_Ek[0] = 0.0; //No mean flow
+	for (int K=1; K<=last_rad; K++) {
+		K41_Ek[K] = pow(K, -5.0/3.0);
+	}
+	//Force K41 energy cascade
+	Forcing_Energy_Cascade(K41_Ek, last_rad, false);
+	//Free of mallocated memory
+	FREE(K41_Ek);
 };
 // Initialization of velocity field in Fourier space from an input file containing velocities in Fourier space
 void HIT::Input_Real_Field() {
@@ -694,365 +698,364 @@ void HIT::Truncate_Input_File_Fourier_Coefficients (COMPLEX const * const uk_fil
 
 // Initialization of the clas HIT (called uniquely in the constructor)
 void HIT::HIT_init() {
-    //===================================================
-    // 1. GENERAL MEMORY ALLOCATION
-    //===================================================
-    // fftw3 parameters
-    alloc_local = fftw.getalloc_local();
-    local_n0 = fftw.getlocal_n0();
-    local_0_start = fftw.getlocal_0_start();
-    local_n1 = fftw.getlocal_n1();
-    local_1_start = fftw.getlocal_1_start();
-    // double*
-    u = alloc_real(2 * alloc_local);
-    v = alloc_real(2 * alloc_local);
-    w = alloc_real(2 * alloc_local);
-    for(int coord=0; coord<3; coord++) {
-        gradu[coord] = alloc_real(2*alloc_local);
-        gradv[coord] = alloc_real(2*alloc_local);
-        gradw[coord] = alloc_real(2*alloc_local);
-    }
-    convx = alloc_real(2 * alloc_local);
-    convy = alloc_real(2 * alloc_local);
-    convz = alloc_real(2 * alloc_local);
-    rad2 = alloc_real(2 * alloc_local);
-    local_acumField = alloc_real(last_rad_max+1);
-    global_acumField = alloc_real(last_rad_max+1);
-    Ek = alloc_real(last_rad_max+1);
-    // Yotta stuff
-    for(int coord=0; coord<5; coord++) {
-        velGradInv[coord] = alloc_real(2*alloc_local);
-        velGradInvk[coord] = alloc_complex(alloc_local);
-    }
-    // COMPLEX*
-    uk_aux = alloc_complex(alloc_local);
-    vk_aux = alloc_complex(alloc_local);
-    wk_aux = alloc_complex(alloc_local);
-    uk_0 = alloc_complex(alloc_local);
-    vk_0 = alloc_complex(alloc_local);
-    wk_0 = alloc_complex(alloc_local);
-    uk_1 = alloc_complex(alloc_local);
-    vk_1 = alloc_complex(alloc_local);
-    wk_1 = alloc_complex(alloc_local);
-    for(int coord=0; coord<3; coord++) {
-        gradu_k[coord] = alloc_complex(alloc_local);
-        gradv_k[coord] = alloc_complex(alloc_local);
-        gradw_k[coord] = alloc_complex(alloc_local);
-    }
-    convx_k = alloc_complex(alloc_local);
-    convy_k = alloc_complex(alloc_local);
-    convz_k = alloc_complex(alloc_local);
-    Rx0_k = alloc_complex(alloc_local);
-    Ry0_k = alloc_complex(alloc_local);
-    Rz0_k = alloc_complex(alloc_local);
-    Rx1_k = alloc_complex(alloc_local);
-    Ry1_k = alloc_complex(alloc_local);
-    Rz1_k = alloc_complex(alloc_local);
-    //bool*
-    dealiased = (bool*) MALLOC(sizeof(bool) * alloc_local);
-    conjugate = (bool*) MALLOC(sizeof(bool) * alloc_local);
+	//===================================================
+	// 1. GENERAL MEMORY ALLOCATION
+	//===================================================
+	// fftw3 parameters
+	alloc_local = fftw.getalloc_local();
+	local_n0 = fftw.getlocal_n0();
+	local_0_start = fftw.getlocal_0_start();
+	local_n1 = fftw.getlocal_n1();
+	local_1_start = fftw.getlocal_1_start();
+	// double*
+	u = alloc_real(2 * alloc_local);
+	v = alloc_real(2 * alloc_local);
+	w = alloc_real(2 * alloc_local);
+	for(int coord=0; coord<3; coord++) {
+		gradu[coord] = alloc_real(2*alloc_local);
+		gradv[coord] = alloc_real(2*alloc_local);
+		gradw[coord] = alloc_real(2*alloc_local);
+	}
+	convx = alloc_real(2 * alloc_local);
+	convy = alloc_real(2 * alloc_local);
+	convz = alloc_real(2 * alloc_local);
+	rad2 = alloc_real(2 * alloc_local);
+	local_acumField = alloc_real(last_rad_max+1);
+	global_acumField = alloc_real(last_rad_max+1);
+	Ek = alloc_real(last_rad_max+1);
+	// Yotta stuff
+	for(int coord=0; coord<5; coord++) {
+		velGradInv[coord] = alloc_real(2*alloc_local);
+		velGradInvk[coord] = alloc_complex(alloc_local);
+	}
+	// COMPLEX*
+	uk_aux = alloc_complex(alloc_local);
+	vk_aux = alloc_complex(alloc_local);
+	wk_aux = alloc_complex(alloc_local);
+	uk_0 = alloc_complex(alloc_local);
+	vk_0 = alloc_complex(alloc_local);
+	wk_0 = alloc_complex(alloc_local);
+	uk_1 = alloc_complex(alloc_local);
+	vk_1 = alloc_complex(alloc_local);
+	wk_1 = alloc_complex(alloc_local);
+	for(int coord=0; coord<3; coord++) {
+		gradu_k[coord] = alloc_complex(alloc_local);
+		gradv_k[coord] = alloc_complex(alloc_local);
+		gradw_k[coord] = alloc_complex(alloc_local);
+	}
+	convx_k = alloc_complex(alloc_local);
+	convy_k = alloc_complex(alloc_local);
+	convz_k = alloc_complex(alloc_local);
+	Rx0_k = alloc_complex(alloc_local);
+	Ry0_k = alloc_complex(alloc_local);
+	Rz0_k = alloc_complex(alloc_local);
+	Rx1_k = alloc_complex(alloc_local);
+	Ry1_k = alloc_complex(alloc_local);
+	Rz1_k = alloc_complex(alloc_local);
+	//bool*
+	dealiased = (bool*) MALLOC(sizeof(bool) * alloc_local);
+	conjugate = (bool*) MALLOC(sizeof(bool) * alloc_local);
 
-    //===================================================
-    // 2. INITIALIZATIONS OF AUXILIAR INTERNAL VARIABLES
-    //===================================================
-    //rad2: Initialization of vector radium (to avoid repeated calculations)
-    LOOP_FOURIER_k1k2k3 {
-        rad2[ind] = static_cast<REAL>(k1*k1+k2*k2+k3*k3);
-    }
-    //num_dealiased_real: number of relevant terms (considering the length factors) per process
-    if (isNotCubic) {
-        num_dealiased_real = 0;
-        LOOP_3D (i,0,local_n0, j,0,My, k,0,Mz) {
-            if ((local_0_start+i)<ActualMx && j<ActualMy && k<ActualMz) {
-                num_dealiased_real++;
-            }
-        }
-    } else {
-        num_dealiased_real = local_n0 * My * Mz;
-    }
+	//===================================================
+	// 2. INITIALIZATIONS OF AUXILIAR INTERNAL VARIABLES
+	//===================================================
+	//rad2: Initialization of vector radium (to avoid repeated calculations)
+	LOOP_FOURIER_k1k2k3 {
+		rad2[ind] = static_cast<REAL>(k1*k1+k2*k2+k3*k3);
+	}
+	//num_dealiased_real: number of relevant terms (considering the length factors) per process
+	if (isNotCubic) {
+		num_dealiased_real = 0;
+		LOOP_3D (i,0,local_n0, j,0,My, k,0,Mz) {
+			if ((local_0_start+i)<ActualMx && j<ActualMy && k<ActualMz) {
+				num_dealiased_real++;
+			}
+		}
+	} else {
+		num_dealiased_real = local_n0 * My * Mz;
+	}
 
-    //dealiased: Initialization of a bool vector to know wether a mode is significant. Two cases:
-    //A) Exclusion of aliased terms:
-    //	-If N is odd, all k in [-N_2, N_2] are included, and abs(k) in [N_2, M_2] are excluded
-    //	-If N is even, k=-N_2 is also excluded (complex z-dimension is only computed from [0,N_2])
-    //(*If Nz is even, no exclusion has to be made as only k3>0 are considered and k3 == -Nz_2 cannot happen)
-    //B) Exclusion of undesired coefficients (due to non-cubic domains, i.e., length factors >1):
-    //	-FFTW assumes the same length for x, y and z-directions (in the exponential term of DFTs)
-    //	-This is overcome by setting to 0 all modes irrelevant to each direction (dealiased[ind]=false)
-    //C) num_dealiased: Number of dealiased terms present in current process
-    num_dealiased = 0;
-    LOOP_FOURIER_k1k2k3 {
-        //Exclusion of aliased terms (3/2 rule implemented)
-        if (abs(k1)<=Nx_2 && abs(k2)<=Ny_2 && k3<=Nz_2) {
-            dealiased[ind] = true;
-        } else {
-            dealiased[ind] = false;
-        }
-        //Until here, (although it has been separated to make it clearer) dealiased[ind] is equivalent
-        //to: "((abs(k1)<=(Nx-1)/2)||(k1==Nx_2)) && ((abs(k2)<=(Ny-1)/2)||(k2==Ny_2)) && (k3<=Nz_2)"
-        if (isNotCubic) {
-            if ((k1%Lx_factor != 0) || (k2%Ly_factor != 0) || (k3%Lz_factor != 0)){
-                dealiased[ind] = false; //Exclusion of undesired coefficients due to length factors
-            }
-        }
-        if (dealiased[ind]) num_dealiased++; //It needs to be at the end!!!
-    }
+	//dealiased: Initialization of a bool vector to know wether a mode is significant. Two cases:
+	//A) Exclusion of aliased terms:
+	//	-If N is odd, all k in [-N_2, N_2] are included, and abs(k) in [N_2, M_2] are excluded
+	//	-If N is even, k=-N_2 is also excluded (complex z-dimension is only computed from [0,N_2])
+	//(*If Nz is even, no exclusion has to be made as only k3>0 are considered and k3 == -Nz_2 cannot happen)
+	//B) Exclusion of undesired coefficients (due to non-cubic domains, i.e., length factors >1):
+	//	-FFTW assumes the same length for x, y and z-directions (in the exponential term of DFTs)
+	//	-This is overcome by setting to 0 all modes irrelevant to each direction (dealiased[ind]=false)
+	//C) num_dealiased: Number of dealiased terms present in current process
+	num_dealiased = 0;
+	LOOP_FOURIER_k1k2k3 {
+		//Exclusion of aliased terms (3/2 rule implemented)
+		if (abs(k1)<=Nx_2 && abs(k2)<=Ny_2 && k3<=Nz_2) {
+			dealiased[ind] = true;
+		} else {
+			dealiased[ind] = false;
+		}
+		//Until here, (although it has been separated to make it clearer) dealiased[ind] is equivalent
+		//to: "((abs(k1)<=(Nx-1)/2)||(k1==Nx_2)) && ((abs(k2)<=(Ny-1)/2)||(k2==Ny_2)) && (k3<=Nz_2)"
+		if (isNotCubic) {
+			if ((k1%Lx_factor != 0) || (k2%Ly_factor != 0) || (k3%Lz_factor != 0)){
+				dealiased[ind] = false; //Exclusion of undesired coefficients due to length factors
+			}
+		}
+		if (dealiased[ind]) num_dealiased++; //It needs to be at the end!!!
+	}
 
-    //conjugate: Initialization of a bool vector to know wether a mode also has an associated conjugate (and
-    //it has to be counted twice when computing the kinetic energy) or not
-    LOOP_FOURIER_k1k2k3 {
-        //Exclude k3=0 as well as the Nyquist XY-plane in case Nz is even (if Nz is odd, then k3=Nz/2 has an
-        //associated conjugate)
-        conjugate[ind] = dealiased[ind] && (k3 != 0) && !((Mz%2 == 0) && (k3 == Mz_2));
-    }
+	//conjugate: Initialization of a bool vector to know wether a mode also has an associated conjugate (and
+	//it has to be counted twice when computing the kinetic energy) or not
+	LOOP_FOURIER_k1k2k3 {
+		//Exclude k3=0 as well as the Nyquist XY-plane in case Nz is even (if Nz is odd, then k3=Nz/2 has an
+		//associated conjugate)
+		conjugate[ind] = dealiased[ind] && (k3 != 0) && !((Mz%2 == 0) && (k3 == Mz_2));
+	}
 
-    //local_n0_: pointer containing in local_n0_[i] the value of local_n0 corresponding to process i
-    local_n0_ = (int*) MALLOC(sizeof(int) * numprocs);
-    MPI_Gather(&local_n0, 1, MPI_INT, local_n0_, 1, MPI_INT, 0, MCW);
-    MPI_Bcast(local_n0_, numprocs, MPI_INT, 0, MCW);
+	//local_n0_: pointer containing in local_n0_[i] the value of local_n0 corresponding to process i
+	local_n0_ = (int*) MALLOC(sizeof(int) * numprocs);
+	MPI_Gather(&local_n0, 1, MPI_INT, local_n0_, 1, MPI_INT, 0, MCW);
+	MPI_Bcast(local_n0_, numprocs, MPI_INT, 0, MCW);
 
-    //local_n1_: pointer containing in local_n1_[i] the value of local_n1 corresponding to process i
-    local_n1_ = (int*) MALLOC(sizeof(int) * numprocs);
-    MPI_Gather(&local_n1, 1, MPI_INT, local_n1_, 1, MPI_INT, 0, MCW);
-    MPI_Bcast(local_n1_, numprocs, MPI_INT, 0, MCW);
+	//local_n1_: pointer containing in local_n1_[i] the value of local_n1 corresponding to process i
+	local_n1_ = (int*) MALLOC(sizeof(int) * numprocs);
+	MPI_Gather(&local_n1, 1, MPI_INT, local_n1_, 1, MPI_INT, 0, MCW);
+	MPI_Bcast(local_n1_, numprocs, MPI_INT, 0, MCW);
 
-    //offset_Fourier: Position of the first byte to be written by the current proces. Used to MPI_File_write uk_1, vk_1
-    //and wk_1. Only dealiased terms are written!!!
-    MPI_Offset *offset_Fourier_ = (MPI_Offset*) MALLOC(sizeof(MPI_Offset) * numprocs);
-    int *num_dealiased_ = NULL;
-    if (myrank == 0) {
-        num_dealiased_ = (int*) MALLOC(sizeof(int) * numprocs);
-    }
-    //Rank 0 gathers each num_dealiased into the temporary pointer *num_dealiased_
-    MPI_Gather(&num_dealiased, 1, MPI_INT, num_dealiased_, 1, MPI_INT, 0, MCW);
-    if(myrank == 0){
-        for(int proc=0; proc<numprocs; proc++) {
-            offset_Fourier_[proc] = ((proc == 0) ? 0 : (offset_Fourier_[proc-1] + sizeof(COMPLEX) * static_cast<MPI_Offset>(num_dealiased_[proc-1])));
-        }
-        FREE(num_dealiased_);
-    }
-    MPI_Bcast(offset_Fourier_, sizeof(MPI_Offset)*numprocs, MPI_BYTE, 0, MCW);
-    //Final initialization of the variables
-    offset_Fourier = offset_Fourier_[myrank];
-    //Memory freeing of auxiliar pointers
-    FREE(offset_Fourier_);
+	//offset_Fourier: Position of the first byte to be written by the current proces. Used to MPI_File_write uk_1, vk_1
+	//and wk_1. Only dealiased terms are written!!!
+	MPI_Offset *offset_Fourier_ = (MPI_Offset*) MALLOC(sizeof(MPI_Offset) * numprocs);
+	int *num_dealiased_ = NULL;
+	if (myrank == 0) {
+		num_dealiased_ = (int*) MALLOC(sizeof(int) * numprocs);
+	}
+	//Rank 0 gathers each num_dealiased into the temporary pointer *num_dealiased_
+	MPI_Gather(&num_dealiased, 1, MPI_INT, num_dealiased_, 1, MPI_INT, 0, MCW);
+	if(myrank == 0){
+		for(int proc=0; proc<numprocs; proc++) {
+			offset_Fourier_[proc] = ((proc == 0) ? 0 : (offset_Fourier_[proc-1] + sizeof(COMPLEX) * static_cast<MPI_Offset>(num_dealiased_[proc-1])));
+		}
+	FREE(num_dealiased_);
+	}
+	MPI_Bcast(offset_Fourier_, sizeof(MPI_Offset)*numprocs, MPI_BYTE, 0, MCW);
+	//Final initialization of the variables
+	offset_Fourier = offset_Fourier_[myrank];
+	//Memory freeing of auxiliar pointers
+	FREE(offset_Fourier_);
 
-    //offset_Real: Exactly as offset_Fourier but for real fields (where distinction between
-    //aliased/dealiased terms does not make sense, except for non-cubic domains, where terms
-    //such that k%L_factor!=0 have to be treated as the complex aliased ones)
-    //Allocate memory
-    MPI_Offset *offset_Real_ = (MPI_Offset*) MALLOC(sizeof(MPI_Offset) * numprocs);
-    int *num_dealiased_real_ = NULL;
-    if (myrank == 0) {
-        num_dealiased_real_ = (int*) MALLOC(sizeof(int) * numprocs);
-    }
-    //Rank 0 gathers each num_dealiased_real into the temporary pointer *num_dealiased_real_
-    MPI_Gather(&num_dealiased_real, 1, MPI_INT, num_dealiased_real_, 1, MPI_INT, 0, MCW);
-    if(myrank == 0){
-        for(int proc=0; proc<numprocs; proc++) {
-            offset_Real_[proc] = ((proc == 0) ? 0 : (offset_Real_[proc-1] + sizeof(REAL) * static_cast<MPI_Offset>(num_dealiased_real_[proc-1])));
-        }
-        FREE(num_dealiased_real_);
-    }
-    MPI_Bcast(offset_Real_, sizeof(MPI_Offset)*numprocs, MPI_BYTE, 0, MCW);
-    //Final initialization of the variables
-    offset_Real = offset_Real_[myrank];
-    //Memory freeing of auxiliar pointers
-    FREE(offset_Real_);
+	//offset_Real: Exactly as offset_Fourier but for real fields (where distinction between
+	//aliased/dealiased terms does not make sense, except for non-cubic domains, where terms
+	//such that k%L_factor!=0 have to be treated as the complex aliased ones)
+	//Allocate memory
+	MPI_Offset *offset_Real_ = (MPI_Offset*) MALLOC(sizeof(MPI_Offset) * numprocs);
+	int *num_dealiased_real_ = NULL;
+	if (myrank == 0) {
+		num_dealiased_real_ = (int*) MALLOC(sizeof(int) * numprocs);
+	}
+	//Rank 0 gathers each num_dealiased_real into the temporary pointer *num_dealiased_real_
+	MPI_Gather(&num_dealiased_real, 1, MPI_INT, num_dealiased_real_, 1, MPI_INT, 0, MCW);
+	if(myrank == 0){
+		for(int proc=0; proc<numprocs; proc++) {
+			offset_Real_[proc] = ((proc == 0) ? 0 : (offset_Real_[proc-1] + sizeof(REAL) * static_cast<MPI_Offset>(num_dealiased_real_[proc-1])));
+		}
+	FREE(num_dealiased_real_);
+	}
+	MPI_Bcast(offset_Real_, sizeof(MPI_Offset)*numprocs, MPI_BYTE, 0, MCW);
+	//Final initialization of the variables
+	offset_Real = offset_Real_[myrank];
+	//Memory freeing of auxiliar pointers
+	FREE(offset_Real_);
 
-    //===================================================
-    // 3. LES MEMORY ALLOCATION
-    //===================================================
-    if (isLES) {
-        // double*
-        nu_eddy = alloc_real(2 * alloc_local);
-        SGS_11 = alloc_real(2 * alloc_local);
-        SGS_21 = alloc_real(2 * alloc_local);
-        SGS_22 = alloc_real(2 * alloc_local);
-        SGS_31 = alloc_real(2 * alloc_local);
-        SGS_32 = alloc_real(2 * alloc_local);
-        SGS_33 = alloc_real(2 * alloc_local);
-        // COMPLEX*
-        SGS_11_k = alloc_complex(alloc_local);
-        SGS_21_k = alloc_complex(alloc_local);
-        SGS_22_k = alloc_complex(alloc_local);
-        SGS_31_k = alloc_complex(alloc_local);
-        SGS_32_k = alloc_complex(alloc_local);
-        SGS_33_k = alloc_complex(alloc_local);
-        divSGSx_k = alloc_complex(alloc_local);
-        divSGSy_k = alloc_complex(alloc_local);
-        divSGSz_k = alloc_complex(alloc_local);
-    }
+	//===================================================
+	// 3. LES MEMORY ALLOCATION
+	//===================================================
+	if (isLES) {
+		// double*
+		nu_eddy = alloc_real(2 * alloc_local);
+		SGS_11 = alloc_real(2 * alloc_local);
+		SGS_21 = alloc_real(2 * alloc_local);
+		SGS_22 = alloc_real(2 * alloc_local);
+		SGS_31 = alloc_real(2 * alloc_local);
+		SGS_32 = alloc_real(2 * alloc_local);
+		SGS_33 = alloc_real(2 * alloc_local);
+		// COMPLEX*
+		SGS_11_k = alloc_complex(alloc_local);
+		SGS_21_k = alloc_complex(alloc_local);
+		SGS_22_k = alloc_complex(alloc_local);
+		SGS_31_k = alloc_complex(alloc_local);
+		SGS_32_k = alloc_complex(alloc_local);
+		SGS_33_k = alloc_complex(alloc_local);
+		divSGSx_k = alloc_complex(alloc_local);
+		divSGSy_k = alloc_complex(alloc_local);
+		divSGSz_k = alloc_complex(alloc_local);
+	}
 
-    //===================================================
-    // 4. COMPLEX CONJUGATE CORRECTION
-    //===================================================
-    if (isComplexConjugateCorrected || !(isInitialFieldFromBinaryFile || isInitialFieldFromASCIIFile)) {
-        // COMPLEX*
-        local_uk_k3_0 = alloc_complex(Mx * local_n1 * 1); //Only for k3=0
-        local_vk_k3_0 = alloc_complex(Mx * local_n1 * 1); //Only for k3=0
-        local_wk_k3_0 = alloc_complex(Mx * local_n1 * 1); //Only for k3=0
-        uk_k3_0 = alloc_complex(Mx * My * 1); //Only for k3=0
-        vk_k3_0 = alloc_complex(Mx * My * 1); //Only for k3=0
-        wk_k3_0 = alloc_complex(Mx * My * 1); //Only for k3=0
-                                              //int*
-        displs_k3_0 = (int*) MALLOC(sizeof(int) * numprocs); //Position of the first byte gathered
-        recvcounts_k3_0 = (int*) MALLOC(sizeof(int) * numprocs); //Number of MPI_BYTEs (for k3=0)
-                                                                 //Initialization of recvcounts_k3_0 and displs_k3_0 (used in MPI_Allgatherv clause)
-                                                                 //MPI_Gather is necessary because local_n1 differs from different processes
-        if(myrank==0){
-            for(int proc=0; proc<numprocs; proc++) {
-                recvcounts_k3_0[proc] = sizeof(COMPLEX) * Mx * local_n1_[proc]; //Equal to: sizeof(COMPLEX) * Mx * local_n1 * 1 (*1 because only for k3=0)
-                displs_k3_0[proc] = ((proc == 0) ? 0 : (displs_k3_0[proc-1]+recvcounts_k3_0[proc-1]));
-            }
-        }
-        MPI_Bcast(recvcounts_k3_0, numprocs, MPI_INT, 0, MCW);
-        MPI_Bcast(displs_k3_0,  numprocs, MPI_INT, 0, MCW);
-    }
+	//===================================================
+	// 4. COMPLEX CONJUGATE CORRECTION
+	//===================================================
+	if (isComplexConjugateCorrected || !(isInitialFieldFromBinaryFile || isInitialFieldFromASCIIFile)) {
+		// COMPLEX*
+		local_uk_k3_0 = alloc_complex(Mx * local_n1 * 1); //Only for k3=0
+		local_vk_k3_0 = alloc_complex(Mx * local_n1 * 1); //Only for k3=0
+		local_wk_k3_0 = alloc_complex(Mx * local_n1 * 1); //Only for k3=0
+		uk_k3_0 = alloc_complex(Mx * My * 1); //Only for k3=0
+		vk_k3_0 = alloc_complex(Mx * My * 1); //Only for k3=0
+		wk_k3_0 = alloc_complex(Mx * My * 1); //Only for k3=0
+		//int*
+		displs_k3_0 = (int*) MALLOC(sizeof(int) * numprocs); //Position of the first byte gathered
+		recvcounts_k3_0 = (int*) MALLOC(sizeof(int) * numprocs); //Number of MPI_BYTEs (for k3=0)
+		//Initialization of recvcounts_k3_0 and displs_k3_0 (used in MPI_Allgatherv clause)
+		//MPI_Gather is necessary because local_n1 differs from different processes
+		if(myrank==0){
+			for(int proc=0; proc<numprocs; proc++) {
+				recvcounts_k3_0[proc] = sizeof(COMPLEX) * Mx * local_n1_[proc]; //Equal to: sizeof(COMPLEX) * Mx * local_n1 * 1 (*1 because only for k3=0)
+				displs_k3_0[proc] = ((proc == 0) ? 0 : (displs_k3_0[proc-1]+recvcounts_k3_0[proc-1]));
+			}
+		}
+		MPI_Bcast(recvcounts_k3_0, numprocs, MPI_INT, 0, MCW);
+		MPI_Bcast(displs_k3_0,  numprocs, MPI_INT, 0, MCW);
+	}
 
-    //===================================================
-    // 5. LAMBDA FUNCTIONS TO INTEGRATE FIELDS
-    //===================================================
-    //Kinetic energy of (a,b,k3)
-    KineticEnergy = [&](int a, int b, int k3)->REAL{
-        int ind = (b*Mx+a)*(Mz_2+1)+k3;
-        return 0.5 * (uk_1[ind][0]*uk_1[ind][0] + uk_1[ind][1]*uk_1[ind][1] +
-                vk_1[ind][0]*vk_1[ind][0] + vk_1[ind][1]*vk_1[ind][1] +
-                wk_1[ind][0]*wk_1[ind][0] + wk_1[ind][1]*wk_1[ind][1]);
-    };
+	//===================================================
+	// 5. LAMBDA FUNCTIONS TO INTEGRATE FIELDS
+	//===================================================
+	//Kinetic energy of (a,b,k3)
+	KineticEnergy = [&](int a, int b, int k3)->REAL{
+		int ind = (b*Mx+a)*(Mz_2+1)+k3;
+		return 0.5 * (uk_1[ind][0]*uk_1[ind][0] + uk_1[ind][1]*uk_1[ind][1] +
+					  vk_1[ind][0]*vk_1[ind][0] + vk_1[ind][1]*vk_1[ind][1] +
+					  wk_1[ind][0]*wk_1[ind][0] + wk_1[ind][1]*wk_1[ind][1]);
+	};
 
-    //Enstrophy of (a,b,k3)
-    //Enstrophy = 2 * k^2 * E(k) = k^2 * ukxyz^2
-    Enstrophy = [&](int a, int b, int k3)->REAL{
-        int ind = (b*Mx+a)*(Mz_2+1)+k3;
-        return 2 * rad2[ind] * KineticEnergy(a, b, k3);
-    };
+	//Enstrophy of (a,b,k3)
+	//Enstrophy = 2 * k^2 * E(k) = k^2 * ukxyz^2
+	Enstrophy = [&](int a, int b, int k3)->REAL{
+		int ind = (b*Mx+a)*(Mz_2+1)+k3;
+		return 2 * rad2[ind] * KineticEnergy(a, b, k3);
+	};
 
-    //Yotta stuff
-    VelGradInvariants[0] = [&](int a, int b, int k3)->REAL{
-        int ind = (b*Mx+a)*(Mz_2+1)+k3;
-        return velGradInvk[0][ind][0]*velGradInvk[0][ind][0] + velGradInvk[0][ind][1]*velGradInvk[0][ind][1];
-    };
-    VelGradInvariants[1] = [&](int a, int b, int k3)->REAL{
-        int ind = (b*Mx+a)*(Mz_2+1)+k3;
-        return velGradInvk[1][ind][0]*velGradInvk[1][ind][0] + velGradInvk[1][ind][1]*velGradInvk[1][ind][1];
-    };
-    VelGradInvariants[2] = [&](int a, int b, int k3)->REAL{
-        int ind = (b*Mx+a)*(Mz_2+1)+k3;
-        return velGradInvk[2][ind][0]*velGradInvk[2][ind][0] + velGradInvk[2][ind][1]*velGradInvk[2][ind][1];
-    };
-    VelGradInvariants[3] = [&](int a, int b, int k3)->REAL{
-        int ind = (b*Mx+a)*(Mz_2+1)+k3;
-        return velGradInvk[3][ind][0]*velGradInvk[3][ind][0] + velGradInvk[3][ind][1]*velGradInvk[3][ind][1];
-    };
-    VelGradInvariants[4] = [&](int a, int b, int k3)->REAL{
-        int ind = (b*Mx+a)*(Mz_2+1)+k3;
-        return velGradInvk[4][ind][0]*velGradInvk[4][ind][0] + velGradInvk[4][ind][1]*velGradInvk[4][ind][1];
-    };
+	//Yotta stuff
+	VelGradInvariants[0] = [&](int a, int b, int k3)->REAL{
+		int ind = (b*Mx+a)*(Mz_2+1)+k3;
+		return velGradInvk[0][ind][0]*velGradInvk[0][ind][0] + velGradInvk[0][ind][1]*velGradInvk[0][ind][1];
+	};
+	VelGradInvariants[1] = [&](int a, int b, int k3)->REAL{
+		int ind = (b*Mx+a)*(Mz_2+1)+k3;
+		return velGradInvk[1][ind][0]*velGradInvk[1][ind][0] + velGradInvk[1][ind][1]*velGradInvk[1][ind][1];
+	};
+	VelGradInvariants[2] = [&](int a, int b, int k3)->REAL{
+		int ind = (b*Mx+a)*(Mz_2+1)+k3;
+		return velGradInvk[2][ind][0]*velGradInvk[2][ind][0] + velGradInvk[2][ind][1]*velGradInvk[2][ind][1];
+	};
+	VelGradInvariants[3] = [&](int a, int b, int k3)->REAL{
+		int ind = (b*Mx+a)*(Mz_2+1)+k3;
+		return velGradInvk[3][ind][0]*velGradInvk[3][ind][0] + velGradInvk[3][ind][1]*velGradInvk[3][ind][1];
+	};
+	VelGradInvariants[4] = [&](int a, int b, int k3)->REAL{
+		int ind = (b*Mx+a)*(Mz_2+1)+k3;
+		return velGradInvk[4][ind][0]*velGradInvk[4][ind][0] + velGradInvk[4][ind][1]*velGradInvk[4][ind][1];
+	};
 
-    //===================================================
-    // 6. INITIAL VELOCITY FIELD
-    //===================================================
-    if(isInitialFieldFromBinaryFile || isInitialFieldFromASCIIFile) {
-        //Input velocity (it needs to be after initialization of *dealiased)
-        Input_Real_Field();
-    } else {
-        Input_K41_Field();
-    }
+	//===================================================
+	// 6. INITIAL VELOCITY FIELD
+	//===================================================
+	if(isInitialFieldFromBinaryFile || isInitialFieldFromASCIIFile) {
+		//Input velocity (it needs to be after initialization of *dealiased)
+		Input_Real_Field();
+	} else {
+		Input_K41_Field();
+	}
 
-    //Trivial initial distribution of R vector
-    for (int ind=0; ind<local_n1*Mx*(Mz_2+1); ind++) {
-        for (int ic=0; ic<=1; ic++){ //ic=0 => Real part, ic=1 => Imaginary part
-            Rx1_k[ind][ic] = 0.0;
-            Ry1_k[ind][ic] = 0.0;
-            Rz1_k[ind][ic] = 0.0;
-        }
-    }
+	//Trivial initial distribution of R vector
+	for (int ind=0; ind<local_n1*Mx*(Mz_2+1); ind++) {
+		for (int ic=0; ic<=1; ic++){ //ic=0 => Real part, ic=1 => Imaginary part
+			Rx1_k[ind][ic] = 0.0;
+			Ry1_k[ind][ic] = 0.0;
+			Rz1_k[ind][ic] = 0.0;
+		}
+	}
 
-    //===================================================
-    // 7. TIMESTEP
-    //===================================================
-    if (isSelfAdaptive) {
-        //Related constants:
-        Ah = (Ax + Ay + Az) / 3.0;
-        t1 = 0.9302468;
-        kappa = 0.5; //Initial value of kappa
-                     // double*
-        k = alloc_real(2);
-        phi = alloc_real(3);
-        c = alloc_real(14);
-        // Initializaiton
-        k[0] = 0.73782212;
-        k[1] = 0.44660387;
-        phi[0] = atan(164.0/99.0);
-        phi[1] = PI/3.0;
-        phi[2] = PI*3.0*3.0/(5.0*5.0);
-        c[0] = 0.0647998;
-        c[1] = -0.386022;
-        c[2] = 3.72945;
-        c[3] = -9.38143;
-        c[4] = 7.06574;
-        c[5] = 2403400.0;
-        c[6] = -5018490.0;
-        c[7] = 2620140.0;
-        c[8] = 2945.0;
-        c[9] = -6665.76;
-        c[10] = 3790.54;
-        c[11] = 4.80513;
-        c[12] = -16.9473;
-        c[13] = 15.0155;
-    } else {
-    }
-    //Initial timestep. If passing ReLambda, then it needs to be computed once nu is properly set (in MAIN.cpp)
-    Recalculate_Velocity_Antitransform(); //As only uk_1,vk_1,wk_1 were already available
-    if(!isReLambda){
-        Recalculate_TimeStep();
-    }
+	//===================================================
+	// 7. TIMESTEP
+	//===================================================
+	if (isSelfAdaptive) {
+		//Related constants:
+		Ah = (Ax + Ay + Az) / 3.0;
+		t1 = 0.9302468;
+		kappa = 0.5; //Initial value of kappa
+		// double*
+		k = alloc_real(2);
+		phi = alloc_real(3);
+		c = alloc_real(14);
+		// Initializaiton
+		k[0] = 0.73782212;
+		k[1] = 0.44660387;
+		phi[0] = atan(164.0/99.0);
+		phi[1] = PI/3.0;
+		phi[2] = PI*3.0*3.0/(5.0*5.0);
+		c[0] = 0.0647998;
+		c[1] = -0.386022;
+		c[2] = 3.72945;
+		c[3] = -9.38143;
+		c[4] = 7.06574;
+		c[5] = 2403400.0;
+		c[6] = -5018490.0;
+		c[7] = 2620140.0;
+		c[8] = 2945.0;
+		c[9] = -6665.76;
+		c[10] = 3790.54;
+		c[11] = 4.80513;
+		c[12] = -16.9473;
+		c[13] = 15.0155;
+	} else {
+	}
+	//Initial timestep. If passing ReLambda, then it needs to be computed once nu is properly set (in MAIN.cpp)
+	Recalculate_Velocity_Antitransform(); //As only uk_1,vk_1,wk_1 were already available
+	if(!isReLambda){
+		Recalculate_TimeStep();
+	}
 
-    Ek_init = Recalculate_Energy();
+	Ek_init = Recalculate_Energy();
 #if(0)
-    if (myrank == 0) {
-        cout << "Initial kinetic energy: " << Ek_init << endl;
-    }
+	if (myrank == 0) {
+		cout << "Initial kinetic energy: " << Ek_init << endl;
+	}
 #endif
 };
-// Deletion of the clas HIT (called uniquely in the destructor)
 void HIT::HIT_destroy() {
-    //Freeing memory
-    FREE(u); FREE(v); FREE(w);
-    FREE(uk_aux); FREE(vk_aux); FREE(wk_aux);
-    FREE(uk_0); FREE(vk_0); FREE(wk_0);
-    FREE(uk_1); FREE(vk_1); FREE(wk_1);
-    FREE(convx); FREE(convy); FREE(convz);
-    FREE(convx_k); FREE(convy_k); FREE(convz_k);
-    FREE(Rx0_k); FREE(Ry0_k); FREE(Rz0_k);
-    FREE(Rx1_k); FREE(Ry1_k); FREE(Rz1_k);
-    FREE(dealiased); FREE(rad2); FREE(local_acumField); FREE(global_acumField); FREE(Ek);
-    for (int coord=0; coord<3; coord++) {
-        FREE(gradu[coord]); FREE(gradv[coord]); FREE(gradw[coord]);
-        FREE(gradu_k[coord]); FREE(gradv_k[coord]); FREE(gradw_k[coord]);
-    }
-    // Yotta stuff
-    for(int coord=0; coord<5; coord++) {
-        FREE(velGradInv[coord]);
-        FREE(velGradInvk[coord]);
-    }
-    if (isLES) {
-        FREE(nu_eddy);
-        FREE(SGS_11); FREE(SGS_21); FREE(SGS_22);
-        FREE(SGS_31); FREE(SGS_32); FREE(SGS_33);
-        FREE(SGS_11_k); FREE(SGS_21_k); FREE(SGS_22_k);
-        FREE(SGS_31_k); FREE(SGS_32_k); FREE(SGS_33_k);
-        FREE(divSGSx_k); FREE(divSGSy_k); FREE(divSGSz_k);
-    }
-    if (isComplexConjugateCorrected || !(isInitialFieldFromBinaryFile || isInitialFieldFromASCIIFile)) {
-        FREE(local_uk_k3_0); FREE(local_vk_k3_0); FREE(local_wk_k3_0);
-        FREE(uk_k3_0); FREE(vk_k3_0); FREE(wk_k3_0);
-        FREE(displs_k3_0); FREE(recvcounts_k3_0);
-    }
-    if (isSelfAdaptive) {
-        FREE(k); FREE(phi); FREE(c);
-    }
+	//Freeing memory
+	FREE(u); FREE(v); FREE(w);
+	FREE(uk_aux); FREE(vk_aux); FREE(wk_aux);
+	FREE(uk_0); FREE(vk_0); FREE(wk_0);
+	FREE(uk_1); FREE(vk_1); FREE(wk_1);
+	FREE(convx); FREE(convy); FREE(convz);
+	FREE(convx_k); FREE(convy_k); FREE(convz_k);
+	FREE(Rx0_k); FREE(Ry0_k); FREE(Rz0_k);
+	FREE(Rx1_k); FREE(Ry1_k); FREE(Rz1_k);
+	FREE(dealiased); FREE(rad2); FREE(local_acumField); FREE(global_acumField); FREE(Ek);
+	for (int coord=0; coord<3; coord++) {
+		FREE(gradu[coord]); FREE(gradv[coord]); FREE(gradw[coord]);
+		FREE(gradu_k[coord]); FREE(gradv_k[coord]); FREE(gradw_k[coord]);
+	}
+	// Yotta stuff
+	for(int coord=0; coord<5; coord++) {
+		FREE(velGradInv[coord]);
+		FREE(velGradInvk[coord]);
+	}
+	if (isLES) {
+		FREE(nu_eddy);
+		FREE(SGS_11); FREE(SGS_21); FREE(SGS_22);
+		FREE(SGS_31); FREE(SGS_32); FREE(SGS_33);
+		FREE(SGS_11_k); FREE(SGS_21_k); FREE(SGS_22_k);
+		FREE(SGS_31_k); FREE(SGS_32_k); FREE(SGS_33_k);
+		FREE(divSGSx_k); FREE(divSGSy_k); FREE(divSGSz_k);
+	}
+	if (isComplexConjugateCorrected || !(isInitialFieldFromBinaryFile || isInitialFieldFromASCIIFile)) {
+		FREE(local_uk_k3_0); FREE(local_vk_k3_0); FREE(local_wk_k3_0);
+		FREE(uk_k3_0); FREE(vk_k3_0); FREE(wk_k3_0);
+		FREE(displs_k3_0); FREE(recvcounts_k3_0);
+	}
+	if (isSelfAdaptive) {
+		FREE(k); FREE(phi); FREE(c);
+	}
 };
 // Integrate complex fields over cubic boxes [Kmin,Kmax]^3. Four cases:
 //  -If  inAcumField &&  filename, then spectrum into inAcumField and print into filename
@@ -1061,134 +1064,134 @@ void HIT::HIT_destroy() {
 //  -If !inAcumField && !filename, then no spectrum and no print
 //(*Regardless of inAcumField and filename, the integral within [Kmin,Kmax]^3 is always returned)
 REAL HIT::Integrate_Field(std::function<REAL(int a, int b, int k3)>& funcFieldNorm, const char* filename,
-        REAL* inAcumField, const int Kmin, const int Kmax) {
-    //Check consistency
-    if(Kmin<0) crash("Invalid Kmin<0 (%ld < 0).\n", Kmin);
-    if(Kmax>last_rad_max) crash("Invalid Kmax>last_rad_max (%ld > %ld).\n", Kmax, last_rad_max);
+						  REAL* inAcumField, const int Kmin, const int Kmax) {
+	//Check consistency
+	if(Kmin<0) crash("Invalid Kmin<0 (%ld < 0).\n", Kmin);
+	if(Kmax>last_rad_max) crash("Invalid Kmax>last_rad_max (%ld > %ld).\n", Kmax, last_rad_max);
 
-    //If inAcumField not passed but spectra print required, then use auxiliary array
-    REAL sum_glo;
-    REAL* ptr_loc;
-    REAL* ptr_glo;
-    if (!inAcumField && !filename) {
-        ptr_loc = NULL;
-        ptr_glo = NULL;
-    } else {
-        ptr_loc = local_acumField;
-        if (inAcumField) ptr_glo = inAcumField;
-        else ptr_glo = global_acumField;
-    }
+	//If inAcumField not passed but spectra print required, then use auxiliary array
+	REAL sum_glo;
+	REAL* ptr_loc;
+	REAL* ptr_glo;
+	if (!inAcumField && !filename) {
+		ptr_loc = NULL;
+		ptr_glo = NULL;
+	} else {
+		ptr_loc = local_acumField;
+		if (inAcumField) ptr_glo = inAcumField;
+		else ptr_glo = global_acumField;
+	}
 
-    if (ptr_loc && ptr_glo) {
-        //Compute spectrum and (conditionally) print to file
-        //Reset ptr_loc and ptr_glo
-        for (int K=Kmin; K<=Kmax; K++) {
-            ptr_loc[K] = 0.0;
-            ptr_glo[K] = 0.0;
-        }
-        //Recalculation of vector ptr_loc[K]
-        LOOP_FOURIER {
-            if (dealiased[ind]) {
-                int K = static_cast<int>(round(sqrt(rad2[ind])));
-                if (Kmin<=K && K<=Kmax) {
-                    REAL aux = funcFieldNorm(a, b, k3);
-                    if (conjugate[ind]) {
-                        ptr_loc[K] += (2 * aux);
-                    } else {
-                        ptr_loc[K] += aux;
-                    }
-                }
-            }
-        }
-        //Sum accross processes
-        MPI_Allreduce(ptr_loc+Kmin, ptr_glo+Kmin, Kmax-Kmin+1, REAL_MPI, MPI_SUM, MCW);
-        //If filename is valid, output distribution
-        if (!myrank && filename) {
-            std::ofstream outFile(filename);
-            if (!outFile.is_open()) printf("WARNING: HIT::Integrate_Field(): Error opening \"%s\".\n", filename);
-            for (int K=Kmin; K<=Kmax; K++) {
-                outFile << K << "\t" << ptr_glo[K] << "\n";
-            }
-            outFile.close();
-        }
-        //Return the integral of the field on the sphere of radium Kmax
-        sum_glo = 0.0;
-        for (int K=Kmin; K<=Kmax; K++) {
-            sum_glo += ptr_glo[K];
-        }
-    } else {
-        //Compute integral within [Kmin,Kmax]^3
-        //Recalculation of local sum
-        REAL sum_loc = 0.0;
-        LOOP_FOURIER {
-            if (dealiased[ind]) {
-                int K = static_cast<int>(round(sqrt(rad2[ind])));
-                if (Kmin<=K && K<=Kmax) {
-                    REAL aux = funcFieldNorm(a, b, k3);
-                    if (conjugate[ind]) {
-                        sum_loc += (2 * aux);
-                    } else {
-                        sum_loc += aux;
-                    }
-                }
-            }
-        }
-        //Sum accross processes
-        MPI_Allreduce(&sum_loc, &sum_glo, 1, REAL_MPI, MPI_SUM, MCW);
-    }
-    return sum_glo;
+	if (ptr_loc && ptr_glo) {
+		//Compute spectrum and (conditionally) print to file
+		//Reset ptr_loc and ptr_glo
+		for (int K=Kmin; K<=Kmax; K++) {
+			ptr_loc[K] = 0.0;
+			ptr_glo[K] = 0.0;
+		}
+		//Recalculation of vector ptr_loc[K]
+		LOOP_FOURIER {
+			if (dealiased[ind]) {
+				int K = static_cast<int>(round(sqrt(rad2[ind])));
+				if (Kmin<=K && K<=Kmax) {
+					REAL aux = funcFieldNorm(a, b, k3);
+					if (conjugate[ind]) {
+						ptr_loc[K] += (2 * aux);
+					} else {
+						ptr_loc[K] += aux;
+					}
+				}
+			}
+		}
+		//Sum accross processes
+		MPI_Allreduce(ptr_loc+Kmin, ptr_glo+Kmin, Kmax-Kmin+1, REAL_MPI, MPI_SUM, MCW);
+		//If filename is valid, output distribution
+		if (!myrank && filename) {
+			std::ofstream outFile(filename);
+			if (!outFile.is_open()) printf("WARNING: HIT::Integrate_Field(): Error opening \"%s\".\n", filename);
+			for (int K=Kmin; K<=Kmax; K++) {
+				outFile << K << "\t" << ptr_glo[K] << "\n";
+			}
+			outFile.close();
+		}
+		//Return the integral of the field on the sphere of radium Kmax
+		sum_glo = 0.0;
+		for (int K=Kmin; K<=Kmax; K++) {
+			sum_glo += ptr_glo[K];
+		}
+	} else {
+		//Compute integral within [Kmin,Kmax]^3
+		//Recalculation of local sum
+		REAL sum_loc = 0.0;
+		LOOP_FOURIER {
+			if (dealiased[ind]) {
+				int K = static_cast<int>(round(sqrt(rad2[ind])));
+				if (Kmin<=K && K<=Kmax) {
+					REAL aux = funcFieldNorm(a, b, k3);
+					if (conjugate[ind]) {
+						sum_loc += (2 * aux);
+					} else {
+						sum_loc += aux;
+					}
+				}
+			}
+		}
+		//Sum accross processes
+		MPI_Allreduce(&sum_loc, &sum_glo, 1, REAL_MPI, MPI_SUM, MCW);
+	}
+	return sum_glo;
 };
 // Calculation of kinetic energy cascade both in the physical and Fourier space (useful for debugging)
 void HIT::Check_PhysFour_Energy(const REAL atol) {
-    // Calculate total kinetic energy in the Fourier space
-    double EkFour = 0, local_EkFour = 0;
-    LOOP_FOURIER {
-        if (dealiased[ind]) {
-            REAL aux = 0.5 * (uk_1[ind][0]*uk_1[ind][0] + uk_1[ind][1]*uk_1[ind][1] +
-                    vk_1[ind][0]*vk_1[ind][0] + vk_1[ind][1]*vk_1[ind][1] +
-                    wk_1[ind][0]*wk_1[ind][0] + wk_1[ind][1]*wk_1[ind][1]);
-            if (conjugate[ind]) {
-                local_EkFour += (2 * aux);
-            } else {
-                local_EkFour += aux;
-            }
-        }
-    }
-    MPI_Allreduce(&local_EkFour, &EkFour, 1, REAL_MPI, MPI_SUM, MCW);
+	// Calculate total kinetic energy in the Fourier space
+	double EkFour = 0, local_EkFour = 0;
+	LOOP_FOURIER {
+		if (dealiased[ind]) {
+			REAL aux = 0.5 * (uk_1[ind][0]*uk_1[ind][0] + uk_1[ind][1]*uk_1[ind][1] +
+							  vk_1[ind][0]*vk_1[ind][0] + vk_1[ind][1]*vk_1[ind][1] +
+							  wk_1[ind][0]*wk_1[ind][0] + wk_1[ind][1]*wk_1[ind][1]);
+			if (conjugate[ind]) {
+			 local_EkFour += (2 * aux);
+			} else {
+			 local_EkFour += aux;
+			}
+		}
+	}
+	MPI_Allreduce(&local_EkFour, &EkFour, 1, REAL_MPI, MPI_SUM, MCW);
+	
+	// Calculate total kinetic energy in the physical space
+	Recalculate_Velocity_Antitransform(); //Compute u,v,w from uk_1, vk_1, wk_1
+	double EkReal = 0, local_EkReal = 0;
+	LOOP_REAL {
+		local_EkReal += u[ind] * u[ind] + v[ind] * v[ind] + w[ind] * w[ind];
+	}
+	MPI_Allreduce(&local_EkReal, &EkReal, 1, REAL_MPI, MPI_SUM, MCW);
+	EkReal = 0.5 * EkReal / (Mx * My * Mz);
 
-    // Calculate total kinetic energy in the physical space
-    Recalculate_Velocity_Antitransform(); //Compute u,v,w from uk_1, vk_1, wk_1
-    double EkReal = 0, local_EkReal = 0;
-    LOOP_REAL {
-        local_EkReal += u[ind] * u[ind] + v[ind] * v[ind] + w[ind] * w[ind];
-    }
-    MPI_Allreduce(&local_EkReal, &EkReal, 1, REAL_MPI, MPI_SUM, MCW);
-    EkReal = 0.5 * EkReal / (Mx * My * Mz);
-
-    // Calculate total kinetic energy using SpNS running method (in the Fourier space)
-    REAL EkSpNS = Recalculate_Energy();
-
-    // Confront values
-    REAL diff1 = fabs(EkReal - EkFour);
-    REAL diff2 = fabs(EkSpNS - EkFour);
-    if (diff1>atol || diff2>atol) {
-        crash("Ek differences exceed tolerance [EkReal vs EkFour %e, EkSpNS vs EkFour: %e]\n", diff1, diff2);
-    }
+	// Calculate total kinetic energy using SpNS running method (in the Fourier space)
+	REAL EkSpNS = Recalculate_Energy();
+	
+	// Confront values
+	REAL diff1 = fabs(EkReal - EkFour);
+	REAL diff2 = fabs(EkSpNS - EkFour);
+	if (diff1>atol || diff2>atol) {
+		crash("Ek differences exceed tolerance [EkReal vs EkFour %e, EkSpNS vs EkFour: %e]\n", diff1, diff2);
+	}
 
 };
 // Calculation of total kinetic energy (Ek_Tot)
 REAL HIT::Recalculate_Energy() {
-    const int Kmin = 0;
-    const int Kmax = last_rad_max;
-    Ek_Tot = Integrate_Field(KineticEnergy, NULL, NULL, Kmin, Kmax);
-    return Ek_Tot;
+	const int Kmin = 0;
+	const int Kmax = last_rad_max;
+	Ek_Tot = Integrate_Field(KineticEnergy, NULL, NULL, Kmin, Kmax);
+	return Ek_Tot;
 };
 // Calculation of kinetic energy (total, Ek_Tot, and modal, Ek[K])
 REAL HIT::Recalculate_Energy_Cascade(const char* filename) {
-    const int Kmin = 0;
-    const int Kmax = last_rad_max;
-    Ek_Tot = Integrate_Field(KineticEnergy, filename, Ek, Kmin, Kmax);
-    return Ek_Tot;
+	const int Kmin = 0;
+	const int Kmax = last_rad_max;
+	Ek_Tot = Integrate_Field(KineticEnergy, filename, Ek, Kmin, Kmax);
+	return Ek_Tot;
 };
 // Calculation of the total kinetic energy of initial velocity field loaded from file (all done by process 0 in Input_Real_Field())
 void HIT::Calculate_Ek_init_file(COMPLEX const * const uk_file, COMPLEX const * const vk_file, COMPLEX const * const wk_file) {
@@ -1220,25 +1223,25 @@ void HIT::Calculate_Ek_init_file(COMPLEX const * const uk_file, COMPLEX const * 
 
 //Calculation of velocity gradient tensor invariants' distribution
 void HIT::Recalculate_Invariants_Distribution(const char* filename[5]) {
-    //Calculation of velocity gradient invariants
-    struct tensor G;
-    alloc_fill_rand_tensor(&G,0);
-    LOOP_REAL {
-        for(int coord=0; coord<3; coord++) {
-            G.v[0][coord] = gradu[coord][ind];
-            G.v[1][coord] = gradv[coord][ind];
-            G.v[2][coord] = gradw[coord][ind];
-        }
-        velGradInv[0][ind] = calc_QG(&G);
-        velGradInv[1][ind] = calc_QS(&G);
-        velGradInv[2][ind] = calc_RG(&G);
-        velGradInv[3][ind] = calc_RS(&G);
-        velGradInv[4][ind] = calc_V2(&G);
-    }
-    for(int coord=0; coord<5; coord++) {
-        //Forward transform the invariants
-        fftw.FFTWr2c(velGradInv[coord], velGradInvk[coord]); //FFT (r2c)
-        fftw.Fourier_Normalization(velGradInvk[coord], dealiased); //Normalization of relevant coefficients
-        Integrate_Field(VelGradInvariants[coord], filename[coord]);
-    }
+	//Calculation of velocity gradient invariants
+	struct tensor G;
+	alloc_fill_rand_tensor(&G,0);
+	LOOP_REAL {
+		for(int coord=0; coord<3; coord++) {
+			G.v[0][coord] = gradu[coord][ind];
+			G.v[1][coord] = gradv[coord][ind];
+			G.v[2][coord] = gradw[coord][ind];
+		}
+		velGradInv[0][ind] = calc_QG(&G);
+		velGradInv[1][ind] = calc_QS(&G);
+		velGradInv[2][ind] = calc_RG(&G);
+		velGradInv[3][ind] = calc_RS(&G);
+		velGradInv[4][ind] = calc_V2(&G);
+	}
+	for(int coord=0; coord<5; coord++) {
+		//Forward transform the invariants
+		fftw.FFTWr2c(velGradInv[coord], velGradInvk[coord]); //FFT (r2c)
+		fftw.Fourier_Normalization(velGradInvk[coord], dealiased); //Normalization of relevant coefficients
+		Integrate_Field(VelGradInvariants[coord], filename[coord]);
+	}
 };
