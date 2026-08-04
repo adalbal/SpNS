@@ -498,10 +498,6 @@ REAL HIT::Recalculate_Enstrophy() {
 // INPUTTING INITIAL VELOCITY FIELD
 //=====================================================================================================================
 
-//=====================================================================================================================
-// INPUTTING INITIAL VELOCITY FIELD
-//=====================================================================================================================
-
 // Initialization of velocity field in Fourier space using K41 distibution |k|^{-5/3}
 void HIT::Input_K41_Field() {
 	//Set random velocity field in Fourier space
