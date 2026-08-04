@@ -100,7 +100,7 @@ class HIT {
 		// B) Initialization of velocity field in Fourier space from an input file containing velocities in Fourier space
 		void Input_Real_Field();
 			// B.1) Load from file (a velocity field in real space)
-			void Read_Input_File_Vxyz (REAL* u_file, REAL* v_file, REAL* w_file, const int& dumb_columns);
+			void Read_Input_File_Vxyz (REAL* u_file, REAL* v_file, REAL* w_file, ptrdiff_t& local_n0_file, ptrdiff_t& local_n0_start_file);
 			// B.2) Truncate/Extend input velocity field in Fourier space (accordingly to Nx, Ny, Nz)
 			void Truncate_Input_File_Fourier_Coefficients (COMPLEX const * const ukx_file, COMPLEX const * const uky_file, COMPLEX const * const ukz_file);
 
