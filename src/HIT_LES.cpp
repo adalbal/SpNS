@@ -1016,6 +1016,7 @@ void HIT::HIT_init() {
 	}
 #endif
 };
+// Deletion of the clas HIT (called uniquely in the destructor)
 void HIT::HIT_destroy() {
 	//Freeing memory
 	FREE(u); FREE(v); FREE(w);
