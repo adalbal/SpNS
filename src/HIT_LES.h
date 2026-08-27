@@ -100,9 +100,9 @@ class HIT {
 		// B) Initialization of velocity field in Fourier space from an input file containing velocities in Fourier space
 		void Input_Real_Field();
 			// B.1) Load from file (a velocity field in real space)
-			void Read_Input_File_Vxyz (REAL* u_file, REAL* v_file, REAL* w_file, ptrdiff_t& local_n0_file, ptrdiff_t& local_n0_start_file);
+			void Read_Input_File_Vxyz (REAL* u_file, REAL* v_file, REAL* w_file, ptrdiff_t& local_n0_file, ptrdiff_t& local_0_start_file);
 			// B.2) Truncate/Extend input velocity field in Fourier space (accordingly to Nx, Ny, Nz)
-			void Truncate_Input_File_Fourier_Coefficients (COMPLEX const * const ukx_file, COMPLEX const * const uky_file, COMPLEX const * const ukz_file);
+			void Truncate_Input_File_Fourier_Coefficients (COMPLEX const * const ukx_file, COMPLEX const * const uky_file, COMPLEX const * const ukz_file, ptrdiff_t& local_n1_file, ptrdiff_t& local_1_start_file);
 
 		//===================================================
 		// FRACTIONAL STEP METHOD
@@ -176,6 +176,7 @@ class HIT {
 		// I/O functions (implemented in HIT_LES_output.cpp)
 		void DealiasedComplex3DimField_to_BinaryFile(COMPLEX const * const field_x, COMPLEX const * const field_y, COMPLEX const * const field_z, char const * const filename) const;
 		void Real3DimField_to_BinaryFile(REAL const * const field_x, REAL const * const field_y, REAL const * const field_z, char const * const filename) const;
+        void BinaryFile_to_Real3DimField (REAL* field_x, REAL* field_y, REAL* field_z, ptrdiff_t& local_n0_file, ptrdiff_t& local_0_start_file);
 		void FourierVelocity_to_BinaryFile(char const * const filename) const;
 		void RealVelocity_to_BinaryFile(char const * const filename) const;
 		void Field2File(REAL const * const field, char const * const filename) const;
@@ -218,6 +219,7 @@ class HIT {
 		REAL Ah, t1, kappa, *k, *phi, *c, phi0, _kappa05; //Self-adaptive timestep
 		//General case
 		ptrdiff_t alloc_local, local_n0, local_0_start, local_n1, local_1_start;
+		ptrdiff_t alloc_local_file, local_n0_file, local_0_start_file, local_n1_file, local_1_start_file;
 		REAL *u, *v, *w;
 		REAL *gradu[3], *gradv[3], *gradw[3];
 		REAL *convx, *convy, *convz;
@@ -232,6 +234,7 @@ class HIT {
 		REAL Ok_Tot, Ek_Tot, Ek_init, Ek_init_file, Enstrophy_init_file;
 		int num_dealiased, num_dealiased_real;
 		int *local_n0_, *local_n1_;
+		int *local_n0_file_, *local_n1_file_;
 		MPI_Offset offset_Fourier, offset_Real;
 		//LES
 		REAL *nu_eddy, *SGS_11, *SGS_21, *SGS_22, *SGS_31, *SGS_32, *SGS_33;

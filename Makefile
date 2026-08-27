@@ -11,9 +11,9 @@ DEPS := $(OBJS:.o=.d)
 INC_DIRS := $(shell find $(SRC_DIRS) -type d)
 INC_FLAGS := $(addprefix -I,$(INC_DIRS))
 
-CPPFLAGS += -g $(INC_FLAGS) -std=c++11 -MMD -MP -qopenmp -O3 -xHost -ipo -fast -Wall -Wextra -Wfloat-equal #-Werror
-LDFLAGS +=  -xHost -ipo -fast -lfftw3_mpi -lfftw3_threads -lfftw3 -lfftw3f_mpi -lfftw3f_threads -lfftw3f -lm
-CXX := mpiicpx
+CPPFLAGS += -g $(INC_FLAGS) -std=c++11 -MMD -MP -fopenmp -O1 -Wall -Wextra -Wfloat-equal #-Werror
+LDFLAGS +=  -lfftw3_mpi -lfftw3_threads -lfftw3 -lfftw3f_mpi -lfftw3f_threads -lfftw3f -lm
+CXX := mpicxx
 CC := mpicx
 
 all: $(BUILD_DIR)/$(TARGET_EXEC)

@@ -15,6 +15,7 @@
 	#define REAL float
 	#define COMPLEX fftwf_complex
 	#define REAL_MPI MPI_FLOAT
+	#define COMPLEX_MPI MPI_C_FLOAT_COMPLEX
 	#define alloc_real fftwf_alloc_real
 	#define alloc_complex fftwf_alloc_complex
 	#define plan fftwf_plan
@@ -23,18 +24,22 @@
 	#define mpi_execute_dft_c2r fftwf_mpi_execute_dft_c2r
 	#define mpi_plan_dft_r2c_3d fftwf_mpi_plan_dft_r2c_3d
 	#define mpi_plan_dft_c2r_3d fftwf_mpi_plan_dft_c2r_3d
+	#define mpi_plan_dft_r2c_many fftwf_mpi_plan_many_dft_r2c
+	#define mpi_plan_dft_c2r_many fftwf_mpi_plan_many_dft_c2r
 	#define plan_dft_r2c_3d fftwf_plan_dft_r2c_3d
 	#define destroy_plan fftwf_destroy_plan
 	#define init_threads fftwf_init_threads
 	#define mpi_init fftwf_mpi_init
 	#define plan_with_nthreads fftwf_plan_with_nthreads
 	#define mpi_local_size_3d_transposed fftwf_mpi_local_size_3d_transposed
+	#define mpi_local_size_many_transposed fftwf_mpi_local_size_many_transposed
 	#define MALLOC fftwf_malloc
 	#define FREE fftwf_free
 #elif BYTES == 8
 	#define REAL double
 	#define COMPLEX fftw_complex
 	#define REAL_MPI MPI_DOUBLE
+	#define COMPLEX_MPI MPI_C_DOUBLE_COMPLEX
 	#define alloc_real fftw_alloc_real
 	#define alloc_complex fftw_alloc_complex
 	#define plan fftw_plan
@@ -43,12 +48,15 @@
 	#define mpi_execute_dft_c2r fftw_mpi_execute_dft_c2r
 	#define mpi_plan_dft_r2c_3d fftw_mpi_plan_dft_r2c_3d
 	#define mpi_plan_dft_c2r_3d fftw_mpi_plan_dft_c2r_3d
+	#define mpi_plan_dft_r2c_many fftw_mpi_plan_many_dft_r2c
+	#define mpi_plan_dft_c2r_many fftw_mpi_plan_many_dft_c2r
 	#define plan_dft_r2c_3d fftw_plan_dft_r2c_3d
 	#define destroy_plan fftw_destroy_plan
 	#define init_threads fftw_init_threads
 	#define mpi_init fftw_mpi_init
 	#define plan_with_nthreads fftw_plan_with_nthreads
 	#define mpi_local_size_3d_transposed fftw_mpi_local_size_3d_transposed
+	#define mpi_local_size_many_transposed fftw_mpi_local_size_many_transposed
 	#define MALLOC fftw_malloc
 	#define FREE fftw_free
 #endif

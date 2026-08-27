@@ -32,11 +32,24 @@ class FFT_package {
 				FFT_init();
 			}; //def. constructor
 
+        //Constructor allowing for custom partitions
+		FFT_package(const ptrdiff_t Mx_, const ptrdiff_t My_, const ptrdiff_t Mz_, const ptrdiff_t Block_size_0, const ptrdiff_t Block_size_1):
+			Mx(Mx_), //Number of points to transform in each dimension (De-aliasing mesh size: M = 3*N / 2)
+			My(My_),
+			Mz(Mz_),
+			Mz_2(Mz_/2),
+			norm_Fourier(Mx_*My_*Mz_), //Total number of values transformed
+			numprocs(NumProc()), //Total number of processes
+			myrank(MyID()) //Rank of the current process
+			{
+				FFT_init_custom_partition(Block_size_0, Block_size_1);
+			}; //def. constructor
 		~FFT_package() {
 			FFT_destroy();
 		}; //def. destructor
 
 		void FFT_init(); //initialization for all plans
+		void FFT_init_custom_partition(const ptrdiff_t Block_size_0, const ptrdiff_t Block_size_1); //initialization for all plans using custom partition
 		void FFT_destroy(); //destruction of all plans
 
 		inline const ptrdiff_t& getalloc_local() const;
@@ -52,6 +65,7 @@ class FFT_package {
 		void Fourier_Normalization(REAL* phi, bool const * const relevant); //Normalizes "relevant" components of real vectors
 		void Fourier_Normalization(COMPLEX* phi, bool const * const relevant); //Normalizes "relevant" components of complex vectors
 		void Fourier_Normalization(REAL* phi); //Normalizes all components of real vectors
+		void Fourier_Normalization(COMPLEX* phi); //Normalizes all components of complex vectors 
 
 	private :
 		const int Mx, My, Mz, Mz_2;

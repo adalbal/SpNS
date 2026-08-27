@@ -74,10 +74,15 @@ void HIT::Real3DimField_to_BinaryFile(REAL const * const field_x, REAL const * c
 		MPI_File_close(&fh);
 		MPI_File_open(MCW, filename, MPI_MODE_CREATE | MPI_MODE_WRONLY, MPI_INFO_NULL, &fh);
 	}
+    //std::cout << myrank << " Allocated Real: " << 2*alloc_local << std::endl;
+    //std::cout << myrank << " Local N0:    " << local_n0 << std::endl;
+    //std::cout << myrank << " Local Start: " << local_0_start << std::endl;
 	//Output of 3D real field
-	MPI_Offset bytes_per_component = sizeof(REAL) * ActualMx * ActualMy * ActualMz;
-	//Allocate memory for current's process dealiased field[ind] coefficients
-	REAL *field_to_output = alloc_real(num_dealiased_real);
+	MPI_Offset bytes_per_component = sizeof(REAL) * ActualMx * ActualMy * 2*(ActualMz/2 + 1);
+    MPI_Offset offset_Real_test = sizeof(REAL) * local_0_start * ActualMy * 2*(ActualMz/2 + 1);
+    MPI_Offset num_Real_test = local_n0 * ActualMy * 2*(ActualMz/2 + 1);
+    //std::cout << myrank << " Num Write:   " << num_Real_test << std::endl;
+    //std::cout << myrank << " Offset:   " << offset_Real_test << std::endl;
 	//Parallel output of each component of the real field
 	for (int coord=0; coord<3; coord++) {
 		//Temporary alias
@@ -88,32 +93,88 @@ void HIT::Real3DimField_to_BinaryFile(REAL const * const field_x, REAL const * c
 			case 1: field = field_y; break;
 			case 2: field = field_z; break;
 		}
-		//Initialize field_to_output
-		int ind_dealiased = 0; //Note that ind_dealiased<=(num_dealiased_real-1)
-		if (isNotCubic) { //Removing fftw padding and irrelevant terms with respect to the length factors
-			LOOP_REAL {
-				if ((local_0_start+i)<ActualMx && j<ActualMy && k<ActualMz) {
-					field_to_output[ind_dealiased] = field[ind];
-					ind_dealiased++;
-				}
-			}
-		} else { //Removing fftw padding
-			LOOP_REAL {
-				field_to_output[ind_dealiased] = field[ind];
-				ind_dealiased++;
-			}
-		}
-		if (ind_dealiased!=num_dealiased_real) crash("The number of real terms does not match!\n");
-		//Output of field_to_output
-		MPI_File_seek(fh, offset_Real+coord*bytes_per_component, MPI_SEEK_SET);
-		MPI_File_write(fh, field_to_output, num_dealiased_real, REAL_MPI, &status);
+		MPI_File_seek(fh, offset_Real_test+coord*bytes_per_component, MPI_SEEK_SET);
+		MPI_File_write(fh, field, num_Real_test, REAL_MPI, &status);
 	}
-	//Memory freeing
-	FREE(field_to_output);
 	//Closing MPI file
 	MPI_File_close(&fh);
 };
 
+void HIT::BinaryFile_to_Real3DimField (REAL* field_x, REAL* field_y, REAL* field_z, ptrdiff_t& local_n0_file, ptrdiff_t& local_0_start_file) {
+    unsigned int total_file_num = ActualNx_file * ActualNy_file * 2 * (ActualNz_file/2 + 1);
+    //if (myrank == 0) std::cout << total_file_num << std::endl;
+    unsigned int expected_filesize        = sizeof(REAL)   * 3 * total_file_num;
+    unsigned int expected_single_filesize = sizeof(float)  * 3 * total_file_num;
+    unsigned int expected_double_filesize = sizeof(double) * 3 * total_file_num;
+    MPI_File fh;
+    MPI_Status status;
+    MPI_File_open(MCW, Binary_Input_Filename, MPI_MODE_RDONLY, MPI_INFO_NULL, &fh);
+    //Check the size of the input file
+    MPI_Offset filesize;
+    MPI_File_get_size(fh, &filesize);
+    if ((filesize != expected_single_filesize) && (filesize != expected_double_filesize)) crash("Incorrect size of \"%s\"!! %lld bytes instead of %d bytes (for single-precision) or %d bytes (for double-precision).\n", Binary_Input_Filename, filesize, expected_single_filesize, expected_double_filesize);
+    //Read of input file (only by rank 0)
+    MPI_Offset offset_Real_x  = sizeof(REAL) * local_0_start_file * ActualNy_file * 2 * (ActualNz_file/2 + 1);
+    MPI_Offset offset_Real_y  = offset_Real_x + sizeof(REAL) * total_file_num;
+    MPI_Offset offset_Real_z  = offset_Real_y + sizeof(REAL) * total_file_num;
+
+    int num_to_read = local_n0_file * ActualNy_file * 2 * (ActualNz_file/2 + 1);
+    //Binary read of input velocity field
+    if (filesize != expected_filesize) { //calculation precision != input precision
+        switch (BYTES) {
+            case 4: //single-precision simulation but double-precision input
+                {
+                    double *x_input = NULL, *y_input = NULL, *z_input = NULL;
+                    x_input = fftw_alloc_real(num_to_read);
+                    y_input = fftw_alloc_real(num_to_read);
+                    z_input = fftw_alloc_real(num_to_read);
+                    MPI_File_seek(fh, offset_Real_x * 2, MPI_SEEK_SET);
+                    MPI_File_read(fh, x_input, num_to_read, MPI_DOUBLE, &status);
+                    MPI_File_seek(fh, offset_Real_y * 2, MPI_SEEK_SET);
+                    MPI_File_read(fh, y_input, num_to_read, MPI_DOUBLE, &status);
+                    MPI_File_seek(fh, offset_Real_z * 2, MPI_SEEK_SET);
+                    MPI_File_read(fh, z_input, num_to_read, MPI_DOUBLE, &status);
+                    for (int ind=0; ind<num_to_read; ind++) {
+                        field_x[ind] = x_input[ind];
+                        field_y[ind] = y_input[ind];
+                        field_z[ind] = z_input[ind];
+                    }
+                    fftw_free(x_input); fftw_free(y_input); fftw_free(z_input);
+                    break;
+                }
+            case 8: //double-precision simulation but single-precision input
+                {
+
+                    float *x_input = NULL, *y_input = NULL, *z_input = NULL;
+                    x_input = fftwf_alloc_real(num_to_read);
+                    y_input = fftwf_alloc_real(num_to_read);
+                    z_input = fftwf_alloc_real(num_to_read);
+                    MPI_File_seek(fh, offset_Real_x / 2, MPI_SEEK_SET);
+                    MPI_File_read(fh, x_input, num_to_read, MPI_FLOAT, &status);
+                    MPI_File_seek(fh, offset_Real_y / 2, MPI_SEEK_SET);
+                    MPI_File_read(fh, y_input, num_to_read, MPI_FLOAT, &status);
+                    MPI_File_seek(fh, offset_Real_z / 2, MPI_SEEK_SET);
+                    MPI_File_read(fh, z_input, num_to_read, MPI_FLOAT, &status);
+                    for (int ind=0; ind<num_to_read; ind++) {
+                        field_x[ind] = x_input[ind];
+                        field_y[ind] = y_input[ind];
+                        field_z[ind] = z_input[ind];
+                    }
+                    fftwf_free(x_input); fftwf_free(y_input); fftwf_free(z_input);
+                    break;
+
+                }
+        }
+    } else { //calculation precision == input precision
+        MPI_File_seek(fh, offset_Real_x, MPI_SEEK_SET);
+        MPI_File_read(fh, field_x, num_to_read, REAL_MPI, &status);
+        MPI_File_seek(fh, offset_Real_y, MPI_SEEK_SET);
+        MPI_File_read(fh, field_y, num_to_read, REAL_MPI, &status);
+        MPI_File_seek(fh, offset_Real_z, MPI_SEEK_SET);
+        MPI_File_read(fh, field_z, num_to_read, REAL_MPI, &status);
+    }
+    MPI_File_close(&fh);
+}
 //=====================================================================================================================
 // DEBUG I/O FUNCTIONS
 //=====================================================================================================================
