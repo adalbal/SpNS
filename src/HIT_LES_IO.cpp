@@ -74,15 +74,10 @@ void HIT::Real3DimField_to_BinaryFile(REAL const * const field_x, REAL const * c
 		MPI_File_close(&fh);
 		MPI_File_open(MCW, filename, MPI_MODE_CREATE | MPI_MODE_WRONLY, MPI_INFO_NULL, &fh);
 	}
-    //std::cout << myrank << " Allocated Real: " << 2*alloc_local << std::endl;
-    //std::cout << myrank << " Local N0:    " << local_n0 << std::endl;
-    //std::cout << myrank << " Local Start: " << local_0_start << std::endl;
 	//Output of 3D real field
 	MPI_Offset bytes_per_component = sizeof(REAL) * ActualMx * ActualMy * 2*(ActualMz/2 + 1);
     MPI_Offset offset_Real_test = sizeof(REAL) * local_0_start * ActualMy * 2*(ActualMz/2 + 1);
     MPI_Offset num_Real_test = local_n0 * ActualMy * 2*(ActualMz/2 + 1);
-    //std::cout << myrank << " Num Write:   " << num_Real_test << std::endl;
-    //std::cout << myrank << " Offset:   " << offset_Real_test << std::endl;
 	//Parallel output of each component of the real field
 	for (int coord=0; coord<3; coord++) {
 		//Temporary alias
@@ -100,7 +95,7 @@ void HIT::Real3DimField_to_BinaryFile(REAL const * const field_x, REAL const * c
 	MPI_File_close(&fh);
 };
 
-void HIT::BinaryFile_to_Real3DimField (REAL* field_x, REAL* field_y, REAL* field_z, ptrdiff_t& local_n0_file, ptrdiff_t& local_0_start_file) {
+void HIT::BinaryFile_to_Real3DimField (REAL* field_x, REAL* field_y, REAL* field_z) {
     unsigned int total_file_num = ActualNx_file * ActualNy_file * 2 * (ActualNz_file/2 + 1);
     //if (myrank == 0) std::cout << total_file_num << std::endl;
     unsigned int expected_filesize        = sizeof(REAL)   * 3 * total_file_num;
@@ -175,6 +170,114 @@ void HIT::BinaryFile_to_Real3DimField (REAL* field_x, REAL* field_y, REAL* field
     }
     MPI_File_close(&fh);
 }
+
+void HIT::ASCIIFile_to_Real3DimField (REAL* field_x, REAL* field_y, REAL* field_z) {
+    unsigned int total_file_num = ActualNx_file * ActualNy_file * ActualNz_file;
+    //File read by only one MPI process (proc 0)
+    REAL* x_read;
+    REAL* y_read;
+    REAL* z_read;
+    if (myrank == 0) {
+		x_read = alloc_real(total_file_num);
+        y_read = alloc_real(total_file_num);
+        z_read = alloc_real(total_file_num);
+        unsigned int row = 0;
+        ifstream infile;
+        infile.open(ASCII_Input_Filename);
+        if(infile.fail()) {
+            crash("Error opening \"%s\"!!\n", ASCII_Input_Filename);
+        }
+        while((!infile.eof()) && (row < total_file_num)) {
+            infile >> x_read[row] >> y_read[row] >> z_read[row];
+            row++;
+        }
+        infile.close();
+    }
+    //Data distributed to the rest
+    ptrdiff_t message_size = ActualNz_file;
+    int proc_send = 0;
+    MPI_Status status;
+
+    MPI_Request * x_send_requests;
+    MPI_Request * y_send_requests;
+    MPI_Request * z_send_requests;
+    if (myrank == 0) {
+        x_send_requests = new MPI_Request[ActualNx_file * ActualNy_file];
+        y_send_requests = new MPI_Request[ActualNx_file * ActualNy_file];
+        z_send_requests = new MPI_Request[ActualNx_file * ActualNy_file];
+    }
+    MPI_Request * x_recv_requests = new MPI_Request[local_n0_file_[myrank] * ActualNy_file];
+    MPI_Request * y_recv_requests = new MPI_Request[local_n0_file_[myrank] * ActualNy_file];
+    MPI_Request * z_recv_requests = new MPI_Request[local_n0_file_[myrank] * ActualNy_file];
+    int num_request_send = 0;
+    int num_request_recv = 0;
+    //Process 0 executes send requests
+    if (myrank == 0) {
+        REAL* x_read_send = x_read;
+        REAL* y_read_send = y_read;
+        REAL* z_read_send = z_read;
+        for (int i = 0; i < ActualNx_file; i++) {
+            int proc_recv = -1;
+            int proc_max_freq = 0;
+            for(int k = 0; k < numprocs; k++){
+                proc_max_freq += local_n0_file_[k];
+                if(i < proc_max_freq){
+                    proc_recv = k;
+                    break;
+                }
+            }
+            for (int j = 0; j < ActualNy_file; j++) {
+                MPI_Isend(x_read_send, message_size, REAL_MPI, proc_recv, 0, MCW, &x_send_requests[num_request_send]);
+                MPI_Isend(y_read_send, message_size, REAL_MPI, proc_recv, 0, MCW, &y_send_requests[num_request_send]);
+                MPI_Isend(z_read_send, message_size, REAL_MPI, proc_recv, 0, MCW, &z_send_requests[num_request_send]);
+                num_request_send++;
+                x_read_send += ActualNz_file;
+                y_read_send += ActualNz_file;
+                z_read_send += ActualNz_file;
+            }
+        }
+    }
+    //Executing receive requests
+    REAL* field_x_recv = field_x;
+    REAL* field_y_recv = field_y;
+    REAL* field_z_recv = field_z;
+    for (int i = 0; i < local_n0_file; i++) {
+        for (int j = 0; j < ActualNy_file; j++) {
+            MPI_Irecv(field_x_recv, message_size, COMPLEX_MPI, proc_send, 0, MCW, &x_recv_requests[num_request_recv]);
+            MPI_Irecv(field_y_recv, message_size, COMPLEX_MPI, proc_send, 0, MCW, &y_recv_requests[num_request_recv]);
+            MPI_Irecv(field_z_recv, message_size, COMPLEX_MPI, proc_send, 0, MCW, &z_recv_requests[num_request_recv]);
+            num_request_recv++;
+            field_x_recv += 2*(ActualNz_file/2+ 1);
+            field_y_recv += 2*(ActualNz_file/2+ 1);
+            field_z_recv += 2*(ActualNz_file/2+ 1);
+        }
+    }
+    //Wait for comunications to complete
+    for (int i = 0; i < num_request_send-1; i++) {
+        MPI_Wait(&x_send_requests[i], &status);
+        MPI_Wait(&y_send_requests[i], &status);
+        MPI_Wait(&z_send_requests[i], &status);
+    }
+    for (int i = 0; i < num_request_recv-1; i++) {
+        MPI_Wait(&x_recv_requests[i], &status);
+        MPI_Wait(&y_recv_requests[i], &status);
+        MPI_Wait(&z_recv_requests[i], &status);
+    }
+    MPI_Barrier(MCW);
+    //std::cout << myrank << " Sends completed" << std::endl;
+    if (myrank == 0) {
+        delete [] x_read;
+        delete [] y_read;
+        delete [] z_read;
+        delete [] x_send_requests;
+        delete [] y_send_requests;
+        delete [] z_send_requests;
+    }
+    delete [] x_recv_requests;
+    delete [] y_recv_requests;
+    delete [] z_recv_requests;
+}
+
 //=====================================================================================================================
 // DEBUG I/O FUNCTIONS
 //=====================================================================================================================

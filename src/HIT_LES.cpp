@@ -542,8 +542,6 @@ void HIT::Input_K41_Field() {
 void HIT::Input_Real_Field() {
     //Create fftw3 plans (FFT of physical velocities)
     //Create FFT_Package instance with file Nx Ny Nz
-    //FFT_package fftw_file(ActualNx_file, ActualNy_file, ActualNz_file, 24, 24);
-    //FFT_package fftw_file(ActualNx_file, ActualNy_file, ActualNz_file, local_n0_[0], local_n1_[0]);
     FFT_package fftw_file(ActualNx_file, ActualNy_file, ActualNz_file);
 
     alloc_local_file    = fftw_file.getalloc_local();
@@ -560,12 +558,6 @@ void HIT::Input_Real_Field() {
 	MPI_Gather(&local_n1_file, 1, MPI_INT, local_n1_file_, 1, MPI_INT, 0, MCW);
 	MPI_Bcast(local_n1_file_, numprocs, MPI_INT, 0, MCW);
 
-    //std::cout << myrank << " Allocated:     " << alloc_local_file << std::endl;
-    //std::cout << myrank << " Local N0:      " << local_n0_file << std::endl;
-    //std::cout << myrank << " Local 0 Start: " << local_0_start_file << std::endl;
-    //std::cout << myrank << " Local N1:      " << local_n1_file << std::endl;
-    //std::cout << myrank << " Local 1 Start: " << local_1_start_file << std::endl;
-
     //Create pointers for Fourier-space velocity
     COMPLEX *uk_file = alloc_complex(alloc_local_file);
     COMPLEX *vk_file = alloc_complex(alloc_local_file);
@@ -577,9 +569,8 @@ void HIT::Input_Real_Field() {
     w_file = alloc_real(2 * alloc_local_file);
 
     //Load of input file (velocity in physical space).
-    Read_Input_File_Vxyz(u_file, v_file, w_file, local_n0_file, local_0_start_file);
+    Read_Input_File_Vxyz(u_file, v_file, w_file);
 
-    //std::cout << myrank << " File Read" << std::endl;
     //Execute FFT
     fftw_file.FFTWr2c(u_file, uk_file);
     fftw_file.FFTWr2c(v_file, vk_file);
@@ -588,16 +579,13 @@ void HIT::Input_Real_Field() {
     FREE(v_file);
     FREE(w_file);
 
-    //std::cout << myrank << " FFT exectuted" << std::endl;
     //Normalization following FFT
     fftw_file.Fourier_Normalization(uk_file);
     fftw_file.Fourier_Normalization(vk_file);
     fftw_file.Fourier_Normalization(wk_file);
-    //std::cout << myrank << " FFT normalized" << std::endl;
 
     //Truncation/Extension of input field (in Fourier space)
-    Truncate_Input_File_Fourier_Coefficients(uk_file, vk_file, wk_file, local_n1_file, local_1_start_file);
-    //std::cout << myrank << " FFT truncated" << std::endl;
+    Truncate_Input_File_Fourier_Coefficients(uk_file, vk_file, wk_file);
 
     Calculate_Ek_init_file(uk_1, vk_1, wk_1);
 
@@ -610,11 +598,11 @@ void HIT::Input_Real_Field() {
 //=========================
 // 1.) LOAD PHYSICAL VELOCITY FROM FILE (All by read by one rank!!)
 // Read and load of velocity fields from input files of known size
-void HIT::Read_Input_File_Vxyz (REAL* u_file, REAL* v_file, REAL* w_file, ptrdiff_t& local_n0_file, ptrdiff_t& local_0_start_file) {
+void HIT::Read_Input_File_Vxyz (REAL* u_file, REAL* v_file, REAL* w_file) {
     if (isInitialFieldFromBinaryFile) {
-        BinaryFile_to_Real3DimField(u_file, v_file, w_file, local_n0_file, local_0_start_file);
-        //TEST: Write to file immediately to check for diff
-        //Real3DimField_to_BinaryFile(u_file, v_file, w_file, "Pepito.bin");
+        BinaryFile_to_Real3DimField(u_file, v_file, w_file);
+	} else if (isInitialFieldFromASCIIFile) {
+        ASCIIFile_to_Real3DimField(u_file, v_file, w_file);
     }
 };
 
@@ -622,14 +610,12 @@ void HIT::Read_Input_File_Vxyz (REAL* u_file, REAL* v_file, REAL* w_file, ptrdif
 // 2.) TRUNCATION/EXTENSION IN FOURIER SPACE OF INPUT VELOCITY FIELD
 // Truncate/Extend input velocity field in Fourier space (accordingly to Nx, Ny, Nz)
 // Afterwards, uk_1, vk_1 and wk_1 are completely initialized
-void HIT::Truncate_Input_File_Fourier_Coefficients (COMPLEX const * const uk_file, COMPLEX const * const vk_file, COMPLEX const * const wk_file, ptrdiff_t& local_n1_file, ptrdiff_t& local_1_start_file) {
+void HIT::Truncate_Input_File_Fourier_Coefficients (COMPLEX const * const uk_file, COMPLEX const * const vk_file, COMPLEX const * const wk_file) {
     //Initialize simulation spectra to 0
     memset(uk_1, 0, 2 * local_n1 * Mx * (Mz/2 + 1) * BYTES);
     memset(vk_1, 0, 2 * local_n1 * Mx * (Mz/2 + 1) * BYTES);
     memset(wk_1, 0, 2 * local_n1 * Mx * (Mz/2 + 1) * BYTES);
     // TRUNCATION:
-    ptrdiff_t file_modes = local_n1_file * ActualNx_file * (ActualNz_file/2 + 1);
-    //std::cout << myrank << " File modes:     " << file_modes << std::endl;
     COMPLEX * uk_file_send_ptr = (COMPLEX *) uk_file ;
     COMPLEX * vk_file_send_ptr = (COMPLEX *) vk_file ;
     COMPLEX * wk_file_send_ptr = (COMPLEX *) wk_file ;
@@ -655,10 +641,8 @@ void HIT::Truncate_Input_File_Fourier_Coefficients (COMPLEX const * const uk_fil
         //Calculate the equivalent mode in the simulation
         int k2_recv = FOURIER_FREQ(j,local_1_start_file,ActualNy_file);
         //Check for when file size is larger than simulation size
-        //std::cout << myrank << " k2: " << k2_recv << std::endl;
         if(-(My-1)/2 <= k2_recv && k2_recv <= My/2){
             int n1_recv = k2_recv >= 0 ? k2_recv : k2_recv + My;
-            //std::cout << myrank << " n1: " << n1_recv << std::endl;
             //Find out which MPI process receives the data
             int proc_recv = -1;
             int proc_max_freq = 0;
@@ -689,16 +673,13 @@ void HIT::Truncate_Input_File_Fourier_Coefficients (COMPLEX const * const uk_fil
             wk_file_send_ptr += ActualNx_file*(ActualNz_file/2 + 1);
         }
     }
-    //std::cout << myrank << " Sends requested: " << num_request_send << std::endl;
     //Execute all the necessary MPI_Irecv calls
     for (int j = 0; j < local_n1; j++) {
         //Calculate the equivalent mode in the file
         int k2_sender = FOURIER_FREQ(j,local_1_start,My);
         //Check for when file size is smaller than simulation size
         if(-(ActualNy_file-1)/2 <= k2_sender && k2_sender <= ActualNy_file/2){
-            //std::cout << myrank << " k2: " << k2_sender << std::endl;
             int n1_sender = k2_sender >= 0 ? k2_sender : k2_sender + ActualNy_file;
-            //std::cout << myrank << " n1: " << n1_sender << std::endl;
             //Find out which MPI process sent the data
             int proc_send = -1;
             int proc_max_freq = 0;
@@ -709,7 +690,6 @@ void HIT::Truncate_Input_File_Fourier_Coefficients (COMPLEX const * const uk_fil
                     break;
                 }
             }
-            //std::cout << myrank << " proc: " << proc_send << std::endl;
             for (int i = 0; i < Mx; i++) {
                 int k1_sender = FOURIER_FREQ(i,Mx);
                 if(-(ActualNx_file-1)/2 <= k1_sender && k1_sender <= ActualNx_file/2){
@@ -729,7 +709,6 @@ void HIT::Truncate_Input_File_Fourier_Coefficients (COMPLEX const * const uk_fil
             wk_recv_ptr += Mx*(Mz_2 + 1);
         }
     }
-    //std::cout << myrank << " Receives requested: " << num_request_recv << std::endl;
 
     //Wait for comunications to complete
     for (int i = 0; i < num_request_send-1; i++) {
@@ -743,7 +722,6 @@ void HIT::Truncate_Input_File_Fourier_Coefficients (COMPLEX const * const uk_fil
         MPI_Wait(&w_recv_requests[i], &status);
     }
     MPI_Barrier(MCW);
-    //std::cout << myrank << " Sends completed" << std::endl;
     delete [] u_send_requests;
     delete [] v_send_requests;
     delete [] w_send_requests;
