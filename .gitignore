@@ -37,6 +37,7 @@
 # Build files
 build
 .ccls-cache
+*.pdf
 # QA
 stdout.*
 QA/TEST*CBC/Energy_Cascade.dat

@@ -63,21 +63,6 @@ void FFT_package::FFT_init(){ // initialization of sizes and allocation of plans
 	c2r_plan = mpi_plan_dft_c2r_3d(Mx, My, Mz, complex_3D, real_3D, MCW, FMTI|FM); //Input destroyed (By default FFTW_DESTROY_INPUT)
 };
 
-void FFT_package::FFT_init_custom_partition(const ptrdiff_t Block_size_0, const ptrdiff_t Block_size_1){
-	//Get all mpi-related values
-    ptrdiff_t dimensions_half[] = {Mx, My, Mz_2+1};
-	alloc_local = mpi_local_size_many_transposed(3, dimensions_half, 1, Block_size_0, Block_size_1, MCW, &local_n0, &local_0_start, &local_n1, &local_1_start);
-	//Allocate memory
-	complex_3D = alloc_complex(alloc_local);
-	real_3D  = alloc_real(2*alloc_local);
-
-    ptrdiff_t dimensions[] = {Mx, My, Mz_2+1};
-	//Create plans
-	r2c_plan = mpi_plan_dft_r2c_many(3 ,dimensions, 1, Block_size_0, Block_size_1, real_3D, complex_3D, MCW, FMTO|FM|FDI); //Input preserved (by default r2c FFTW_DESTROY_RESERVED)
-	c2r_plan = mpi_plan_dft_c2r_many(3 ,dimensions, 1, Block_size_1, Block_size_0, complex_3D, real_3D, MCW, FMTI|FM); //Input destroyed (By default FFTW_DESTROY_INPUT)
-	//r2c_plan = mpi_plan_dft_r2c_3d(Mx, My, Mz, real_3D, complex_3D, MCW, FMTO|FM|FDI); //Input preserved (by default r2c FFTW_DESTROY_RESERVED)
-	//c2r_plan = mpi_plan_dft_c2r_3d(Mx, My, Mz, complex_3D, real_3D, MCW, FMTI|FM); //Input destroyed (By default FFTW_DESTROY_INPUT)
-}
 void FFT_package::FFT_destroy(){
 	FREE(complex_3D);
 	FREE(real_3D);
