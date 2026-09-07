@@ -43,7 +43,10 @@ void HIT::DealiasedComplex3DimField_to_BinaryFile(COMPLEX const * const field_x,
 		}
 		//Initialize field_dealiased
 		int ind_dealiased = 0; //Note that ind_dealiased<=(num_dealiased-1)
+		//Not called from inside any parallel region -- this relies on serial execution:
+		//ind_dealiased is a running compaction index, not independent per iteration.
 		LOOP_FOURIER {
+			const int ind = (b*Mx + a) * (Mz_2 + 1) + k3;
 			if (dealiased[ind]) {
 				for (int ic=0; ic<=1; ic++) { //ic=0 => Real part, ic=1 => Imaginary part
 					field_dealiased[ind_dealiased][ic] = field[ind][ic];
@@ -90,8 +93,10 @@ void HIT::Real3DimField_to_BinaryFile(REAL const * const field_x, REAL const * c
 		}
 		//Initialize field_to_output
 		int ind_dealiased = 0; //Note that ind_dealiased<=(num_dealiased_real-1)
+		//Not called from inside any parallel region -- see the identical note above.
 		if (isNotCubic) { //Removing fftw padding and irrelevant terms with respect to the length factors
 			LOOP_REAL {
+				const int ind = (i*My + j) * 2*(Mz_2 + 1) + k;
 				if ((local_0_start+i)<ActualMx && j<ActualMy && k<ActualMz) {
 					field_to_output[ind_dealiased] = field[ind];
 					ind_dealiased++;
@@ -99,6 +104,7 @@ void HIT::Real3DimField_to_BinaryFile(REAL const * const field_x, REAL const * c
 			}
 		} else { //Removing fftw padding
 			LOOP_REAL {
+				const int ind = (i*My + j) * 2*(Mz_2 + 1) + k;
 				field_to_output[ind_dealiased] = field[ind];
 				ind_dealiased++;
 			}

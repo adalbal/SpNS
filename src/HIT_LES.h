@@ -214,6 +214,10 @@ class HIT {
 		const bool isReLambda,isInitialFieldFromBinaryFile,isInitialFieldFromASCIIFile,isNotCubic,isRotating,isLES,isComplexConjugateCorrected,isSelfAdaptive;
 		REAL time;
 		REAL MaxVel, At; //Any timestep
+		//Reduction target for the timestep routines' LOOP_REAL_REDUCE(max:...): must be
+		//a class member, not a function-local, since "omp for reduction" requires the
+		//reduction variable to be shared across the team.
+		REAL local_MaxVel;
 		REAL C_visc, C_conv; //CFL timestep
 		REAL Ah, t1, kappa, *k, *phi, *c, phi0, _kappa05; //Self-adaptive timestep
 		//General case
