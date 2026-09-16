@@ -563,10 +563,9 @@ void HIT::Input_Real_Field() {
     COMPLEX *vk_file = alloc_complex(alloc_local_file);
     COMPLEX *wk_file = alloc_complex(alloc_local_file);
     //Create pointers for physical-space velocity
-    REAL *u_file = NULL, *v_file = NULL, *w_file = NULL;
-    u_file = alloc_real(2 * alloc_local_file);
-    v_file = alloc_real(2 * alloc_local_file);
-    w_file = alloc_real(2 * alloc_local_file);
+    REAL *u_file = alloc_real(2 * alloc_local_file);
+    REAL *v_file = alloc_real(2 * alloc_local_file);
+    REAL *w_file = alloc_real(2 * alloc_local_file);
 
     //Load of input file (velocity in physical space).
     Read_Input_File_Vxyz(u_file, v_file, w_file);
@@ -586,19 +585,19 @@ void HIT::Input_Real_Field() {
 
     //Truncation/Extension of input field (in Fourier space)
     Truncate_Input_File_Fourier_Coefficients(uk_file, vk_file, wk_file);
-
-    Calculate_Ek_init_file(uk_1, vk_1, wk_1);
-
     //Freeing of mallocated memory
     FREE(uk_file);
     FREE(vk_file);
     FREE(wk_file);
+
+    Calculate_Ek_init_file(uk_1, vk_1, wk_1);
+
 };
 
 //=========================
 // 1.) LOAD PHYSICAL VELOCITY FROM FILE (All by read by one rank!!)
 // Read and load of velocity fields from input files of known size
-void HIT::Read_Input_File_Vxyz (REAL* u_file, REAL* v_file, REAL* w_file) {
+void HIT::Read_Input_File_Vxyz (REAL * const u_file, REAL * const v_file, REAL * const w_file) {
     if (isInitialFieldFromBinaryFile) {
         BinaryFile_to_Real3DimField(u_file, v_file, w_file);
 	} else if (isInitialFieldFromASCIIFile) {
@@ -611,32 +610,114 @@ void HIT::Read_Input_File_Vxyz (REAL* u_file, REAL* v_file, REAL* w_file) {
 // Truncate/Extend input velocity field in Fourier space (accordingly to Nx, Ny, Nz)
 // Afterwards, uk_1, vk_1 and wk_1 are completely initialized
 void HIT::Truncate_Input_File_Fourier_Coefficients (COMPLEX const * const uk_file, COMPLEX const * const vk_file, COMPLEX const * const wk_file) {
+    if(ActualMx == ActualNx_file && ActualMy == ActualNy_file && ActualMz == ActualNz_file){
+        memcpy(uk_1, uk_file, alloc_local * 2 * BYTES);
+        memcpy(vk_1, vk_file, alloc_local * 2 * BYTES);
+        memcpy(wk_1, wk_file, alloc_local * 2 * BYTES);
+        return;
+    }
     //Initialize simulation spectra to 0
-    memset(uk_1, 0, 2 * local_n1 * Mx * (Mz/2 + 1) * BYTES);
-    memset(vk_1, 0, 2 * local_n1 * Mx * (Mz/2 + 1) * BYTES);
-    memset(wk_1, 0, 2 * local_n1 * Mx * (Mz/2 + 1) * BYTES);
-    // TRUNCATION:
-    COMPLEX * uk_file_send_ptr = (COMPLEX *) uk_file ;
-    COMPLEX * vk_file_send_ptr = (COMPLEX *) vk_file ;
-    COMPLEX * wk_file_send_ptr = (COMPLEX *) wk_file ;
-    COMPLEX * uk_recv_ptr = uk_1;
-    COMPLEX * vk_recv_ptr = vk_1;
-    COMPLEX * wk_recv_ptr = wk_1;
-
-    ptrdiff_t message_size = (ActualNz_file < Mz) ? (ActualNz_file/2 + 1) : (Mz_2 + 1);
+    memset(uk_1, 0, alloc_local * 2 * BYTES);
+    memset(vk_1, 0, alloc_local * 2 * BYTES);
+    memset(wk_1, 0, alloc_local * 2 * BYTES);
    
+    // TRUNCATION:
+    //The data is sent over in groups of columns (XZ slices)
     MPI_Status status;
-    MPI_Request * u_send_requests = new MPI_Request[local_n1_file * ActualNx_file];
-    MPI_Request * v_send_requests = new MPI_Request[local_n1_file * ActualNx_file];
-    MPI_Request * w_send_requests = new MPI_Request[local_n1_file * ActualNx_file];
-    MPI_Request * u_recv_requests = new MPI_Request[local_n1 * ActualNx_file];
-    MPI_Request * v_recv_requests = new MPI_Request[local_n1 * ActualNx_file];
-    MPI_Request * w_recv_requests = new MPI_Request[local_n1 * ActualNx_file];
-    int num_request_send = 0;
-    int num_request_recv = 0;
+    MPI_Datatype slice_1D, slice_1D_file, slice_1D_sim, slice_send, slice_recv;
+    int smallest_Mz_2 = ActualNz_file < ActualMz ? ActualNz_file/2+1 : ActualMz/2+1;
+    MPI_Type_vector(smallest_Mz_2, 1, 1, COMPLEX_MPI, &slice_1D);
+    //Create send datatype 
+    long sizeofcomplex, lb;
+    //Get extent of COMPLEX type to calculate strides
+    MPI_Type_get_extent(COMPLEX_MPI, &lb, &sizeofcomplex);
+    if(sizeofcomplex != sizeof(COMPLEX)) crash("C_COMPLEX and FFTW_COMPLEX are not of matching size.");
+    //First slice in z-axis
+    MPI_Type_create_resized(slice_1D, 0, (ActualNz_file/2 + 1) * sizeofcomplex, &slice_1D_file);
+    MPI_Type_create_resized(slice_1D, 0, (ActualMz/2 + 1) * sizeofcomplex, &slice_1D_sim);
+    //Second slice in x-axis
+    int block_lengths[2];
+    if(ActualNx_file <= ActualMx){
+        MPI_Type_contiguous(ActualNx_file, slice_1D_file, &slice_send);
+    }
+    else{
+        if(ActualMx%2 == 0){
+            block_lengths[0] = ActualMx/2 + 1;
+            block_lengths[1] = ActualMx/2 - 1;
+        }
+        else{
+            block_lengths[0] = ActualMx/2 + 1;
+            block_lengths[1] = ActualMx/2;
+        }
+        int displacements[2] = {0, int(ActualNx_file - block_lengths[1])};
+        MPI_Type_indexed(2, block_lengths, displacements, slice_1D_file, &slice_send);
+    }
+    MPI_Type_commit(&slice_send);
+    
+    //Create receive datatype 
+    //Second slice in x-axis
+    if(ActualNx_file >= ActualMx){
+        MPI_Type_contiguous(ActualMx, slice_1D_sim, &slice_recv);
+    }
+    else{
+        if(ActualNx_file%2 == 0){
+            block_lengths[0] = ActualNx_file/2 + 1;
+            block_lengths[1] = ActualNx_file/2 - 1;
+        }
+        else{
+            block_lengths[0] = ActualNx_file/2 + 1;
+            block_lengths[1] = ActualNx_file/2;
+        }
+        int displacements[2] = {0, int(ActualMx - block_lengths[1])};
+        MPI_Type_indexed(2, block_lengths, displacements, slice_1D_sim, &slice_recv);
+    }
+    MPI_Type_commit(&slice_recv);
 
+    int size_send,size_recv;
+    MPI_Type_size(slice_send, &size_send);
+    MPI_Type_size(slice_recv, &size_recv);
+    long extent_send,extent_recv;
+    MPI_Type_get_extent(slice_send, &lb, &extent_send);
+    MPI_Type_get_extent(slice_recv, &lb, &extent_recv);
+    //Special Case: Num procs = 1 
+    if(numprocs == 1){
+        //crash("TODO: Handle special truncation when only 1 MPI process");
+        MPI_Datatype full_section;
+        if(ActualNy_file <= ActualMy){
+            if(ActualNy_file%2 == 0){
+                block_lengths[0] = ActualNy_file/2 + 1;
+                block_lengths[1] = ActualNy_file/2 - 1;
+            }
+            else{
+                block_lengths[0] = ActualNy_file/2 + 1;
+                block_lengths[1] = ActualNy_file/2;
+            }
+            int displacements[2] = {0, int(ActualMy - block_lengths[1])};
+            MPI_Type_indexed(2, block_lengths, displacements, slice_recv, &full_section);
+            MPI_Type_commit(&full_section);
 
-    //Execute all the necessary MPI_Isend calls
+            MPI_Request req_s[3], req_r[3];
+            MPI_Isend(uk_file, ActualNy_file, slice_send, 0, 0, MCW, &req_s[0]);
+            MPI_Isend(vk_file, ActualNy_file, slice_send, 0, 0, MCW, &req_s[1]);
+            MPI_Isend(wk_file, ActualNy_file, slice_send, 0, 0, MCW, &req_s[2]);
+
+            MPI_Irecv(uk_1, 1, full_section, 0, 0, MCW, &req_r[0]);
+            MPI_Irecv(vk_1, 1, full_section, 0, 0, MCW, &req_r[1]);
+            MPI_Irecv(wk_1, 1, full_section, 0, 0, MCW, &req_r[2]);
+            for(int i=0;i<3;++i){
+                MPI_Wait(&req_s[i], &status);
+                MPI_Wait(&req_r[i], &status);
+            }
+            MPI_Type_free(&full_section);
+            MPI_Type_free(&slice_send);
+            MPI_Type_free(&slice_recv);
+        }
+        return;
+    }
+    //Store comunication info
+    int * destination_proc = new int[local_n1_file]; //array containing the process that receives the column (-1 if column isn't sent)
+    int * source_proc      = new int[local_n1];      //array containing the process that sent the column (-1 if column isn't received)
+
     for (int j = 0; j < local_n1_file; j++) {
         //Calculate the equivalent mode in the simulation
         int k2_recv = FOURIER_FREQ(j,local_1_start_file,ActualNy_file);
@@ -653,27 +734,13 @@ void HIT::Truncate_Input_File_Fourier_Coefficients (COMPLEX const * const uk_fil
                     break;
                 }
             }
-            //std::cout << myrank << " proc: " << proc_recv << std::endl;
-            for (int i = 0; i < ActualNx_file; i++) {
-                int k1_recv = FOURIER_FREQ(i,ActualNx_file);
-                if(-(Mx-1)/2 <= k1_recv && k1_recv <= Mx/2){
-                    MPI_Isend(uk_file_send_ptr, message_size, COMPLEX_MPI, proc_recv, 0, MCW, &u_send_requests[num_request_send]);
-                    MPI_Isend(vk_file_send_ptr, message_size, COMPLEX_MPI, proc_recv, 0, MCW, &v_send_requests[num_request_send]);
-                    MPI_Isend(wk_file_send_ptr, message_size, COMPLEX_MPI, proc_recv, 0, MCW, &w_send_requests[num_request_send]);
-                    num_request_send++;
-                }
-                uk_file_send_ptr += (ActualNz_file/2 + 1);
-                vk_file_send_ptr += (ActualNz_file/2 + 1);
-                wk_file_send_ptr += (ActualNz_file/2 + 1);
-            }
+            destination_proc[j] = proc_recv;
         }
         else{
-            uk_file_send_ptr += ActualNx_file*(ActualNz_file/2 + 1);
-            vk_file_send_ptr += ActualNx_file*(ActualNz_file/2 + 1);
-            wk_file_send_ptr += ActualNx_file*(ActualNz_file/2 + 1);
+            destination_proc[j] = -1;
         }
     }
-    //Execute all the necessary MPI_Irecv calls
+
     for (int j = 0; j < local_n1; j++) {
         //Calculate the equivalent mode in the file
         int k2_sender = FOURIER_FREQ(j,local_1_start,My);
@@ -690,33 +757,87 @@ void HIT::Truncate_Input_File_Fourier_Coefficients (COMPLEX const * const uk_fil
                     break;
                 }
             }
-            for (int i = 0; i < Mx; i++) {
-                int k1_sender = FOURIER_FREQ(i,Mx);
-                if(-(ActualNx_file-1)/2 <= k1_sender && k1_sender <= ActualNx_file/2){
-                    MPI_Irecv(uk_recv_ptr, message_size, COMPLEX_MPI, proc_send, 0, MCW, &u_recv_requests[num_request_recv]);
-                    MPI_Irecv(vk_recv_ptr, message_size, COMPLEX_MPI, proc_send, 0, MCW, &v_recv_requests[num_request_recv]);
-                    MPI_Irecv(wk_recv_ptr, message_size, COMPLEX_MPI, proc_send, 0, MCW, &w_recv_requests[num_request_recv]);
-                    num_request_recv++;
-                }
-                uk_recv_ptr += (Mz_2+ 1);
-                vk_recv_ptr += (Mz_2+ 1);
-                wk_recv_ptr += (Mz_2+ 1);
-            }
+            source_proc[j] = proc_send;
         }
         else{
-            uk_recv_ptr += Mx*(Mz_2 + 1);
-            vk_recv_ptr += Mx*(Mz_2 + 1);
-            wk_recv_ptr += Mx*(Mz_2 + 1);
+            source_proc[j] = -1;
+        }
+    }
+    MPI_Request * u_send_requests = new MPI_Request[local_n1_file];
+    MPI_Request * v_send_requests = new MPI_Request[local_n1_file];
+    MPI_Request * w_send_requests = new MPI_Request[local_n1_file];
+    MPI_Request * u_recv_requests = new MPI_Request[local_n1];
+    MPI_Request * v_recv_requests = new MPI_Request[local_n1];
+    MPI_Request * w_recv_requests = new MPI_Request[local_n1];
+    int num_request_send = 0;
+    int num_request_recv = 0;
+
+    //Execute all the necessary MPI_Isend calls
+    int send_col  = 0;
+    int recv_proc = destination_proc[0];
+    for (int j = 0; j < local_n1_file; j++) {
+        if(destination_proc[j] != recv_proc){
+            if(recv_proc != -1){
+                int pointer_offset = send_col*(ActualNx_file * (ActualNz_file/2+1));
+                int num_slices = j-send_col;
+                MPI_Isend(&uk_file[pointer_offset], num_slices, slice_send, recv_proc, 0, MCW, &u_send_requests[num_request_send]);
+                MPI_Isend(&vk_file[pointer_offset], num_slices, slice_send, recv_proc, 0, MCW, &v_send_requests[num_request_send]);
+                MPI_Isend(&wk_file[pointer_offset], num_slices, slice_send, recv_proc, 0, MCW, &w_send_requests[num_request_send]);
+                num_request_send++;
+            }
+            send_col  = j;
+            recv_proc = destination_proc[j];
+        }
+        if(j == local_n1_file-1){
+            if(recv_proc != -1){
+                int pointer_offset = send_col*(ActualNx_file * (ActualNz_file/2+1));
+                int num_slices = j-send_col+1;
+                MPI_Isend(&uk_file[pointer_offset], num_slices, slice_send, recv_proc, 0, MCW, &u_send_requests[num_request_send]);
+                MPI_Isend(&vk_file[pointer_offset], num_slices, slice_send, recv_proc, 0, MCW, &v_send_requests[num_request_send]);
+                MPI_Isend(&wk_file[pointer_offset], num_slices, slice_send, recv_proc, 0, MCW, &w_send_requests[num_request_send]);
+                num_request_send++;
+            }
+            send_col  = j;
+            recv_proc = destination_proc[j];
+        }
+    }
+    //Execute all the necessary MPI_Irecv calls
+    int recv_col  = 0;
+    int sender_proc = source_proc[0];
+    for (int j = 0; j < local_n1; j++) {
+        if(source_proc[j] != sender_proc){
+            if(sender_proc != -1){
+                int pointer_offset = recv_col*(ActualMx * (ActualMz/2+1));
+                int num_slices = j-recv_col;
+                MPI_Irecv(&uk_1[pointer_offset], num_slices, slice_recv, sender_proc, 0, MCW, &u_recv_requests[num_request_recv]);
+                MPI_Irecv(&vk_1[pointer_offset], num_slices, slice_recv, sender_proc, 0, MCW, &v_recv_requests[num_request_recv]);
+                MPI_Irecv(&wk_1[pointer_offset], num_slices, slice_recv, sender_proc, 0, MCW, &w_recv_requests[num_request_recv]);
+                num_request_recv++;
+            }
+            recv_col  = j;
+            sender_proc = source_proc[j];
+        }
+        if(j == local_n1-1){
+            if(sender_proc != -1){
+                int pointer_offset = recv_col*(ActualMx * (ActualMz/2+1));
+                int num_slices = j-recv_col+1;
+                MPI_Irecv(&uk_1[pointer_offset], num_slices, slice_recv, sender_proc, 0, MCW, &u_recv_requests[num_request_recv]);
+                MPI_Irecv(&vk_1[pointer_offset], num_slices, slice_recv, sender_proc, 0, MCW, &v_recv_requests[num_request_recv]);
+                MPI_Irecv(&wk_1[pointer_offset], num_slices, slice_recv, sender_proc, 0, MCW, &w_recv_requests[num_request_recv]);
+                num_request_recv++;
+            }
+            recv_col  = j;
+            sender_proc = source_proc[j];
         }
     }
 
     //Wait for comunications to complete
-    for (int i = 0; i < num_request_send-1; i++) {
+    for (int i = 0; i < num_request_send; i++) {
         MPI_Wait(&u_send_requests[i], &status);
         MPI_Wait(&v_send_requests[i], &status);
         MPI_Wait(&w_send_requests[i], &status);
     }
-    for (int i = 0; i < num_request_recv-1; i++) {
+    for (int i = 0; i < num_request_recv; i++) {
         MPI_Wait(&u_recv_requests[i], &status);
         MPI_Wait(&v_recv_requests[i], &status);
         MPI_Wait(&w_recv_requests[i], &status);
@@ -728,6 +849,8 @@ void HIT::Truncate_Input_File_Fourier_Coefficients (COMPLEX const * const uk_fil
     delete [] u_recv_requests;
     delete [] v_recv_requests;
     delete [] w_recv_requests;
+    MPI_Type_free(&slice_send);
+    MPI_Type_free(&slice_recv);
 };
 
 //=====================================================================================================================

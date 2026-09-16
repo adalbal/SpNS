@@ -100,7 +100,7 @@ class HIT {
 		// B) Initialization of velocity field in Fourier space from an input file containing velocities in Fourier space
 		void Input_Real_Field();
 			// B.1) Load from file (a velocity field in real space)
-			void Read_Input_File_Vxyz (REAL* u_file, REAL* v_file, REAL* w_file);
+			void Read_Input_File_Vxyz (REAL * const u_file, REAL * const v_file, REAL * const w_file);
 			// B.2) Truncate/Extend input velocity field in Fourier space (accordingly to Nx, Ny, Nz)
 			void Truncate_Input_File_Fourier_Coefficients (COMPLEX const * const ukx_file, COMPLEX const * const uky_file, COMPLEX const * const ukz_file);
 
@@ -173,11 +173,11 @@ class HIT {
 		void Calculate_Ek_init_file(COMPLEX const * const uk_file, COMPLEX const * const vk_file, COMPLEX const * const wk_file);
 		// Velocity gradient invariants spectra
 		void Recalculate_Invariants_Distribution(const char* filename[5] = NULL);
-		// I/O functions (implemented in HIT_LES_output.cpp)
+		// I/O functions (implemented in HIT_LES_IO.cpp)
 		void DealiasedComplex3DimField_to_BinaryFile(COMPLEX const * const field_x, COMPLEX const * const field_y, COMPLEX const * const field_z, char const * const filename) const;
 		void Real3DimField_to_BinaryFile(REAL const * const field_x, REAL const * const field_y, REAL const * const field_z, char const * const filename) const;
-        void BinaryFile_to_Real3DimField (REAL* field_x, REAL* field_y, REAL* field_z);
-        void ASCIIFile_to_Real3DimField (REAL* field_x, REAL* field_y, REAL* field_z);
+        void BinaryFile_to_Real3DimField (REAL * const field_x, REAL * const field_y, REAL * const field_z);
+        void ASCIIFile_to_Real3DimField (REAL * const field_x, REAL * const field_y, REAL * const field_z);
 		void FourierVelocity_to_BinaryFile(char const * const filename) const;
 		void RealVelocity_to_BinaryFile(char const * const filename) const;
 		void Field2File(REAL const * const field, char const * const filename) const;

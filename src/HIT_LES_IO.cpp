@@ -64,6 +64,18 @@ void HIT::DealiasedComplex3DimField_to_BinaryFile(COMPLEX const * const field_x,
 //It outputs all the terms of a real field (the consideration of dealiased terms does not make sense here)
 //Field is stored in parallel in a shared binary file - collective routine!
 void HIT::Real3DimField_to_BinaryFile(REAL const * const field_x, REAL const * const field_y, REAL const * const field_z, char const * const filename) const {
+    //Objective: get a 3D slice from a local_n0*My*(Mz+pad) array of size local_n0*My*Mz to remove padding
+    MPI_Datatype slice_1D, slice_1D_pad, slice_2D, slice_3D;
+    int padding_z = 2*(ActualMz/2 + 1) - ActualMz;
+    //First slice in z-axis
+    MPI_Type_vector(ActualMz, 1, 1, REAL_MPI, &slice_1D);
+    //Second slice in y-axis
+    MPI_Type_create_resized(slice_1D, 0, (ActualMz + padding_z) * BYTES, &slice_1D_pad);
+    MPI_Type_contiguous(ActualMy, slice_1D_pad, &slice_2D);
+    //Third slice in x-axis
+    MPI_Type_contiguous(local_n0, slice_2D, &slice_3D);
+    MPI_Type_commit(&slice_3D);
+
 	//Opening MPI file
 	MPI_File fh;
 	MPI_Status status;
@@ -75,10 +87,10 @@ void HIT::Real3DimField_to_BinaryFile(REAL const * const field_x, REAL const * c
 		MPI_File_open(MCW, filename, MPI_MODE_CREATE | MPI_MODE_WRONLY, MPI_INFO_NULL, &fh);
 	}
 	//Output of 3D real field
-	MPI_Offset bytes_per_component = sizeof(REAL) * ActualMx * ActualMy * 2*(ActualMz/2 + 1);
-    MPI_Offset offset_Real_test = sizeof(REAL) * local_0_start * ActualMy * 2*(ActualMz/2 + 1);
-    MPI_Offset num_Real_test = local_n0 * ActualMy * 2*(ActualMz/2 + 1);
+	MPI_Offset components = ActualMx * ActualMy * ActualMz;
+    MPI_Offset offset = local_0_start * ActualMy * ActualMz;
 	//Parallel output of each component of the real field
+    MPI_File_set_view(fh, 0, REAL_MPI, REAL_MPI, "native", MPI_INFO_NULL);
 	for (int coord=0; coord<3; coord++) {
 		//Temporary alias
 		REAL const * field = NULL;
@@ -88,15 +100,16 @@ void HIT::Real3DimField_to_BinaryFile(REAL const * const field_x, REAL const * c
 			case 1: field = field_y; break;
 			case 2: field = field_z; break;
 		}
-		MPI_File_seek(fh, offset_Real_test+coord*bytes_per_component, MPI_SEEK_SET);
-		MPI_File_write(fh, field, num_Real_test, REAL_MPI, &status);
+		MPI_File_seek(fh, offset + components*coord, MPI_SEEK_SET);
+		MPI_File_write(fh, field, 1, slice_3D, &status);
 	}
 	//Closing MPI file
 	MPI_File_close(&fh);
+    MPI_Type_free(&slice_3D);
 };
 
-void HIT::BinaryFile_to_Real3DimField (REAL* field_x, REAL* field_y, REAL* field_z) {
-    unsigned int total_file_num = ActualNx_file * ActualNy_file * 2 * (ActualNz_file/2 + 1);
+void HIT::BinaryFile_to_Real3DimField (REAL * const field_x, REAL * const field_y, REAL * const field_z) {
+    unsigned int total_file_num = ActualNx_file * ActualNy_file * ActualNz_file;
     //if (myrank == 0) std::cout << total_file_num << std::endl;
     unsigned int expected_filesize        = sizeof(REAL)   * 3 * total_file_num;
     unsigned int expected_single_filesize = sizeof(float)  * 3 * total_file_num;
@@ -108,174 +121,147 @@ void HIT::BinaryFile_to_Real3DimField (REAL* field_x, REAL* field_y, REAL* field
     MPI_Offset filesize;
     MPI_File_get_size(fh, &filesize);
     if ((filesize != expected_single_filesize) && (filesize != expected_double_filesize)) crash("Incorrect size of \"%s\"!! %lld bytes instead of %d bytes (for single-precision) or %d bytes (for double-precision).\n", Binary_Input_Filename, filesize, expected_single_filesize, expected_double_filesize);
-    //Read of input file (only by rank 0)
-    MPI_Offset offset_Real_x  = sizeof(REAL) * local_0_start_file * ActualNy_file * 2 * (ActualNz_file/2 + 1);
-    MPI_Offset offset_Real_y  = offset_Real_x + sizeof(REAL) * total_file_num;
-    MPI_Offset offset_Real_z  = offset_Real_y + sizeof(REAL) * total_file_num;
+    MPI_Offset offset_Real_x  = local_0_start_file * ActualNy_file * ActualNz_file;
+    MPI_Offset offset_Real_y  = offset_Real_x + total_file_num;
+    MPI_Offset offset_Real_z  = offset_Real_y + total_file_num;
+    int padding_z = 2*(ActualNz_file/2 + 1) - ActualNz_file;
 
-    int num_to_read = local_n0_file * ActualNy_file * 2 * (ActualNz_file/2 + 1);
+    int num_to_allocate = local_n0_file * ActualNy_file * (ActualNz_file + padding_z);
     //Binary read of input velocity field
+    MPI_Datatype Filetype;
     if (filesize != expected_filesize) { //calculation precision != input precision
         switch (BYTES) {
             case 4: //single-precision simulation but double-precision input
                 {
+                    Filetype = MPI_DOUBLE;
+                    //Create padded memory buffer
+                    MPI_Datatype slice_1D, slice_2D, slice_3D;
+
+                    //First slice in z-axis
+                    MPI_Type_vector(ActualNz_file, 1, 1, Filetype, &slice_1D);
+                    //Second slice in y-axis
+                    MPI_Type_create_hvector(ActualNy_file, 1, (ActualNz_file + padding_z) * 8, slice_1D, &slice_2D);
+                    //Third slice in x-axis
+                    MPI_Type_create_hvector(local_n0_file, 1, ActualNy_file * (ActualNz_file + padding_z) * 8, slice_2D, &slice_3D);
+                    MPI_Type_commit(&slice_3D);
+                    
                     double *x_input = NULL, *y_input = NULL, *z_input = NULL;
-                    x_input = fftw_alloc_real(num_to_read);
-                    y_input = fftw_alloc_real(num_to_read);
-                    z_input = fftw_alloc_real(num_to_read);
-                    MPI_File_seek(fh, offset_Real_x * 2, MPI_SEEK_SET);
-                    MPI_File_read(fh, x_input, num_to_read, MPI_DOUBLE, &status);
-                    MPI_File_seek(fh, offset_Real_y * 2, MPI_SEEK_SET);
-                    MPI_File_read(fh, y_input, num_to_read, MPI_DOUBLE, &status);
-                    MPI_File_seek(fh, offset_Real_z * 2, MPI_SEEK_SET);
-                    MPI_File_read(fh, z_input, num_to_read, MPI_DOUBLE, &status);
-                    for (int ind=0; ind<num_to_read; ind++) {
+                    x_input = fftw_alloc_real(num_to_allocate);
+                    y_input = fftw_alloc_real(num_to_allocate);
+                    z_input = fftw_alloc_real(num_to_allocate);
+                    MPI_File_set_view(fh, 0, Filetype, Filetype, "native", MPI_INFO_NULL);
+                    MPI_File_seek(fh, offset_Real_x, MPI_SEEK_SET);
+                    MPI_File_seek(fh, offset_Real_y, MPI_SEEK_SET);
+                    MPI_File_read(fh, y_input, 1, slice_3D, &status);
+                    MPI_File_seek(fh, offset_Real_z, MPI_SEEK_SET);
+                    MPI_File_read(fh, z_input, 1, slice_3D, &status);
+                    for (int ind=0; ind<num_to_allocate; ind++) {
                         field_x[ind] = x_input[ind];
                         field_y[ind] = y_input[ind];
                         field_z[ind] = z_input[ind];
                     }
                     fftw_free(x_input); fftw_free(y_input); fftw_free(z_input);
+                    MPI_Type_free(&slice_3D);
                     break;
                 }
             case 8: //double-precision simulation but single-precision input
                 {
-
-                    float *x_input = NULL, *y_input = NULL, *z_input = NULL;
-                    x_input = fftwf_alloc_real(num_to_read);
-                    y_input = fftwf_alloc_real(num_to_read);
-                    z_input = fftwf_alloc_real(num_to_read);
-                    MPI_File_seek(fh, offset_Real_x / 2, MPI_SEEK_SET);
-                    MPI_File_read(fh, x_input, num_to_read, MPI_FLOAT, &status);
-                    MPI_File_seek(fh, offset_Real_y / 2, MPI_SEEK_SET);
-                    MPI_File_read(fh, y_input, num_to_read, MPI_FLOAT, &status);
-                    MPI_File_seek(fh, offset_Real_z / 2, MPI_SEEK_SET);
-                    MPI_File_read(fh, z_input, num_to_read, MPI_FLOAT, &status);
-                    for (int ind=0; ind<num_to_read; ind++) {
+                    Filetype = MPI_FLOAT;
+                    //Create padded memory buffer
+                    MPI_Datatype slice_1D, slice_2D, slice_3D;
+                    //First slice in z-axis
+                    MPI_Type_vector(ActualNz_file, 1, 1, Filetype, &slice_1D);
+                    //Second slice in y-axis
+                    MPI_Type_create_hvector(ActualNy_file, 1, (ActualNz_file + padding_z) * 4, slice_1D, &slice_2D);
+                    //Third slice in x-axis
+                    MPI_Type_create_hvector(local_n0_file, 1, ActualNy_file * (ActualNz_file + padding_z) * 4, slice_2D, &slice_3D);
+                    MPI_Type_commit(&slice_3D);
+                    
+                    double *x_input = NULL, *y_input = NULL, *z_input = NULL;
+                    x_input = fftw_alloc_real(num_to_allocate);
+                    y_input = fftw_alloc_real(num_to_allocate);
+                    z_input = fftw_alloc_real(num_to_allocate);
+                    MPI_File_set_view(fh, 0, Filetype, Filetype, "native", MPI_INFO_NULL);
+                    MPI_File_seek(fh, offset_Real_x, MPI_SEEK_SET);
+                    MPI_File_read(fh, x_input, 1, slice_3D, &status);
+                    MPI_File_seek(fh, offset_Real_y, MPI_SEEK_SET);
+                    MPI_File_read(fh, y_input, 1, slice_3D, &status);
+                    MPI_File_seek(fh, offset_Real_z, MPI_SEEK_SET);
+                    MPI_File_read(fh, z_input, 1, slice_3D, &status);
+                    for (int ind=0; ind<num_to_allocate; ind++) {
                         field_x[ind] = x_input[ind];
                         field_y[ind] = y_input[ind];
                         field_z[ind] = z_input[ind];
                     }
-                    fftwf_free(x_input); fftwf_free(y_input); fftwf_free(z_input);
+                    fftw_free(x_input); fftw_free(y_input); fftw_free(z_input);
+                    MPI_Type_free(&slice_3D);
                     break;
 
                 }
         }
     } else { //calculation precision == input precision
+        Filetype = REAL_MPI;
+        //Create padded memory buffer
+        MPI_Datatype slice_1D, slice_2D, slice_3D;
+        //First slice in z-axis
+        MPI_Type_vector(ActualNz_file, 1, 1, Filetype, &slice_1D);
+        //Second slice in y-axis
+        MPI_Type_create_hvector(ActualNy_file, 1, (ActualNz_file + padding_z) * BYTES, slice_1D, &slice_2D);
+        //Third slice in x-axis
+        MPI_Type_create_hvector(local_n0_file, 1, ActualNy_file * (ActualNz_file + padding_z) * BYTES, slice_2D, &slice_3D);
+        MPI_Type_commit(&slice_3D);
+
+        MPI_File_set_view(fh, 0, Filetype, Filetype, "native", MPI_INFO_NULL);
         MPI_File_seek(fh, offset_Real_x, MPI_SEEK_SET);
-        MPI_File_read(fh, field_x, num_to_read, REAL_MPI, &status);
+        MPI_File_read(fh, field_x, 1, slice_3D, &status);
         MPI_File_seek(fh, offset_Real_y, MPI_SEEK_SET);
-        MPI_File_read(fh, field_y, num_to_read, REAL_MPI, &status);
+        MPI_File_read(fh, field_y, 1, slice_3D, &status);
         MPI_File_seek(fh, offset_Real_z, MPI_SEEK_SET);
-        MPI_File_read(fh, field_z, num_to_read, REAL_MPI, &status);
+        MPI_File_read(fh, field_z, 1, slice_3D, &status);
+        MPI_Type_free(&slice_3D);
     }
     MPI_File_close(&fh);
 }
 
-void HIT::ASCIIFile_to_Real3DimField (REAL* field_x, REAL* field_y, REAL* field_z) {
-    unsigned int total_file_num = ActualNx_file * ActualNy_file * ActualNz_file;
+void HIT::ASCIIFile_to_Real3DimField (REAL * const field_x, REAL * const field_y, REAL * const field_z) {
+    unsigned int total_file_read = local_n0_file * ActualNy_file * ActualNz_file;
     //File read by only one MPI process (proc 0)
-    REAL* x_read;
-    REAL* y_read;
-    REAL* z_read;
-    if (myrank == 0) {
-		x_read = alloc_real(total_file_num);
-        y_read = alloc_real(total_file_num);
-        z_read = alloc_real(total_file_num);
-        unsigned int row = 0;
-        ifstream infile;
-        infile.open(ASCII_Input_Filename);
-        if(infile.fail()) {
-            crash("Error opening \"%s\"!!\n", ASCII_Input_Filename);
-        }
-        while((!infile.eof()) && (row < total_file_num)) {
-            infile >> x_read[row] >> y_read[row] >> z_read[row];
-            row++;
-        }
-        infile.close();
-    }
-    //Data distributed to the rest
-    ptrdiff_t message_size = ActualNz_file;
-    int proc_send = 0;
-    MPI_Status status;
+    unsigned int row_offset = local_0_start_file * ActualNy_file * ActualNz_file;
+    int padding_z = 2 * (ActualNz_file/2 + 1) - ActualNz_file;
 
-    MPI_Request * x_send_requests;
-    MPI_Request * y_send_requests;
-    MPI_Request * z_send_requests;
-    if (myrank == 0) {
-        x_send_requests = new MPI_Request[ActualNx_file * ActualNy_file];
-        y_send_requests = new MPI_Request[ActualNx_file * ActualNy_file];
-        z_send_requests = new MPI_Request[ActualNx_file * ActualNy_file];
+    REAL shit;
+    ifstream infile;
+    infile.open(ASCII_Input_Filename);
+    if(infile.fail()) {
+        crash("Error opening \"%s\"!!\n", ASCII_Input_Filename);
     }
-    MPI_Request * x_recv_requests = new MPI_Request[local_n0_file_[myrank] * ActualNy_file];
-    MPI_Request * y_recv_requests = new MPI_Request[local_n0_file_[myrank] * ActualNy_file];
-    MPI_Request * z_recv_requests = new MPI_Request[local_n0_file_[myrank] * ActualNy_file];
-    int num_request_send = 0;
-    int num_request_recv = 0;
-    //Process 0 executes send requests
-    if (myrank == 0) {
-        REAL* x_read_send = x_read;
-        REAL* y_read_send = y_read;
-        REAL* z_read_send = z_read;
-        for (int i = 0; i < ActualNx_file; i++) {
-            int proc_recv = -1;
-            int proc_max_freq = 0;
-            for(int k = 0; k < numprocs; k++){
-                proc_max_freq += local_n0_file_[k];
-                if(i < proc_max_freq){
-                    proc_recv = k;
-                    break;
-                }
+    unsigned int row = 0;
+    while((!infile.eof()) && (row < row_offset)) {
+        infile >> shit >> shit >> shit;
+        row++;
+    }
+    unsigned int index = 0;
+    unsigned int num_read = 0;
+    while((!infile.eof()) && (num_read < total_file_read)) {
+        if(num_read%ActualNz_file == 0){
+            for(int i=0;i<padding_z;++i){
+                field_x[index] = 0;
+                field_y[index] = 0;
+                field_z[index] = 0;
+                index++;
             }
-            for (int j = 0; j < ActualNy_file; j++) {
-                MPI_Isend(x_read_send, message_size, REAL_MPI, proc_recv, 0, MCW, &x_send_requests[num_request_send]);
-                MPI_Isend(y_read_send, message_size, REAL_MPI, proc_recv, 0, MCW, &y_send_requests[num_request_send]);
-                MPI_Isend(z_read_send, message_size, REAL_MPI, proc_recv, 0, MCW, &z_send_requests[num_request_send]);
-                num_request_send++;
-                x_read_send += ActualNz_file;
-                y_read_send += ActualNz_file;
-                z_read_send += ActualNz_file;
-            }
+            infile >> field_x[index] >> field_y[index] >> field_z[index];
+            num_read++;
+            index++;
+        }
+        else{
+            infile >> field_x[index] >> field_y[index] >> field_z[index];
+            num_read++;
+            index++;
         }
     }
-    //Executing receive requests
-    REAL* field_x_recv = field_x;
-    REAL* field_y_recv = field_y;
-    REAL* field_z_recv = field_z;
-    for (int i = 0; i < local_n0_file; i++) {
-        for (int j = 0; j < ActualNy_file; j++) {
-            MPI_Irecv(field_x_recv, message_size, COMPLEX_MPI, proc_send, 0, MCW, &x_recv_requests[num_request_recv]);
-            MPI_Irecv(field_y_recv, message_size, COMPLEX_MPI, proc_send, 0, MCW, &y_recv_requests[num_request_recv]);
-            MPI_Irecv(field_z_recv, message_size, COMPLEX_MPI, proc_send, 0, MCW, &z_recv_requests[num_request_recv]);
-            num_request_recv++;
-            field_x_recv += 2*(ActualNz_file/2+ 1);
-            field_y_recv += 2*(ActualNz_file/2+ 1);
-            field_z_recv += 2*(ActualNz_file/2+ 1);
-        }
-    }
-    //Wait for comunications to complete
-    for (int i = 0; i < num_request_send-1; i++) {
-        MPI_Wait(&x_send_requests[i], &status);
-        MPI_Wait(&y_send_requests[i], &status);
-        MPI_Wait(&z_send_requests[i], &status);
-    }
-    for (int i = 0; i < num_request_recv-1; i++) {
-        MPI_Wait(&x_recv_requests[i], &status);
-        MPI_Wait(&y_recv_requests[i], &status);
-        MPI_Wait(&z_recv_requests[i], &status);
-    }
-    MPI_Barrier(MCW);
-    //std::cout << myrank << " Sends completed" << std::endl;
-    if (myrank == 0) {
-        delete [] x_read;
-        delete [] y_read;
-        delete [] z_read;
-        delete [] x_send_requests;
-        delete [] y_send_requests;
-        delete [] z_send_requests;
-    }
-    delete [] x_recv_requests;
-    delete [] y_recv_requests;
-    delete [] z_recv_requests;
+    std::cout << myrank << ' ' << num_read << ' ' << index << endl;
+    infile.close();
 }
 
 //=====================================================================================================================
