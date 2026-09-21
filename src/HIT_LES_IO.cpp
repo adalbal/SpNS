@@ -66,12 +66,12 @@ void HIT::DealiasedComplex3DimField_to_BinaryFile(COMPLEX const * const field_x,
 void HIT::Real3DimField_to_BinaryFile(REAL const * const field_x, REAL const * const field_y, REAL const * const field_z, char const * const filename) const {
     //Objective: get a 3D slice from a local_n0*My*(Mz+pad) array of size local_n0*My*Mz to remove padding
     MPI_Datatype slice_1D, slice_1D_pad, slice_2D, slice_3D;
-    int padding_z = 2*(ActualMz/2 + 1) - ActualMz;
+    int padding_z = 2*(Mz/2 + 1) - Mz;
     //First slice in z-axis
-    MPI_Type_vector(ActualMz, 1, 1, REAL_MPI, &slice_1D);
+    MPI_Type_vector(Mz, 1, 1, REAL_MPI, &slice_1D);
     //Second slice in y-axis
-    MPI_Type_create_resized(slice_1D, 0, (ActualMz + padding_z) * BYTES, &slice_1D_pad);
-    MPI_Type_contiguous(ActualMy, slice_1D_pad, &slice_2D);
+    MPI_Type_create_resized(slice_1D, 0, (Mz + padding_z) * BYTES, &slice_1D_pad);
+    MPI_Type_contiguous(My, slice_1D_pad, &slice_2D);
     //Third slice in x-axis
     MPI_Type_contiguous(local_n0, slice_2D, &slice_3D);
     MPI_Type_commit(&slice_3D);
@@ -87,8 +87,8 @@ void HIT::Real3DimField_to_BinaryFile(REAL const * const field_x, REAL const * c
 		MPI_File_open(MCW, filename, MPI_MODE_CREATE | MPI_MODE_WRONLY, MPI_INFO_NULL, &fh);
 	}
 	//Output of 3D real field
-	MPI_Offset components = ActualMx * ActualMy * ActualMz;
-    MPI_Offset offset = local_0_start * ActualMy * ActualMz;
+	MPI_Offset components = Mx * My * Mz;
+    MPI_Offset offset = local_0_start * My * Mz;
 	//Parallel output of each component of the real field
     MPI_File_set_view(fh, 0, REAL_MPI, REAL_MPI, "native", MPI_INFO_NULL);
 	for (int coord=0; coord<3; coord++) {
@@ -109,7 +109,7 @@ void HIT::Real3DimField_to_BinaryFile(REAL const * const field_x, REAL const * c
 };
 
 void HIT::BinaryFile_to_Real3DimField (REAL * const field_x, REAL * const field_y, REAL * const field_z) {
-    unsigned int total_file_num = ActualNx_file * ActualNy_file * ActualNz_file;
+    unsigned int total_file_num = Nx_file * Ny_file * Nz_file;
     //if (myrank == 0) std::cout << total_file_num << std::endl;
     unsigned int expected_filesize        = sizeof(REAL)   * 3 * total_file_num;
     unsigned int expected_single_filesize = sizeof(float)  * 3 * total_file_num;
@@ -121,12 +121,12 @@ void HIT::BinaryFile_to_Real3DimField (REAL * const field_x, REAL * const field_
     MPI_Offset filesize;
     MPI_File_get_size(fh, &filesize);
     if ((filesize != expected_single_filesize) && (filesize != expected_double_filesize)) crash("Incorrect size of \"%s\"!! %lld bytes instead of %d bytes (for single-precision) or %d bytes (for double-precision).\n", Binary_Input_Filename, filesize, expected_single_filesize, expected_double_filesize);
-    MPI_Offset offset_Real_x  = local_0_start_file * ActualNy_file * ActualNz_file;
+    MPI_Offset offset_Real_x  = local_0_start_file * Ny_file * Nz_file;
     MPI_Offset offset_Real_y  = offset_Real_x + total_file_num;
     MPI_Offset offset_Real_z  = offset_Real_y + total_file_num;
-    int padding_z = 2*(ActualNz_file/2 + 1) - ActualNz_file;
+    int padding_z = 2*(Nz_file/2 + 1) - Nz_file;
 
-    int num_to_allocate = local_n0_file * ActualNy_file * (ActualNz_file + padding_z);
+    int num_to_allocate = local_n0_file * Ny_file * (Nz_file + padding_z);
     //Binary read of input velocity field
     MPI_Datatype Filetype;
     if (filesize != expected_filesize) { //calculation precision != input precision
@@ -138,11 +138,11 @@ void HIT::BinaryFile_to_Real3DimField (REAL * const field_x, REAL * const field_
                     MPI_Datatype slice_1D, slice_2D, slice_3D;
 
                     //First slice in z-axis
-                    MPI_Type_vector(ActualNz_file, 1, 1, Filetype, &slice_1D);
+                    MPI_Type_vector(Nz_file, 1, 1, Filetype, &slice_1D);
                     //Second slice in y-axis
-                    MPI_Type_create_hvector(ActualNy_file, 1, (ActualNz_file + padding_z) * 8, slice_1D, &slice_2D);
+                    MPI_Type_create_hvector(Ny_file, 1, (Nz_file + padding_z) * 8, slice_1D, &slice_2D);
                     //Third slice in x-axis
-                    MPI_Type_create_hvector(local_n0_file, 1, ActualNy_file * (ActualNz_file + padding_z) * 8, slice_2D, &slice_3D);
+                    MPI_Type_create_hvector(local_n0_file, 1, Ny_file * (Nz_file + padding_z) * 8, slice_2D, &slice_3D);
                     MPI_Type_commit(&slice_3D);
                     
                     double *x_input = NULL, *y_input = NULL, *z_input = NULL;
@@ -170,11 +170,11 @@ void HIT::BinaryFile_to_Real3DimField (REAL * const field_x, REAL * const field_
                     //Create padded memory buffer
                     MPI_Datatype slice_1D, slice_2D, slice_3D;
                     //First slice in z-axis
-                    MPI_Type_vector(ActualNz_file, 1, 1, Filetype, &slice_1D);
+                    MPI_Type_vector(Nz_file, 1, 1, Filetype, &slice_1D);
                     //Second slice in y-axis
-                    MPI_Type_create_hvector(ActualNy_file, 1, (ActualNz_file + padding_z) * 4, slice_1D, &slice_2D);
+                    MPI_Type_create_hvector(Ny_file, 1, (Nz_file + padding_z) * 4, slice_1D, &slice_2D);
                     //Third slice in x-axis
-                    MPI_Type_create_hvector(local_n0_file, 1, ActualNy_file * (ActualNz_file + padding_z) * 4, slice_2D, &slice_3D);
+                    MPI_Type_create_hvector(local_n0_file, 1, Ny_file * (Nz_file + padding_z) * 4, slice_2D, &slice_3D);
                     MPI_Type_commit(&slice_3D);
                     
                     double *x_input = NULL, *y_input = NULL, *z_input = NULL;
@@ -204,11 +204,11 @@ void HIT::BinaryFile_to_Real3DimField (REAL * const field_x, REAL * const field_
         //Create padded memory buffer
         MPI_Datatype slice_1D, slice_2D, slice_3D;
         //First slice in z-axis
-        MPI_Type_vector(ActualNz_file, 1, 1, Filetype, &slice_1D);
+        MPI_Type_vector(Nz_file, 1, 1, Filetype, &slice_1D);
         //Second slice in y-axis
-        MPI_Type_create_hvector(ActualNy_file, 1, (ActualNz_file + padding_z) * BYTES, slice_1D, &slice_2D);
+        MPI_Type_create_hvector(Ny_file, 1, (Nz_file + padding_z) * BYTES, slice_1D, &slice_2D);
         //Third slice in x-axis
-        MPI_Type_create_hvector(local_n0_file, 1, ActualNy_file * (ActualNz_file + padding_z) * BYTES, slice_2D, &slice_3D);
+        MPI_Type_create_hvector(local_n0_file, 1, Ny_file * (Nz_file + padding_z) * BYTES, slice_2D, &slice_3D);
         MPI_Type_commit(&slice_3D);
 
         MPI_File_set_view(fh, 0, Filetype, Filetype, "native", MPI_INFO_NULL);
