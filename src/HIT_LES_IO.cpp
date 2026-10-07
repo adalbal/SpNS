@@ -110,7 +110,6 @@ void HIT::Real3DimField_to_BinaryFile(REAL const * const field_x, REAL const * c
 
 void HIT::BinaryFile_to_Real3DimField (REAL * const field_x, REAL * const field_y, REAL * const field_z) {
     unsigned int total_file_num = Nx_file * Ny_file * Nz_file;
-    //if (myrank == 0) std::cout << total_file_num << std::endl;
     unsigned int expected_filesize        = sizeof(REAL)   * 3 * total_file_num;
     unsigned int expected_single_filesize = sizeof(float)  * 3 * total_file_num;
     unsigned int expected_double_filesize = sizeof(double) * 3 * total_file_num;
@@ -243,7 +242,7 @@ void HIT::ASCIIFile_to_Real3DimField (REAL * const field_x, REAL * const field_y
     unsigned int index = 0;
     unsigned int num_read = 0;
     while((!infile.eof()) && (num_read < total_file_read)) {
-        if(num_read%ActualNz_file == 0){
+        if(num_read%ActualNz_file == 0 && num_read != 0){
             for(int i=0;i<padding_z;++i){
                 field_x[index] = 0;
                 field_y[index] = 0;
@@ -260,7 +259,6 @@ void HIT::ASCIIFile_to_Real3DimField (REAL * const field_x, REAL * const field_y
             index++;
         }
     }
-    std::cout << myrank << ' ' << num_read << ' ' << index << endl;
     infile.close();
 }
 

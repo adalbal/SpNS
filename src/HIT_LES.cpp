@@ -583,8 +583,24 @@ void HIT::Input_Real_Field() {
     fftw_file.Fourier_Normalization(vk_file);
     fftw_file.Fourier_Normalization(wk_file);
 
+	LOOP_3D (b,0,local_n1_file, a,0,Nx_file, k3,0,Nz_file/2+1) {
+		int ind = (b*Nx_file+a)*(Nz_file/2+1)+k3;
+		int k1 = FOURIER_FREQ(a,Nx_file);
+		int k2 = FOURIER_FREQ(b,local_1_start_file,Ny_file);
+        if( (abs(k1) > (Nx_file-1)/2) || (abs(k2) > (Ny_file-1)/2) || (k3 > (Nz_file-1)/2)){
+           uk_file[ind][0] = 0; 
+           vk_file[ind][0] = 0; 
+           wk_file[ind][0] = 0; 
+
+           uk_file[ind][1] = 0; 
+           vk_file[ind][1] = 0; 
+           wk_file[ind][1] = 0; 
+        }
+	}
+    MPI_Barrier(MCW);
     //Truncation/Extension of input field (in Fourier space)
     Truncate_Input_File_Fourier_Coefficients(uk_file, vk_file, wk_file);
+    //Check_PhysFour_Energy(1e-13);
     //Freeing of mallocated memory
     FREE(uk_file);
     FREE(vk_file);
@@ -1334,9 +1350,9 @@ void HIT::Check_PhysFour_Energy(const REAL atol) {
 	REAL EkSpNS = Recalculate_Energy();
 	
 	// Confront values
-	REAL diff1 = fabs(EkReal - EkFour);
+	REAL diff1 = (EkReal - EkFour);
 	REAL diff2 = fabs(EkSpNS - EkFour);
-	if (diff1>atol || diff2>atol) {
+	if (fabs(diff1)>atol || diff2>atol) {
 		crash("Ek differences exceed tolerance [EkReal vs EkFour %e, EkSpNS vs EkFour: %e]\n", diff1, diff2);
 	}
 
