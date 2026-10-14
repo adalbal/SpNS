@@ -19,120 +19,122 @@ FileBuffer: loading params3_FORCING_ENERGY_CASCADE
 Default used for parameters:
                Reynolds_lambda: 0.00
           Reynolds_lambda_Freq: 0
-                Spectra_Folder: 
+            VelGradInv_Spectra: 1
+       VelGradInv_Spectra_Freq: 0
+                Spectra_Folder: CÇy~
           ASCII_Input_Filename: 
          Binary_Input_Filename: 
-                       Nx_file: 0
-                       Ny_file: 0
-                       Nz_file: 32766
-              Nullify_MissingK: 277463714
-                            Lx: 29698
-                            Ly: 292538760
-                            Lz: 32766
+                       Nx_file: 32638
+                       Ny_file: 2052849664
+                       Nz_file: 0
+              Nullify_MissingK: 32638
+                            Lx: -1948435616
+                            Ly: 3
+                            Lz: 2059132928
                        omega_x: 0.00
                        omega_y: 0.00
                        omega_z: 0.00
                         C_Smag: 0.00
-          SelfAdaptiveTimestep: 32766
-    ComplexConjugateCorrection: 124810096
+          SelfAdaptiveTimestep: 2058941348
+    ComplexConjugateCorrection: 32766
 
 
 Time: 0.005431,    iter:        1,    Dt: 5.431488e-03,    Ek: 1.580539e+00,    Om: 3.272519e+01,    ReLambda: 2172.939
 Time: 0.011430,    iter:        2,    Dt: 5.998561e-03,    Ek: 1.580571e+00,    Om: 3.273851e+01,    ReLambda: 2172.542
-Time: 0.017387,    iter:        3,    Dt: 5.956967e-03,    Ek: 1.580675e+00,    Om: 3.279000e+01,    ReLambda: 2170.977
-Time: 0.023314,    iter:        4,    Dt: 5.927264e-03,    Ek: 1.580810e+00,    Om: 3.285804e+01,    ReLambda: 2168.914
-Time: 0.029231,    iter:        5,    Dt: 5.917068e-03,    Ek: 1.580974e+00,    Om: 3.294094e+01,    ReLambda: 2166.408
-Time: 0.035157,    iter:        6,    Dt: 5.925221e-03,    Ek: 1.581164e+00,    Om: 3.303770e+01,    ReLambda: 2163.493
-Time: 0.041108,    iter:        7,    Dt: 5.950996e-03,    Ek: 1.581378e+00,    Om: 3.314744e+01,    ReLambda: 2160.201
-Time: 0.047101,    iter:        8,    Dt: 5.993623e-03,    Ek: 1.581613e+00,    Om: 3.326941e+01,    ReLambda: 2156.559
-Time: 0.053054,    iter:        9,    Dt: 5.952466e-03,    Ek: 1.581868e+00,    Om: 3.340301e+01,    ReLambda: 2152.588
-Time: 0.058977,    iter:       10,    Dt: 5.923080e-03,    Ek: 1.582137e+00,    Om: 3.354520e+01,    ReLambda: 2148.386
-Time: 0.064890,    iter:       11,    Dt: 5.913007e-03,    Ek: 1.582417e+00,    Om: 3.369525e+01,    ReLambda: 2143.977
-Time: 0.070811,    iter:       12,    Dt: 5.921463e-03,    Ek: 1.582708e+00,    Om: 3.385286e+01,    ReLambda: 2139.374
-Time: 0.076759,    iter:       13,    Dt: 5.947549e-03,    Ek: 1.583009e+00,    Om: 3.401793e+01,    ReLambda: 2134.583
-Time: 0.082749,    iter:       14,    Dt: 5.990253e-03,    Ek: 1.583320e+00,    Om: 3.419055e+01,    ReLambda: 2129.606
-Time: 0.088750,    iter:       15,    Dt: 6.000524e-03,    Ek: 1.583642e+00,    Om: 3.437094e+01,    ReLambda: 2124.441
-Time: 0.094693,    iter:       16,    Dt: 5.943770e-03,    Ek: 1.583971e+00,    Om: 3.455774e+01,    ReLambda: 2119.132
-Time: 0.100597,    iter:       17,    Dt: 5.903633e-03,    Ek: 1.584302e+00,    Om: 3.474831e+01,    ReLambda: 2113.756
-Time: 0.106478,    iter:       18,    Dt: 5.881296e-03,    Ek: 1.584638e+00,    Om: 3.494303e+01,    ReLambda: 2108.304
-Time: 0.112355,    iter:       19,    Dt: 5.876633e-03,    Ek: 1.584978e+00,    Om: 3.514228e+01,    ReLambda: 2102.770
-Time: 0.118244,    iter:       20,    Dt: 5.889322e-03,    Ek: 1.585323e+00,    Om: 3.534647e+01,    ReLambda: 2097.144
-Time: 0.124163,    iter:       21,    Dt: 5.918812e-03,    Ek: 1.585674e+00,    Om: 3.555605e+01,    ReLambda: 2091.417
-Time: 0.130070,    iter:       22,    Dt: 5.906734e-03,    Ek: 1.586031e+00,    Om: 3.577150e+01,    ReLambda: 2085.579
-Time: 0.135933,    iter:       23,    Dt: 5.863101e-03,    Ek: 1.586392e+00,    Om: 3.599080e+01,    ReLambda: 2079.688
-Time: 0.141772,    iter:       24,    Dt: 5.839127e-03,    Ek: 1.586753e+00,    Om: 3.621241e+01,    ReLambda: 2073.786
-Time: 0.147607,    iter:       25,    Dt: 5.834688e-03,    Ek: 1.587115e+00,    Om: 3.643702e+01,    ReLambda: 2067.857
-Time: 0.153456,    iter:       26,    Dt: 5.848925e-03,    Ek: 1.587481e+00,    Om: 3.666516e+01,    ReLambda: 2061.888
-Time: 0.159336,    iter:       27,    Dt: 5.880839e-03,    Ek: 1.587849e+00,    Om: 3.689729e+01,    ReLambda: 2055.869
-Time: 0.165261,    iter:       28,    Dt: 5.924286e-03,    Ek: 1.588221e+00,    Om: 3.713390e+01,    ReLambda: 2049.788
-Time: 0.171194,    iter:       29,    Dt: 5.932849e-03,    Ek: 1.588596e+00,    Om: 3.737519e+01,    ReLambda: 2043.645
-Time: 0.177089,    iter:       30,    Dt: 5.895897e-03,    Ek: 1.588973e+00,    Om: 3.761902e+01,    ReLambda: 2037.493
-Time: 0.182963,    iter:       31,    Dt: 5.873596e-03,    Ek: 1.589346e+00,    Om: 3.786296e+01,    ReLambda: 2031.396
-Time: 0.188830,    iter:       32,    Dt: 5.867412e-03,    Ek: 1.589717e+00,    Om: 3.810779e+01,    ReLambda: 2025.332
-Time: 0.194708,    iter:       33,    Dt: 5.878002e-03,    Ek: 1.590086e+00,    Om: 3.835402e+01,    ReLambda: 2019.290
-Time: 0.200578,    iter:       34,    Dt: 5.869815e-03,    Ek: 1.590024e+00,    Om: 3.865418e+01,    ReLambda: 2011.356
-Time: 0.206422,    iter:       35,    Dt: 5.844214e-03,    Ek: 1.589956e+00,    Om: 3.895975e+01,    ReLambda: 2003.367
-Time: 0.212266,    iter:       36,    Dt: 5.843515e-03,    Ek: 1.589887e+00,    Om: 3.926942e+01,    ReLambda: 1995.365
-Time: 0.218133,    iter:       37,    Dt: 5.867350e-03,    Ek: 1.589819e+00,    Om: 3.958538e+01,    ReLambda: 1987.301
-Time: 0.224009,    iter:       38,    Dt: 5.875677e-03,    Ek: 1.589753e+00,    Om: 3.990901e+01,    ReLambda: 1979.145
-Time: 0.229873,    iter:       39,    Dt: 5.863547e-03,    Ek: 1.589685e+00,    Om: 4.023836e+01,    ReLambda: 1970.944
-Time: 0.235690,    iter:       40,    Dt: 5.817039e-03,    Ek: 1.589614e+00,    Om: 4.057192e+01,    ReLambda: 1962.739
-Time: 0.241447,    iter:       41,    Dt: 5.757013e-03,    Ek: 1.589540e+00,    Om: 4.090706e+01,    ReLambda: 1954.591
-Time: 0.247153,    iter:       42,    Dt: 5.706420e-03,    Ek: 1.589465e+00,    Om: 4.124321e+01,    ReLambda: 1946.517
-Time: 0.252818,    iter:       43,    Dt: 5.664930e-03,    Ek: 1.589391e+00,    Om: 4.158133e+01,    ReLambda: 1938.496
-Time: 0.258450,    iter:       44,    Dt: 5.632119e-03,    Ek: 1.589317e+00,    Om: 4.192179e+01,    ReLambda: 1930.519
-Time: 0.264058,    iter:       45,    Dt: 5.607769e-03,    Ek: 1.589243e+00,    Om: 4.226495e+01,    ReLambda: 1922.577
-Time: 0.269650,    iter:       46,    Dt: 5.591873e-03,    Ek: 1.589171e+00,    Om: 4.261121e+01,    ReLambda: 1914.662
-Time: 0.275193,    iter:       47,    Dt: 5.543519e-03,    Ek: 1.589098e+00,    Om: 4.296099e+01,    ReLambda: 1906.765
-Time: 0.280699,    iter:       48,    Dt: 5.505895e-03,    Ek: 1.589023e+00,    Om: 4.331092e+01,    ReLambda: 1898.956
-Time: 0.286186,    iter:       49,    Dt: 5.487124e-03,    Ek: 1.588948e+00,    Om: 4.366268e+01,    ReLambda: 1891.203
-Time: 0.291656,    iter:       50,    Dt: 5.469702e-03,    Ek: 1.588875e+00,    Om: 4.401770e+01,    ReLambda: 1883.474
-Time: 0.297091,    iter:       51,    Dt: 5.435512e-03,    Ek: 1.588802e+00,    Om: 4.437552e+01,    ReLambda: 1875.778
-Time: 0.302503,    iter:       52,    Dt: 5.411935e-03,    Ek: 1.588727e+00,    Om: 4.473434e+01,    ReLambda: 1868.152
-Time: 0.307903,    iter:       53,    Dt: 5.399160e-03,    Ek: 1.588653e+00,    Om: 4.509553e+01,    ReLambda: 1860.569
-Time: 0.313300,    iter:       54,    Dt: 5.397332e-03,    Ek: 1.588579e+00,    Om: 4.545980e+01,    ReLambda: 1853.013
-Time: 0.318703,    iter:       55,    Dt: 5.402679e-03,    Ek: 1.588506e+00,    Om: 4.582787e+01,    ReLambda: 1845.472
-Time: 0.324102,    iter:       56,    Dt: 5.399686e-03,    Ek: 1.588433e+00,    Om: 4.620008e+01,    ReLambda: 1837.939
-Time: 0.329519,    iter:       57,    Dt: 5.416879e-03,    Ek: 1.588359e+00,    Om: 4.657530e+01,    ReLambda: 1830.435
-Time: 0.334886,    iter:       58,    Dt: 5.366910e-03,    Ek: 1.588286e+00,    Om: 4.695583e+01,    ReLambda: 1822.919
-Time: 0.340217,    iter:       59,    Dt: 5.330489e-03,    Ek: 1.588206e+00,    Om: 4.733396e+01,    ReLambda: 1815.532
-Time: 0.345526,    iter:       60,    Dt: 5.309557e-03,    Ek: 1.588128e+00,    Om: 4.771298e+01,    ReLambda: 1808.217
-Time: 0.350830,    iter:       61,    Dt: 5.303906e-03,    Ek: 1.588050e+00,    Om: 4.809415e+01,    ReLambda: 1800.950
-Time: 0.356144,    iter:       62,    Dt: 5.313523e-03,    Ek: 1.587974e+00,    Om: 4.847856e+01,    ReLambda: 1793.709
-Time: 0.361482,    iter:       63,    Dt: 5.338517e-03,    Ek: 1.587898e+00,    Om: 4.886734e+01,    ReLambda: 1786.474
-Time: 0.366861,    iter:       64,    Dt: 5.379093e-03,    Ek: 1.587823e+00,    Om: 4.926170e+01,    ReLambda: 1779.225
-Time: 0.372297,    iter:       65,    Dt: 5.435535e-03,    Ek: 1.587749e+00,    Om: 4.966290e+01,    ReLambda: 1771.941
-Time: 0.377689,    iter:       66,    Dt: 5.392060e-03,    Ek: 1.587675e+00,    Om: 5.007230e+01,    ReLambda: 1764.600
-Time: 0.383047,    iter:       67,    Dt: 5.358437e-03,    Ek: 1.587590e+00,    Om: 5.047797e+01,    ReLambda: 1757.402
-Time: 0.388391,    iter:       68,    Dt: 5.343737e-03,    Ek: 1.587507e+00,    Om: 5.088427e+01,    ReLambda: 1750.279
-Time: 0.393738,    iter:       69,    Dt: 5.347413e-03,    Ek: 1.587424e+00,    Om: 5.129321e+01,    ReLambda: 1743.197
-Time: 0.399108,    iter:       70,    Dt: 5.369170e-03,    Ek: 1.587343e+00,    Om: 5.170625e+01,    ReLambda: 1736.132
-Time: 0.404516,    iter:       71,    Dt: 5.408899e-03,    Ek: 1.587264e+00,    Om: 5.212488e+01,    ReLambda: 1729.060
-Time: 0.409983,    iter:       72,    Dt: 5.466619e-03,    Ek: 1.587184e+00,    Om: 5.255063e+01,    ReLambda: 1721.956
-Time: 0.415440,    iter:       73,    Dt: 5.456936e-03,    Ek: 1.587106e+00,    Om: 5.298513e+01,    ReLambda: 1714.796
-Time: 0.420884,    iter:       74,    Dt: 5.444062e-03,    Ek: 1.587020e+00,    Om: 5.341951e+01,    ReLambda: 1707.717
-Time: 0.426335,    iter:       75,    Dt: 5.450737e-03,    Ek: 1.586933e+00,    Om: 5.385583e+01,    ReLambda: 1700.692
-Time: 0.431801,    iter:       76,    Dt: 5.466551e-03,    Ek: 1.586847e+00,    Om: 5.429679e+01,    ReLambda: 1693.680
-Time: 0.437202,    iter:       77,    Dt: 5.400235e-03,    Ek: 1.586761e+00,    Om: 5.474286e+01,    ReLambda: 1686.675
-Time: 0.442539,    iter:       78,    Dt: 5.337954e-03,    Ek: 1.586667e+00,    Om: 5.518324e+01,    ReLambda: 1679.831
-Time: 0.447840,    iter:       79,    Dt: 5.300667e-03,    Ek: 1.586573e+00,    Om: 5.562150e+01,    ReLambda: 1673.101
-Time: 0.453127,    iter:       80,    Dt: 5.287319e-03,    Ek: 1.586481e+00,    Om: 5.606074e+01,    ReLambda: 1666.437
-Time: 0.458424,    iter:       81,    Dt: 5.296470e-03,    Ek: 1.586392e+00,    Om: 5.650299e+01,    ReLambda: 1659.809
-Time: 0.463751,    iter:       82,    Dt: 5.326634e-03,    Ek: 1.586304e+00,    Om: 5.695012e+01,    ReLambda: 1653.189
-Time: 0.469127,    iter:       83,    Dt: 5.376150e-03,    Ek: 1.586217e+00,    Om: 5.740399e+01,    ReLambda: 1646.551
-Time: 0.474448,    iter:       84,    Dt: 5.321656e-03,    Ek: 1.586132e+00,    Om: 5.786632e+01,    ReLambda: 1639.872
-Time: 0.479711,    iter:       85,    Dt: 5.263015e-03,    Ek: 1.586034e+00,    Om: 5.832239e+01,    ReLambda: 1633.347
-Time: 0.484942,    iter:       86,    Dt: 5.230573e-03,    Ek: 1.585936e+00,    Om: 5.877582e+01,    ReLambda: 1626.934
-Time: 0.490165,    iter:       87,    Dt: 5.223099e-03,    Ek: 1.585840e+00,    Om: 5.923048e+01,    ReLambda: 1620.580
-Time: 0.495404,    iter:       88,    Dt: 5.239017e-03,    Ek: 1.585747e+00,    Om: 5.968861e+01,    ReLambda: 1614.253
-Time: 0.500681,    iter:       89,    Dt: 5.276871e-03,    Ek: 1.585655e+00,    Om: 6.015231e+01,    ReLambda: 1607.926
+Time: 0.017387,    iter:        3,    Dt: 5.956966e-03,    Ek: 1.580675e+00,    Om: 3.279000e+01,    ReLambda: 2170.977
+Time: 0.023314,    iter:        4,    Dt: 5.927263e-03,    Ek: 1.580810e+00,    Om: 3.285804e+01,    ReLambda: 2168.914
+Time: 0.029231,    iter:        5,    Dt: 5.917067e-03,    Ek: 1.580974e+00,    Om: 3.294094e+01,    ReLambda: 2166.408
+Time: 0.035157,    iter:        6,    Dt: 5.925220e-03,    Ek: 1.581164e+00,    Om: 3.303770e+01,    ReLambda: 2163.493
+Time: 0.041108,    iter:        7,    Dt: 5.950995e-03,    Ek: 1.581378e+00,    Om: 3.314744e+01,    ReLambda: 2160.201
+Time: 0.047101,    iter:        8,    Dt: 5.993624e-03,    Ek: 1.581613e+00,    Om: 3.326941e+01,    ReLambda: 2156.558
+Time: 0.053054,    iter:        9,    Dt: 5.952445e-03,    Ek: 1.581868e+00,    Om: 3.340302e+01,    ReLambda: 2152.588
+Time: 0.058977,    iter:       10,    Dt: 5.923043e-03,    Ek: 1.582137e+00,    Om: 3.354521e+01,    ReLambda: 2148.386
+Time: 0.064890,    iter:       11,    Dt: 5.912953e-03,    Ek: 1.582417e+00,    Om: 3.369526e+01,    ReLambda: 2143.977
+Time: 0.070811,    iter:       12,    Dt: 5.921391e-03,    Ek: 1.582708e+00,    Om: 3.385286e+01,    ReLambda: 2139.373
+Time: 0.076758,    iter:       13,    Dt: 5.947460e-03,    Ek: 1.583009e+00,    Om: 3.401793e+01,    ReLambda: 2134.583
+Time: 0.082749,    iter:       14,    Dt: 5.990154e-03,    Ek: 1.583320e+00,    Om: 3.419055e+01,    ReLambda: 2129.606
+Time: 0.088749,    iter:       15,    Dt: 6.000597e-03,    Ek: 1.583642e+00,    Om: 3.437094e+01,    ReLambda: 2124.441
+Time: 0.094693,    iter:       16,    Dt: 5.943861e-03,    Ek: 1.583971e+00,    Om: 3.455774e+01,    ReLambda: 2119.132
+Time: 0.100597,    iter:       17,    Dt: 5.903719e-03,    Ek: 1.584302e+00,    Om: 3.474832e+01,    ReLambda: 2113.755
+Time: 0.106478,    iter:       18,    Dt: 5.881351e-03,    Ek: 1.584638e+00,    Om: 3.494305e+01,    ReLambda: 2108.304
+Time: 0.112355,    iter:       19,    Dt: 5.876639e-03,    Ek: 1.584978e+00,    Om: 3.514231e+01,    ReLambda: 2102.769
+Time: 0.118244,    iter:       20,    Dt: 5.889270e-03,    Ek: 1.585323e+00,    Om: 3.534649e+01,    ReLambda: 2097.143
+Time: 0.124163,    iter:       21,    Dt: 5.918711e-03,    Ek: 1.585674e+00,    Om: 3.555607e+01,    ReLambda: 2091.416
+Time: 0.130070,    iter:       22,    Dt: 5.906915e-03,    Ek: 1.586031e+00,    Om: 3.577153e+01,    ReLambda: 2085.578
+Time: 0.135933,    iter:       23,    Dt: 5.863345e-03,    Ek: 1.586392e+00,    Om: 3.599085e+01,    ReLambda: 2079.687
+Time: 0.141772,    iter:       24,    Dt: 5.839391e-03,    Ek: 1.586753e+00,    Om: 3.621248e+01,    ReLambda: 2073.785
+Time: 0.147607,    iter:       25,    Dt: 5.834924e-03,    Ek: 1.587115e+00,    Om: 3.643711e+01,    ReLambda: 2067.855
+Time: 0.153456,    iter:       26,    Dt: 5.849088e-03,    Ek: 1.587481e+00,    Om: 3.666527e+01,    ReLambda: 2061.885
+Time: 0.159337,    iter:       27,    Dt: 5.880899e-03,    Ek: 1.587849e+00,    Om: 3.689742e+01,    ReLambda: 2055.865
+Time: 0.165262,    iter:       28,    Dt: 5.924607e-03,    Ek: 1.588221e+00,    Om: 3.713404e+01,    ReLambda: 2049.785
+Time: 0.171194,    iter:       29,    Dt: 5.932385e-03,    Ek: 1.588596e+00,    Om: 3.737533e+01,    ReLambda: 2043.641
+Time: 0.177090,    iter:       30,    Dt: 5.895530e-03,    Ek: 1.588973e+00,    Om: 3.761914e+01,    ReLambda: 2037.490
+Time: 0.182963,    iter:       31,    Dt: 5.873334e-03,    Ek: 1.589346e+00,    Om: 3.786306e+01,    ReLambda: 2031.393
+Time: 0.188830,    iter:       32,    Dt: 5.867236e-03,    Ek: 1.589716e+00,    Om: 3.810788e+01,    ReLambda: 2025.330
+Time: 0.194708,    iter:       33,    Dt: 5.877881e-03,    Ek: 1.590086e+00,    Om: 3.835409e+01,    ReLambda: 2019.288
+Time: 0.200579,    iter:       34,    Dt: 5.870251e-03,    Ek: 1.590024e+00,    Om: 3.865424e+01,    ReLambda: 2011.354
+Time: 0.206423,    iter:       35,    Dt: 5.844792e-03,    Ek: 1.589956e+00,    Om: 3.895984e+01,    ReLambda: 2003.365
+Time: 0.212268,    iter:       36,    Dt: 5.844213e-03,    Ek: 1.589887e+00,    Om: 3.926953e+01,    ReLambda: 1995.362
+Time: 0.218134,    iter:       37,    Dt: 5.866581e-03,    Ek: 1.589819e+00,    Om: 3.958552e+01,    ReLambda: 1987.298
+Time: 0.224009,    iter:       38,    Dt: 5.875013e-03,    Ek: 1.589753e+00,    Om: 3.990905e+01,    ReLambda: 1979.144
+Time: 0.229873,    iter:       39,    Dt: 5.864285e-03,    Ek: 1.589685e+00,    Om: 4.023835e+01,    ReLambda: 1970.945
+Time: 0.235689,    iter:       40,    Dt: 5.815156e-03,    Ek: 1.589614e+00,    Om: 4.057198e+01,    ReLambda: 1962.737
+Time: 0.241444,    iter:       41,    Dt: 5.755207e-03,    Ek: 1.589540e+00,    Om: 4.090696e+01,    ReLambda: 1954.593
+Time: 0.247149,    iter:       42,    Dt: 5.704696e-03,    Ek: 1.589465e+00,    Om: 4.124303e+01,    ReLambda: 1946.521
+Time: 0.252812,    iter:       43,    Dt: 5.663253e-03,    Ek: 1.589391e+00,    Om: 4.158111e+01,    ReLambda: 1938.501
+Time: 0.258442,    iter:       44,    Dt: 5.630448e-03,    Ek: 1.589317e+00,    Om: 4.192156e+01,    ReLambda: 1930.524
+Time: 0.264048,    iter:       45,    Dt: 5.606065e-03,    Ek: 1.589244e+00,    Om: 4.226474e+01,    ReLambda: 1922.582
+Time: 0.269638,    iter:       46,    Dt: 5.590098e-03,    Ek: 1.589171e+00,    Om: 4.261102e+01,    ReLambda: 1914.667
+Time: 0.275181,    iter:       47,    Dt: 5.542181e-03,    Ek: 1.589099e+00,    Om: 4.296081e+01,    ReLambda: 1906.770
+Time: 0.280685,    iter:       48,    Dt: 5.504576e-03,    Ek: 1.589024e+00,    Om: 4.331076e+01,    ReLambda: 1898.960
+Time: 0.286171,    iter:       49,    Dt: 5.485836e-03,    Ek: 1.588949e+00,    Om: 4.366248e+01,    ReLambda: 1891.208
+Time: 0.291637,    iter:       50,    Dt: 5.465565e-03,    Ek: 1.588876e+00,    Om: 4.401740e+01,    ReLambda: 1883.481
+Time: 0.297068,    iter:       51,    Dt: 5.431173e-03,    Ek: 1.588802e+00,    Om: 4.437475e+01,    ReLambda: 1875.795
+Time: 0.302475,    iter:       52,    Dt: 5.407437e-03,    Ek: 1.588727e+00,    Om: 4.473307e+01,    ReLambda: 1868.179
+Time: 0.307870,    iter:       53,    Dt: 5.394522e-03,    Ek: 1.588652e+00,    Om: 4.509367e+01,    ReLambda: 1860.607
+Time: 0.313262,    iter:       54,    Dt: 5.392567e-03,    Ek: 1.588578e+00,    Om: 4.545728e+01,    ReLambda: 1853.064
+Time: 0.318663,    iter:       55,    Dt: 5.400743e-03,    Ek: 1.588505e+00,    Om: 4.582463e+01,    ReLambda: 1845.536
+Time: 0.324061,    iter:       56,    Dt: 5.397632e-03,    Ek: 1.588432e+00,    Om: 4.619638e+01,    ReLambda: 1838.011
+Time: 0.329475,    iter:       57,    Dt: 5.414283e-03,    Ek: 1.588357e+00,    Om: 4.657105e+01,    ReLambda: 1830.517
+Time: 0.334838,    iter:       58,    Dt: 5.362750e-03,    Ek: 1.588284e+00,    Om: 4.695097e+01,    ReLambda: 1823.011
+Time: 0.340164,    iter:       59,    Dt: 5.325970e-03,    Ek: 1.588203e+00,    Om: 4.732838e+01,    ReLambda: 1815.636
+Time: 0.345468,    iter:       60,    Dt: 5.304701e-03,    Ek: 1.588124e+00,    Om: 4.770669e+01,    ReLambda: 1808.333
+Time: 0.350767,    iter:       61,    Dt: 5.298715e-03,    Ek: 1.588046e+00,    Om: 4.808714e+01,    ReLambda: 1801.077
+Time: 0.356075,    iter:       62,    Dt: 5.307998e-03,    Ek: 1.587969e+00,    Om: 4.847081e+01,    ReLambda: 1793.847
+Time: 0.361408,    iter:       63,    Dt: 5.332661e-03,    Ek: 1.587893e+00,    Om: 4.885882e+01,    ReLambda: 1786.625
+Time: 0.366781,    iter:       64,    Dt: 5.372918e-03,    Ek: 1.587818e+00,    Om: 4.925238e+01,    ReLambda: 1779.388
+Time: 0.372210,    iter:       65,    Dt: 5.429070e-03,    Ek: 1.587743e+00,    Om: 4.965274e+01,    ReLambda: 1772.116
+Time: 0.377597,    iter:       66,    Dt: 5.386835e-03,    Ek: 1.587669e+00,    Om: 5.006125e+01,    ReLambda: 1764.788
+Time: 0.382949,    iter:       67,    Dt: 5.352719e-03,    Ek: 1.587584e+00,    Om: 5.046617e+01,    ReLambda: 1757.600
+Time: 0.388287,    iter:       68,    Dt: 5.337515e-03,    Ek: 1.587500e+00,    Om: 5.087161e+01,    ReLambda: 1750.490
+Time: 0.393627,    iter:       69,    Dt: 5.340687e-03,    Ek: 1.587417e+00,    Om: 5.127961e+01,    ReLambda: 1743.421
+Time: 0.398989,    iter:       70,    Dt: 5.361935e-03,    Ek: 1.587336e+00,    Om: 5.169166e+01,    ReLambda: 1736.369
+Time: 0.404391,    iter:       71,    Dt: 5.401166e-03,    Ek: 1.587256e+00,    Om: 5.210924e+01,    ReLambda: 1729.310
+Time: 0.409849,    iter:       72,    Dt: 5.458428e-03,    Ek: 1.587176e+00,    Om: 5.253393e+01,    ReLambda: 1722.220
+Time: 0.415306,    iter:       73,    Dt: 5.457111e-03,    Ek: 1.587097e+00,    Om: 5.296735e+01,    ReLambda: 1715.074
+Time: 0.420750,    iter:       74,    Dt: 5.444263e-03,    Ek: 1.587012e+00,    Om: 5.340173e+01,    ReLambda: 1707.993
+Time: 0.426201,    iter:       75,    Dt: 5.450935e-03,    Ek: 1.586924e+00,    Om: 5.383776e+01,    ReLambda: 1700.968
+Time: 0.431659,    iter:       76,    Dt: 5.458014e-03,    Ek: 1.586838e+00,    Om: 5.427842e+01,    ReLambda: 1693.957
+Time: 0.437058,    iter:       77,    Dt: 5.399138e-03,    Ek: 1.586751e+00,    Om: 5.472303e+01,    ReLambda: 1686.969
+Time: 0.442395,    iter:       78,    Dt: 5.336734e-03,    Ek: 1.586657e+00,    Om: 5.516319e+01,    ReLambda: 1680.126
+Time: 0.447694,    iter:       79,    Dt: 5.299316e-03,    Ek: 1.586562e+00,    Om: 5.560090e+01,    ReLambda: 1673.400
+Time: 0.452980,    iter:       80,    Dt: 5.285962e-03,    Ek: 1.586470e+00,    Om: 5.603952e+01,    ReLambda: 1666.741
+Time: 0.458276,    iter:       81,    Dt: 5.295206e-03,    Ek: 1.586380e+00,    Om: 5.648113e+01,    ReLambda: 1660.118
+Time: 0.463601,    iter:       82,    Dt: 5.325541e-03,    Ek: 1.586292e+00,    Om: 5.692767e+01,    ReLambda: 1653.502
+Time: 0.468976,    iter:       83,    Dt: 5.375282e-03,    Ek: 1.586205e+00,    Om: 5.738100e+01,    ReLambda: 1646.868
+Time: 0.474296,    iter:       84,    Dt: 5.319621e-03,    Ek: 1.586119e+00,    Om: 5.784290e+01,    ReLambda: 1640.190
+Time: 0.479556,    iter:       85,    Dt: 5.259814e-03,    Ek: 1.586021e+00,    Om: 5.829849e+01,    ReLambda: 1633.668
+Time: 0.484782,    iter:       86,    Dt: 5.226328e-03,    Ek: 1.585923e+00,    Om: 5.875145e+01,    ReLambda: 1627.257
+Time: 0.490000,    iter:       87,    Dt: 5.217956e-03,    Ek: 1.585827e+00,    Om: 5.920564e+01,    ReLambda: 1620.906
+Time: 0.495233,    iter:       88,    Dt: 5.233132e-03,    Ek: 1.585734e+00,    Om: 5.966331e+01,    ReLambda: 1614.582
+Time: 0.500504,    iter:       89,    Dt: 5.270406e-03,    Ek: 1.585642e+00,    Om: 6.012655e+01,    ReLambda: 1608.257
 
 Final time-steps: 89
-Final time:       0.500681
-Final energy:     1.585655
-Final ReLambda:   1607.926
+Final time:       0.500504
+Final energy:     1.585642
+Final ReLambda:   1608.257
 
-Total time: 1.018548
-Loop time:  0.757935
-Time/iter:  0.008516
+Total time: 0.716314
+Loop time:  0.452404
+Time/iter:  0.005083
 
