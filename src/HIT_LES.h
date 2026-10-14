@@ -112,6 +112,7 @@ class HIT {
 		// 1.) R VECTOR:
 		//Convective term in Fourier space
 		void Recalculate_Velocity_Gradients_Fourier_Coefficients();
+		void Recalculate_Vorticity_Fourier_Coefficients();
 		void Recalculate_Velocity_Antitransform();
 		void Recalculate_Convective_Fourier_Coefficients();
 		//Divergence of SGS tensor in Fourier space (LES modelling)
@@ -224,11 +225,13 @@ class HIT {
 		ptrdiff_t alloc_local, local_n0, local_0_start, local_n1, local_1_start;
 		REAL *u, *v, *w;
 		REAL *gradu[3], *gradv[3], *gradw[3];
+		REAL *vort[3]; //Vorticity: curl u. Not named "omega" to avoid clashing with omega_x/y/z (rotation rate)
 		REAL *convx, *convy, *convz;
 		REAL *velGradInv[5];
 		COMPLEX *velGradInvk[5];
 		COMPLEX *uk_aux, *vk_aux, *wk_aux, *uk_0, *vk_0, *wk_0, *uk_1, *vk_1, *wk_1;
 		COMPLEX *gradu_k[3], *gradv_k[3], *gradw_k[3];
+		COMPLEX *vort_k[3];
 		COMPLEX *convx_k, *convy_k, *convz_k;
 		COMPLEX *Rx0_k, *Ry0_k, *Rz0_k, *Rx1_k, *Ry1_k, *Rz1_k;
 		bool *dealiased, *conjugate;

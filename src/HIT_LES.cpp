@@ -77,6 +77,31 @@ void HIT::Recalculate_Velocity_Gradients_Fourier_Coefficients() {
 		}
 	}
 };
+// Vorticity (curl of u) in Fourier space
+// If non-LES, used to save 6 IFFT in Recalculate_Convective_Fourier_Coefficients()
+void HIT::Recalculate_Vorticity_Fourier_Coefficients() {
+	LOOP_FOURIER_k1k2k3 {
+		const int ind = (b*Mx + a) * (Mz_2 + 1) + k3;
+		const int k1  = FOURIER_FREQ(a, Mx);
+		const int k2  = FOURIER_FREQ(b, local_1_start, My);
+		if (dealiased[ind]) {
+			//omega_x = dw/dy - dv/dz = i*k2*w - i*k3*v
+			vort_k[0][ind][0] = -k2*wk_1[ind][1] + k3*vk_1[ind][1];
+			vort_k[0][ind][1] =  k2*wk_1[ind][0] - k3*vk_1[ind][0];
+			//omega_y = du/dz - dw/dx = i*k3*u - i*k1*w
+			vort_k[1][ind][0] = -k3*uk_1[ind][1] + k1*wk_1[ind][1];
+			vort_k[1][ind][1] =  k3*uk_1[ind][0] - k1*wk_1[ind][0];
+			//omega_z = dv/dx - du/dy = i*k1*v - i*k2*u
+			vort_k[2][ind][0] = -k1*vk_1[ind][1] + k2*uk_1[ind][1];
+			vort_k[2][ind][1] =  k1*vk_1[ind][0] - k2*uk_1[ind][0];
+		} else { //For de-aliasing purposes
+			for (int coord=0; coord<3; coord++) {
+				vort_k[coord][ind][0] = 0.0;
+				vort_k[coord][ind][1] = 0.0;
+			}
+		}
+	}
+};
 // Calculation of physical velocity using Fourier series expansion
 void HIT::Recalculate_Velocity_Antitransform() {
 	//Copy and IFFT are both master-only serial work with nothing else in between --
@@ -93,67 +118,100 @@ void HIT::Recalculate_Velocity_Antitransform() {
 	}
 	#pragma omp barrier
 };
-// Recalculate_Convective_Fourier_Coefficients():
-//	1.) Calculation of gradu, gradv and gradw
-//	2.) Calculation convective term in Physical space
-//	3.) Calculation convective term in Fourier space
+// Recalculate_Convective_Fourier_Coefficients(). Two paths:
+//    1) LES: Needs the full gradient tensor, so graduvw is computed through 9 IFFT.
+//    2) Non-LES: Uses the rotational formulation: u.grad(u) = vort x u + grad(|u|^2/2).
+//                Then, only vorticity's 3 IFFT are required, as grad(|u|^2/2) can be
+//                ignored: it is curl-free, and the divergence-free projection discards
+//                it anyway. Equivalent to the full form after projection given exact
+//                dealiasing, although not bit-identical beforehand.
 void HIT::Recalculate_Convective_Fourier_Coefficients() {
-	//Recalculate gradients of velocity in Fourier space
-	Recalculate_Velocity_Gradients_Fourier_Coefficients();
 	//Obtention of the velocity field in the Physical space (via the IFFT)
 	Recalculate_Velocity_Antitransform();
-	//Calculation of the convective term in Fourier space. Loop over [coord] (1=x, 2=y, 3=z)
-	for(int coord=0; coord<3; coord++){
-		//Temporary aliases
-		REAL *convxyz = NULL;
-		REAL *graduvw[3] = {NULL,NULL,NULL};
-		COMPLEX *convxyz_k = NULL;
-		COMPLEX *graduvw_k[3] = {NULL,NULL,NULL};
-		//Alias assignation
-		switch(coord){
-			case 0:
-				for (int sub_coord=0; sub_coord<3; sub_coord++) { //x-velocity gradient
-					graduvw[sub_coord] = gradu[sub_coord];
-					graduvw_k[sub_coord] = gradu_k[sub_coord];
+	if (isLES) {
+		//Recalculate gradients of velocity in Fourier space
+		Recalculate_Velocity_Gradients_Fourier_Coefficients();
+		//Calculation of the convective term in Fourier space. Loop over [coord] (1=x, 2=y, 3=z)
+		for(int coord=0; coord<3; coord++){
+			//Temporary aliases
+			REAL *convxyz = NULL;
+			REAL *graduvw[3] = {NULL,NULL,NULL};
+			COMPLEX *convxyz_k = NULL;
+			COMPLEX *graduvw_k[3] = {NULL,NULL,NULL};
+			//Alias assignation
+			switch(coord){
+				case 0:
+					for (int sub_coord=0; sub_coord<3; sub_coord++) { //x-velocity gradient
+						graduvw[sub_coord] = gradu[sub_coord];
+						graduvw_k[sub_coord] = gradu_k[sub_coord];
+					}
+					convxyz = convx;
+					convxyz_k = convx_k;
+					break;
+				case 1:
+					for (int sub_coord=0; sub_coord<3; sub_coord++) { //y-velocity gradient
+						graduvw[sub_coord] = gradv[sub_coord];
+						graduvw_k[sub_coord] = gradv_k[sub_coord];
+					}
+					convxyz = convy;
+					convxyz_k = convy_k;
+					break;
+				case 2:
+					for (int sub_coord=0; sub_coord<3; sub_coord++) { //z-velocity gradient
+						graduvw[sub_coord] = gradw[sub_coord];
+						graduvw_k[sub_coord] = gradw_k[sub_coord];
+					}
+					convxyz = convz;
+					convxyz_k = convz_k;
+					break;
+			}
+			//IFFT of each component of the gradient of velocity (c2r)
+			#pragma omp master
+			{
+				for(int sub_coord=0; sub_coord<3; sub_coord++){
+					fftw.IFFTWc2r(graduvw_k[sub_coord],graduvw[sub_coord]);
 				}
-				convxyz = convx;
-				convxyz_k = convx_k;
-				break;
-			case 1:
-				for (int sub_coord=0; sub_coord<3; sub_coord++) { //y-velocity gradient
-					graduvw[sub_coord] = gradv[sub_coord];
-					graduvw_k[sub_coord] = gradv_k[sub_coord];
-				}
-				convxyz = convy;
-				convxyz_k = convy_k;
-				break;
-			case 2:
-				for (int sub_coord=0; sub_coord<3; sub_coord++) { //z-velocity gradient
-					graduvw[sub_coord] = gradw[sub_coord];
-					graduvw_k[sub_coord] = gradw_k[sub_coord];
-				}
-				convxyz = convz;
-				convxyz_k = convz_k;
-				break;
+			}
+			#pragma omp barrier
+			//Calculation of the [coord]-convective term in Physical space
+			LOOP_REAL {
+				const int ind = (i*My + j) * 2*(Mz_2 + 1) + k;
+				convxyz[ind] = u[ind] * graduvw[0][ind] + v[ind] * graduvw[1][ind] + w[ind] * graduvw[2][ind];
+			}
+			//Calculation of the [coord]-convective term in Fourier space
+			#pragma omp master
+			fftw.FFTWr2c(convxyz,convxyz_k); //FFT (r2c)
+			#pragma omp barrier
+			fftw.Fourier_Normalization(convxyz_k,dealiased); //Normalization of relevant coefficients (has its own omp-for + barrier)
 		}
-		//IFFT of each component of the gradient of velocity (c2r)
+	} else {
+		//Recalculate vorticity in Fourier space
+		Recalculate_Vorticity_Fourier_Coefficients();
+		//Batched into one master/barrier round-trip, as in Recalculate_Velocity_Antitransform
 		#pragma omp master
 		{
-			for(int sub_coord=0; sub_coord<3; sub_coord++){
-				fftw.IFFTWc2r(graduvw_k[sub_coord],graduvw[sub_coord]);
-			}
+			fftw.IFFTWc2r(vort_k[0],vort[0]);
+			fftw.IFFTWc2r(vort_k[1],vort[1]);
+			fftw.IFFTWc2r(vort_k[2],vort[2]);
 		}
 		#pragma omp barrier
-		//Calculation of the [coord]-convective term in Physical space
+		//vort x u; sign matches u.grad(u) (Rx1_k negates convx_k, as in the LES branch)
 		LOOP_REAL {
 			const int ind = (i*My + j) * 2*(Mz_2 + 1) + k;
-			convxyz[ind] = u[ind] * graduvw[0][ind] + v[ind] * graduvw[1][ind] + w[ind] * graduvw[2][ind];
+			convx[ind] = vort[1][ind]*w[ind] - vort[2][ind]*v[ind];
+			convy[ind] = vort[2][ind]*u[ind] - vort[0][ind]*w[ind];
+			convz[ind] = vort[0][ind]*v[ind] - vort[1][ind]*u[ind];
 		}
-		//Calculation of the [coord]-convective term in Fourier space
 		#pragma omp master
-		fftw.FFTWr2c(convxyz,convxyz_k); //FFT (r2c)
+		{
+			fftw.FFTWr2c(convx,convx_k);
+			fftw.FFTWr2c(convy,convy_k);
+			fftw.FFTWr2c(convz,convz_k);
+		}
 		#pragma omp barrier
-		fftw.Fourier_Normalization(convxyz_k,dealiased); //Normalization of relevant coefficients (has its own omp-for + barrier)
+		fftw.Fourier_Normalization(convx_k,dealiased);
+		fftw.Fourier_Normalization(convy_k,dealiased);
+		fftw.Fourier_Normalization(convz_k,dealiased);
 	}
 };
 
@@ -866,6 +924,7 @@ void HIT::HIT_init() {
 		gradu[coord] = alloc_real(2*alloc_local);
 		gradv[coord] = alloc_real(2*alloc_local);
 		gradw[coord] = alloc_real(2*alloc_local);
+		if (!isLES) vort[coord] = alloc_real(2*alloc_local);
 	}
 	convx = alloc_real(2 * alloc_local);
 	convy = alloc_real(2 * alloc_local);
@@ -893,6 +952,7 @@ void HIT::HIT_init() {
 		gradu_k[coord] = alloc_complex(alloc_local);
 		gradv_k[coord] = alloc_complex(alloc_local);
 		gradw_k[coord] = alloc_complex(alloc_local);
+		if (!isLES) vort_k[coord] = alloc_complex(alloc_local);
 	}
 	convx_k = alloc_complex(alloc_local);
 	convy_k = alloc_complex(alloc_local);
@@ -1193,6 +1253,7 @@ void HIT::HIT_destroy() {
 	for (int coord=0; coord<3; coord++) {
 		FREE(gradu[coord]); FREE(gradv[coord]); FREE(gradw[coord]);
 		FREE(gradu_k[coord]); FREE(gradv_k[coord]); FREE(gradw_k[coord]);
+		if (!isLES) FREE(vort[coord]); FREE(vort_k[coord]);
 	}
 	// Yotta stuff
 	for(int coord=0; coord<5; coord++) {
@@ -1387,6 +1448,13 @@ void HIT::Calculate_Ek_init_file(COMPLEX const * const uk_file, COMPLEX const * 
 
 //Calculation of velocity gradient tensor invariants' distribution
 void HIT::Recalculate_Invariants_Distribution(const char* filename[5]) {
+	//If isLES, then it is already computed. Called outside any parallel region, so no master/barrier needed
+	Recalculate_Velocity_Gradients_Fourier_Coefficients();
+	for (int coord=0; coord<3; coord++) {
+		fftw.IFFTWc2r(gradu_k[coord], gradu[coord]);
+		fftw.IFFTWc2r(gradv_k[coord], gradv[coord]);
+		fftw.IFFTWc2r(gradw_k[coord], gradw[coord]);
+	}
 	//Calculation of velocity gradient invariants
 	struct tensor G;
 	alloc_fill_rand_tensor(&G,0);
