@@ -1253,7 +1253,7 @@ void HIT::HIT_destroy() {
 	for (int coord=0; coord<3; coord++) {
 		FREE(gradu[coord]); FREE(gradv[coord]); FREE(gradw[coord]);
 		FREE(gradu_k[coord]); FREE(gradv_k[coord]); FREE(gradw_k[coord]);
-		if (!isLES) FREE(vort[coord]); FREE(vort_k[coord]);
+		if (!isLES) { FREE(vort[coord]); FREE(vort_k[coord]); }
 	}
 	// Yotta stuff
 	for(int coord=0; coord<5; coord++) {
