@@ -1,4 +1,5 @@
 #include "HIT_LES.h"
+#include <omp.h>
 
 int iter = 0;
 
@@ -10,18 +11,35 @@ void HIT::New_Fractional_Step_Method() {
 #if(QA) //USED FOR QA TESTS
 	Check_PhysFour_Energy(1e-13);
 #endif
-	//Calculation of R vector
-	Recalculate_R_vector_Fourier_Coefficients();
-	//Calculation of the predictor velocity at the following timestep (from R vector)
-	Recalculate_Predictor_Velocity_Fourier_Coefficients();
-	//Calculation of the new timesteps velocity distribution (from predictor velocity)
-	Recalculate_Divergence_Free_Projection();
-	//Obtention of new timestep
-	Recalculate_TimeStep();
-	//Update of total simulated time
-	time=time+At;
-	//Update of intern iteration counter
-	iter++;
+	//Reset local_MaxVel/_kappa05 before the team forks, not inside it: both are
+	//shared scalars (local_MaxVel via a reduction, whose combine step folds in its
+	//pre-existing value), so resetting them here avoids needing a barrier to do it
+	//race-free.
+	local_MaxVel = 0.0;
+	if (isSelfAdaptive) _kappa05 = (1.0/(kappa+0.5));
+	//Single parallel region for the whole per-iteration hot path: opened/closed once
+	//per iteration instead of once per LOOP_* call (~30x fewer team fork/joins). The
+	//functions below use "omp for" (worksharing, no new team), and gate every
+	//FFTW/MPI call and every plain scalar update (like `iter` below) behind
+	//"omp master" + "omp barrier".
+	#pragma omp parallel
+	{
+		//Calculation of R vector
+		Recalculate_R_vector_Fourier_Coefficients();
+		//Calculation of the predictor velocity at the following timestep (from R vector)
+		Recalculate_Predictor_Velocity_Fourier_Coefficients();
+		//Calculation of the new timesteps velocity distribution (from predictor velocity)
+		Recalculate_Divergence_Free_Projection();
+		//Obtention of new timestep
+		Recalculate_TimeStep();
+		//Update of total simulated time and intern iteration counter -- master-only:
+		//done by every thread, `iter` would advance by nthreads per real timestep.
+		#pragma omp master
+		{
+			time=time+At;
+			iter++;
+		}
+	}
 };
 
 //===================================================
@@ -33,6 +51,9 @@ void HIT::New_Fractional_Step_Method() {
 // Comment Recalculate_Velocity_Gradients_Fourier_Coefficients
 void HIT::Recalculate_Velocity_Gradients_Fourier_Coefficients() {
 	LOOP_FOURIER_k1k2k3{ //Velocity spatial derivatives in Fourier space
+		const int ind = (b*Mx + a) * (Mz_2 + 1) + k3;
+		const int k1  = FOURIER_FREQ(a, Mx);
+		const int k2  = FOURIER_FREQ(b, local_1_start, My);
 		if (dealiased[ind]) {
 			gradu_k[0][ind][0] = -k1 * uk_1[ind][1];  gradu_k[0][ind][1] = k1 * uk_1[ind][0]; //dudx_k
 			gradu_k[1][ind][0] = -k2 * uk_1[ind][1];  gradu_k[1][ind][1] = k2 * uk_1[ind][0]; //dudy_k
@@ -56,71 +77,141 @@ void HIT::Recalculate_Velocity_Gradients_Fourier_Coefficients() {
 		}
 	}
 };
+// Vorticity (curl of u) in Fourier space
+// If non-LES, used to save 6 IFFT in Recalculate_Convective_Fourier_Coefficients()
+void HIT::Recalculate_Vorticity_Fourier_Coefficients() {
+	LOOP_FOURIER_k1k2k3 {
+		const int ind = (b*Mx + a) * (Mz_2 + 1) + k3;
+		const int k1  = FOURIER_FREQ(a, Mx);
+		const int k2  = FOURIER_FREQ(b, local_1_start, My);
+		if (dealiased[ind]) {
+			//omega_x = dw/dy - dv/dz = i*k2*w - i*k3*v
+			vort_k[0][ind][0] = -k2*wk_1[ind][1] + k3*vk_1[ind][1];
+			vort_k[0][ind][1] =  k2*wk_1[ind][0] - k3*vk_1[ind][0];
+			//omega_y = du/dz - dw/dx = i*k3*u - i*k1*w
+			vort_k[1][ind][0] = -k3*uk_1[ind][1] + k1*wk_1[ind][1];
+			vort_k[1][ind][1] =  k3*uk_1[ind][0] - k1*wk_1[ind][0];
+			//omega_z = dv/dx - du/dy = i*k1*v - i*k2*u
+			vort_k[2][ind][0] = -k1*vk_1[ind][1] + k2*uk_1[ind][1];
+			vort_k[2][ind][1] =  k1*vk_1[ind][0] - k2*uk_1[ind][0];
+		} else { //For de-aliasing purposes
+			for (int coord=0; coord<3; coord++) {
+				vort_k[coord][ind][0] = 0.0;
+				vort_k[coord][ind][1] = 0.0;
+			}
+		}
+	}
+};
 // Calculation of physical velocity using Fourier series expansion
 void HIT::Recalculate_Velocity_Antitransform() {
-	//Auxiliary copy needed because c2r leaves garbage at input
-	memcpy(uk_aux, uk_1, sizeof(COMPLEX) * alloc_local);
-	memcpy(vk_aux, vk_1, sizeof(COMPLEX) * alloc_local);
-	memcpy(wk_aux, wk_1, sizeof(COMPLEX) * alloc_local);
-	//IFFT: Vxy
-	fftw.IFFTWc2r(uk_aux,u);
-	fftw.IFFTWc2r(vk_aux,v);
-	fftw.IFFTWc2r(wk_aux,w);
+	//Copy and IFFT are both master-only serial work with nothing else in between --
+	//merged into one master block so the team pays for one barrier round-trip
+	//instead of two. Auxiliary copy needed because c2r leaves garbage at input.
+	#pragma omp master
+	{
+		memcpy(uk_aux, uk_1, sizeof(COMPLEX) * alloc_local);
+		memcpy(vk_aux, vk_1, sizeof(COMPLEX) * alloc_local);
+		memcpy(wk_aux, wk_1, sizeof(COMPLEX) * alloc_local);
+		fftw.IFFTWc2r(uk_aux,u);
+		fftw.IFFTWc2r(vk_aux,v);
+		fftw.IFFTWc2r(wk_aux,w);
+	}
+	#pragma omp barrier
 };
-// Recalculate_Convective_Fourier_Coefficients():
-//	1.) Calculation of gradu, gradv and gradw
-//	2.) Calculation convective term in Physical space
-//	3.) Calculation convective term in Fourier space
+// Recalculate_Convective_Fourier_Coefficients(). Two paths:
+//    1) LES: Needs the full gradient tensor, so graduvw is computed through 9 IFFT.
+//    2) Non-LES: Uses the rotational formulation: u.grad(u) = vort x u + grad(|u|^2/2).
+//                Then, only vorticity's 3 IFFT are required, as grad(|u|^2/2) can be
+//                ignored: it is curl-free, and the divergence-free projection discards
+//                it anyway. Equivalent to the full form after projection given exact
+//                dealiasing, although not bit-identical beforehand.
 void HIT::Recalculate_Convective_Fourier_Coefficients() {
-	//Recalculate gradients of velocity in Fourier space
-	Recalculate_Velocity_Gradients_Fourier_Coefficients();
 	//Obtention of the velocity field in the Physical space (via the IFFT)
 	Recalculate_Velocity_Antitransform();
-	//Calculation of the convective term in Fourier space. Loop over [coord] (1=x, 2=y, 3=z)
-	for(int coord=0; coord<3; coord++){
-		//Temporary aliases
-		REAL *convxyz = NULL;
-		REAL *graduvw[3] = {NULL,NULL,NULL};
-		COMPLEX *convxyz_k = NULL;
-		COMPLEX *graduvw_k[3] = {NULL,NULL,NULL};
-		//Alias assignation
-		switch(coord){
-			case 0:
-				for (int sub_coord=0; sub_coord<3; sub_coord++) { //x-velocity gradient
-					graduvw[sub_coord] = gradu[sub_coord];
-					graduvw_k[sub_coord] = gradu_k[sub_coord];
+	if (isLES) {
+		//Recalculate gradients of velocity in Fourier space
+		Recalculate_Velocity_Gradients_Fourier_Coefficients();
+		//Calculation of the convective term in Fourier space. Loop over [coord] (1=x, 2=y, 3=z)
+		for(int coord=0; coord<3; coord++){
+			//Temporary aliases
+			REAL *convxyz = NULL;
+			REAL *graduvw[3] = {NULL,NULL,NULL};
+			COMPLEX *convxyz_k = NULL;
+			COMPLEX *graduvw_k[3] = {NULL,NULL,NULL};
+			//Alias assignation
+			switch(coord){
+				case 0:
+					for (int sub_coord=0; sub_coord<3; sub_coord++) { //x-velocity gradient
+						graduvw[sub_coord] = gradu[sub_coord];
+						graduvw_k[sub_coord] = gradu_k[sub_coord];
+					}
+					convxyz = convx;
+					convxyz_k = convx_k;
+					break;
+				case 1:
+					for (int sub_coord=0; sub_coord<3; sub_coord++) { //y-velocity gradient
+						graduvw[sub_coord] = gradv[sub_coord];
+						graduvw_k[sub_coord] = gradv_k[sub_coord];
+					}
+					convxyz = convy;
+					convxyz_k = convy_k;
+					break;
+				case 2:
+					for (int sub_coord=0; sub_coord<3; sub_coord++) { //z-velocity gradient
+						graduvw[sub_coord] = gradw[sub_coord];
+						graduvw_k[sub_coord] = gradw_k[sub_coord];
+					}
+					convxyz = convz;
+					convxyz_k = convz_k;
+					break;
+			}
+			//IFFT of each component of the gradient of velocity (c2r)
+			#pragma omp master
+			{
+				for(int sub_coord=0; sub_coord<3; sub_coord++){
+					fftw.IFFTWc2r(graduvw_k[sub_coord],graduvw[sub_coord]);
 				}
-				convxyz = convx;
-				convxyz_k = convx_k;
-				break;
-			case 1:
-				for (int sub_coord=0; sub_coord<3; sub_coord++) { //y-velocity gradient
-					graduvw[sub_coord] = gradv[sub_coord];
-					graduvw_k[sub_coord] = gradv_k[sub_coord];
-				}
-				convxyz = convy;
-				convxyz_k = convy_k;
-				break;
-			case 2:
-				for (int sub_coord=0; sub_coord<3; sub_coord++) { //z-velocity gradient
-					graduvw[sub_coord] = gradw[sub_coord];
-					graduvw_k[sub_coord] = gradw_k[sub_coord];
-				}
-				convxyz = convz;
-				convxyz_k = convz_k;
-				break;
+			}
+			#pragma omp barrier
+			//Calculation of the [coord]-convective term in Physical space
+			LOOP_REAL {
+				const int ind = (i*My + j) * 2*(Mz_2 + 1) + k;
+				convxyz[ind] = u[ind] * graduvw[0][ind] + v[ind] * graduvw[1][ind] + w[ind] * graduvw[2][ind];
+			}
+			//Calculation of the [coord]-convective term in Fourier space
+			#pragma omp master
+			fftw.FFTWr2c(convxyz,convxyz_k); //FFT (r2c)
+			#pragma omp barrier
+			fftw.Fourier_Normalization(convxyz_k,dealiased); //Normalization of relevant coefficients (has its own omp-for + barrier)
 		}
-		//IFFT of each component of the gradient of velocity (c2r)
-		for(int sub_coord=0; sub_coord<3; sub_coord++){
-			fftw.IFFTWc2r(graduvw_k[sub_coord],graduvw[sub_coord]);
+	} else {
+		//Recalculate vorticity in Fourier space
+		Recalculate_Vorticity_Fourier_Coefficients();
+		//Batched into one master/barrier round-trip, as in Recalculate_Velocity_Antitransform
+		#pragma omp master
+		{
+			fftw.IFFTWc2r(vort_k[0],vort[0]);
+			fftw.IFFTWc2r(vort_k[1],vort[1]);
+			fftw.IFFTWc2r(vort_k[2],vort[2]);
 		}
-		//Calculation of the [coord]-convective term in Physical space
+		#pragma omp barrier
+		//vort x u; sign matches u.grad(u) (Rx1_k negates convx_k, as in the LES branch)
 		LOOP_REAL {
-			convxyz[ind] = u[ind] * graduvw[0][ind] + v[ind] * graduvw[1][ind] + w[ind] * graduvw[2][ind];
+			const int ind = (i*My + j) * 2*(Mz_2 + 1) + k;
+			convx[ind] = vort[1][ind]*w[ind] - vort[2][ind]*v[ind];
+			convy[ind] = vort[2][ind]*u[ind] - vort[0][ind]*w[ind];
+			convz[ind] = vort[0][ind]*v[ind] - vort[1][ind]*u[ind];
 		}
-		//Calculation of the [coord]-convective term in Fourier space
-		fftw.FFTWr2c(convxyz,convxyz_k); //FFT (r2c)
-		fftw.Fourier_Normalization(convxyz_k,dealiased); //Normalization of relevant coefficients
+		#pragma omp master
+		{
+			fftw.FFTWr2c(convx,convx_k);
+			fftw.FFTWr2c(convy,convy_k);
+			fftw.FFTWr2c(convz,convz_k);
+		}
+		#pragma omp barrier
+		fftw.Fourier_Normalization(convx_k,dealiased);
+		fftw.Fourier_Normalization(convy_k,dealiased);
+		fftw.Fourier_Normalization(convz_k,dealiased);
 	}
 };
 
@@ -131,6 +222,7 @@ void HIT::Recalculate_Eddy_Viscosity() {
 	// Smagorinsky model
 	const REAL ct = C_Smag * C_Smag * delta * delta;
 	LOOP_REAL {
+		const int ind = (i*My + j) * 2*(Mz_2 + 1) + k;
 		nu_eddy[ind] = 2.0 * gradu[0][ind] * gradu[0][ind];
 		nu_eddy[ind] += 2.0 * gradv[1][ind] * gradv[1][ind];
 		nu_eddy[ind] += 2.0 * gradw[2][ind] * gradw[2][ind];
@@ -144,6 +236,7 @@ void HIT::Recalculate_Eddy_Viscosity() {
 void HIT::Recalculate_SGS_Tensor_Components() {
 	Recalculate_Eddy_Viscosity();
 	LOOP_REAL {
+		const int ind = (i*My + j) * 2*(Mz_2 + 1) + k;
 		SGS_11[ind] = (-2.0) * nu_eddy[ind] * gradu[0][ind];
 		SGS_21[ind] = (-1.0) * nu_eddy[ind] * (gradu[1][ind] + gradv[0][ind]);
 		SGS_22[ind] = (-2.0) * nu_eddy[ind] * gradv[1][ind];
@@ -155,12 +248,16 @@ void HIT::Recalculate_SGS_Tensor_Components() {
 // Calculation of SGS tensor components in Fourier space
 void HIT::Recalculate_SGS_Tensor_Transform() {
 	//FFT: SGS_Tensor
-	fftw.FFTWr2c(SGS_11,SGS_11_k);
-	fftw.FFTWr2c(SGS_21,SGS_21_k);
-	fftw.FFTWr2c(SGS_22,SGS_22_k);
-	fftw.FFTWr2c(SGS_31,SGS_31_k);
-	fftw.FFTWr2c(SGS_32,SGS_32_k);
-	fftw.FFTWr2c(SGS_33,SGS_33_k);
+	#pragma omp master
+	{
+		fftw.FFTWr2c(SGS_11,SGS_11_k);
+		fftw.FFTWr2c(SGS_21,SGS_21_k);
+		fftw.FFTWr2c(SGS_22,SGS_22_k);
+		fftw.FFTWr2c(SGS_31,SGS_31_k);
+		fftw.FFTWr2c(SGS_32,SGS_32_k);
+		fftw.FFTWr2c(SGS_33,SGS_33_k);
+	}
+	#pragma omp barrier
 	//Normalization
 	fftw.Fourier_Normalization(SGS_11_k,dealiased);
 	fftw.Fourier_Normalization(SGS_21_k,dealiased);
@@ -177,6 +274,9 @@ void HIT::Recalculate_SGS_Tensor_Divergence_Fourier_Coefficients() {
 	Recalculate_SGS_Tensor_Transform();
 	//SGS tensor divergence components in Fourier space
 	LOOP_FOURIER_k1k2k3 {
+		const int ind = (b*Mx + a) * (Mz_2 + 1) + k3;
+		const int k1  = FOURIER_FREQ(a, Mx);
+		const int k2  = FOURIER_FREQ(b, local_1_start, My);
 		if (dealiased[ind]) {
 			// divSGSx_k
 			divSGSx_k[ind][0] = - k1 * SGS_11_k[ind][1] - k2 * SGS_21_k[ind][1] - k3 * SGS_31_k[ind][1];
@@ -194,18 +294,24 @@ void HIT::Recalculate_SGS_Tensor_Divergence_Fourier_Coefficients() {
 //=========================
 // 3.) R VECTOR
 void HIT::Recalculate_R_vector_Fourier_Coefficients() {
-	//Update last timestep value of R vector
-	memcpy(Rx0_k, Rx1_k, sizeof(COMPLEX) * alloc_local);
-	memcpy(Ry0_k, Ry1_k, sizeof(COMPLEX) * alloc_local);
-	memcpy(Rz0_k, Rz1_k, sizeof(COMPLEX) * alloc_local);
+	//NOWAIT: Rx0_k/Ry0_k/Rz0_k aren't read again until well past several later
+	//barriers, which already flush this write for every thread by then.
+	COPY3_COMPLEX_NOWAIT(Rx0_k,Ry0_k,Rz0_k, Rx1_k,Ry1_k,Rz1_k, alloc_local);
 	//Calculate new R vector in Fourier space
 	Recalculate_Convective_Fourier_Coefficients();
-	REAL ct;
-	bool isMeanVelTerm;
-	LOOP_FOURIER {
+	//NOWAIT: safe in all 4 isLES x isRotating combinations -- whichever of {this
+	//loop, the isLES/isRotating loops below} writes Rx1_k/Ry1_k/Rz1_k LAST, that
+	//write isn't read again until Predictor_Velocity's COPY3_COMPLEX barrier. All
+	//these loops share the same shape/schedule, so thread t's own writes here
+	//happen-before thread t's own writes to the same indices later; no other
+	//thread touches them.
+	LOOP_FOURIER_NOWAIT {
+		const int ind = (b*Mx + a) * (Mz_2 + 1) + k3;
 		if (dealiased[ind]) {
-			ct = nu * rad2[ind];
-			isMeanVelTerm = !(rad2[ind] > 0.0);
+			//Must be loop-local, not hoisted: once this is a real "omp for", a shared
+			//scratch variable would be clobbered by concurrent iterations.
+			const REAL ct = nu * rad2[ind];
+			const bool isMeanVelTerm = !(rad2[ind] > 0.0);
 			for (int ic=0; ic<=1; ic++){ //ic=0 => Real part, ic=1 => Imaginary part
 				// Convective term is zero at K=0 by incompressibility+periodicity;
 				// zeroing it here prevents FP residuals from contaminating the mean flow.
@@ -218,7 +324,10 @@ void HIT::Recalculate_R_vector_Fourier_Coefficients() {
 	}
 	if (isLES) {
 		Recalculate_SGS_Tensor_Divergence_Fourier_Coefficients();
-		LOOP_FOURIER {
+		//nowait: safe only because the very next thing (isRotating's loop, if taken)
+		//is another LOOP_FOURIER with nothing in between -- see the note in util.h.
+		LOOP_FOURIER_NOWAIT {
+			const int ind = (b*Mx + a) * (Mz_2 + 1) + k3;
 			if (dealiased[ind]) {
 				for (int ic=0; ic<=1; ic++){ //ic=0 => Real part, ic=1 => Imaginary part
 					Rx1_k[ind][ic] -= divSGSx_k[ind][ic];
@@ -229,8 +338,11 @@ void HIT::Recalculate_R_vector_Fourier_Coefficients() {
 		}
 	}
 	if (isRotating) {
-		//Considering the system is rotating with angular rotation velocity (omega_x,omega_y,omega_z)
-		LOOP_FOURIER {
+		//Considering the system is rotating with angular rotation velocity
+		//(omega_x,omega_y,omega_z). NOWAIT: same reasoning as above -- this is the
+		//last possible writer to Rx1_k/Ry1_k/Rz1_k in this function.
+		LOOP_FOURIER_NOWAIT {
+			const int ind = (b*Mx + a) * (Mz_2 + 1) + k3;
 			if (dealiased[ind]) {
 				for (int ic=0; ic<=1; ic++){ //ic=0 => Real part, ic=1 => Imaginary part
 					Rx1_k[ind][ic] += 2 * (omega_z * vk_1[ind][ic] - omega_y * wk_1[ind][ic]);
@@ -296,17 +408,17 @@ void HIT::Recalculate_Predictor_Velocity_Fourier_Coefficients() {
 	if (isSelfAdaptive) {
 		//Update old values
 		if (iter > 0) { //Initial old velocity field equal to 0.0 unstabilities
-			memcpy(uk_aux, uk_0, sizeof(COMPLEX) * alloc_local);
-			memcpy(vk_aux, vk_0, sizeof(COMPLEX) * alloc_local);
-			memcpy(wk_aux, wk_0, sizeof(COMPLEX) * alloc_local);
+			COPY3_COMPLEX(uk_aux,vk_aux,wk_aux, uk_0,vk_0,wk_0, alloc_local);
 		}
-		memcpy(uk_0, uk_1, sizeof(COMPLEX) * alloc_local);
-		memcpy(vk_0, vk_1, sizeof(COMPLEX) * alloc_local);
-		memcpy(wk_0, wk_1, sizeof(COMPLEX) * alloc_local);
-		//Related to self-adaptive timestep
-		_kappa05 = (1.0/(kappa+0.5));
+		COPY3_COMPLEX(uk_0,vk_0,wk_0, uk_1,vk_1,wk_1, alloc_local);
+		//_kappa05 already computed pre-fork by New_Fractional_Step_Method -- see the
+		//comment there.
 		//Calculation of new coefficients
-		LOOP_FOURIER {
+		//nowait: safe because the caller's very next call, Recalculate_Divergence_Free_
+		//Projection, opens with a LOOP_FOURIER_k1k2k3 over the exact same trip count --
+		//see the note in util.h.
+		LOOP_FOURIER_NOWAIT {
+			const int ind = (b*Mx + a) * (Mz_2 + 1) + k3;
 			if (dealiased[ind]) {
 				for (int ic=0; ic<=1; ic++){ //ic=0 => Real part, ic=1 => Imaginary part
 					//Adaptive timestep
@@ -321,11 +433,11 @@ void HIT::Recalculate_Predictor_Velocity_Fourier_Coefficients() {
 		}
 	} else {
 		//Update old values
-		memcpy(uk_0, uk_1, sizeof(COMPLEX) * alloc_local);
-		memcpy(vk_0, vk_1, sizeof(COMPLEX) * alloc_local);
-		memcpy(wk_0, wk_1, sizeof(COMPLEX) * alloc_local);
+		COPY3_COMPLEX(uk_0,vk_0,wk_0, uk_1,vk_1,wk_1, alloc_local);
 		//Calculation of new coefficients
-		LOOP_FOURIER {
+		//nowait: see the identical note on the isSelfAdaptive branch's final loop above.
+		LOOP_FOURIER_NOWAIT {
+			const int ind = (b*Mx + a) * (Mz_2 + 1) + k3;
 			if (dealiased[ind]) {
 				for (int ic=0; ic<=1; ic++){ //ic=0 => Real part, ic=1 => Imaginary part
 					//Adams-Bashforth method
@@ -344,12 +456,17 @@ void HIT::Recalculate_Predictor_Velocity_Fourier_Coefficients() {
 
 // Divergence-free projection of predictor velocity (result of substracting the gradient of pseudo-pressure -> operator (k^t·k)/(k·k))
 void HIT::Recalculate_Divergence_Free_Projection() {
-	REAL aux;
-	//Projection of Predictor velocity and calculation of uk_n+1 (stored in ukxyz_1 replacing predictor velocity)
-	LOOP_FOURIER_k1k2k3 {
+	//Projection of Predictor velocity, result stored back into uk_1/vk_1/wk_1.
+	//NOWAIT: not read again until next iteration's Recalculate_Velocity_Gradients_
+	//Fourier_Coefficients, after the parallel region closes and reopens (itself a
+	//full synchronization).
+	LOOP_FOURIER_NOWAIT {
+		const int ind = (b*Mx + a) * (Mz_2 + 1) + k3;
+		const int k1  = FOURIER_FREQ(a, Mx);
+		const int k2  = FOURIER_FREQ(b, local_1_start, My);
 		if (dealiased[ind]) {
 			for (int ic=0; ic<=1; ic++){ //ic=0 => Real part, ic=1 => Imaginary part
-				aux = ((rad2[ind]>0) ? ((k1*uk_1[ind][ic]+k2*vk_1[ind][ic]+k3*wk_1[ind][ic])/rad2[ind]) : 0.0);
+				const REAL aux = ((rad2[ind]>0) ? ((k1*uk_1[ind][ic]+k2*vk_1[ind][ic]+k3*wk_1[ind][ic])/rad2[ind]) : 0.0);
 				uk_1[ind][ic] -= aux * k1;
 				vk_1[ind][ic] -= aux * k2;
 				wk_1[ind][ic] -= aux * k3;
@@ -371,35 +488,49 @@ void HIT::Recalculate_TimeStep() {
 }
 // Calculation of new self-adaptive timestep
 void HIT::Recalculate_SelfAdaptive_TimeStep() {
-	//Compute local maximums at each process
-	REAL local_MaxVel = 0.0;
-	LOOP_REAL {
+	//local_MaxVel is a class member (needed for the reduction below to be legal --
+	//see HIT_LES.h), so it carries over from the last call and must be reset before
+	//any thread enters the reduction -- resetting it inside the team would race.
+	//New_Fractional_Step_Method's hot path already resets it pre-fork; when called
+	//standalone (no active team) there's nothing to race against, so reset here.
+	if (!omp_in_parallel()) local_MaxVel = 0.0;
+	LOOP_REAL_REDUCE(max:local_MaxVel) {
+		const int ind = (i*My + j) * 2*(Mz_2 + 1) + k;
 		local_MaxVel = max(local_MaxVel, (fabs(u[ind])/Ax + fabs(v[ind])/Ay + fabs(w[ind])/Az));
 	}
-	//Compute maximum accros processes
-	MaxVel = 0.0;
-	MPI_Allreduce(&local_MaxVel, &MaxVel, 1, REAL_MPI, MPI_MAX, MCW);
-	//Recalculate self-adaptive timestep
-	phi0 = atan(MaxVel*Ah*Ah/(0.35*nu*12.0)); //0.35 per la constant Cc
-	At = Topt(phi0)/sqrt((MaxVel*MaxVel)/(0.35*0.35)+(144.0*nu*nu/(Ah*Ah*Ah*Ah)));
-	kappa = Kopt(phi0);
-	At = C_At*At;
+	//MPI_Allreduce is effectively collective, so only the master thread may call it.
+	//No barrier needed after: this is the last statement of the hot path's parallel
+	//region, and the next reader only runs after that region closes and reopens.
+	#pragma omp master
+	{
+		MaxVel = 0.0;
+		MPI_Allreduce(&local_MaxVel, &MaxVel, 1, REAL_MPI, MPI_MAX, MCW);
+		//Recalculate self-adaptive timestep
+		phi0 = atan(MaxVel*Ah*Ah/(0.35*nu*12.0)); //0.35 per la constant Cc
+		At = Topt(phi0)/sqrt((MaxVel*MaxVel)/(0.35*0.35)+(144.0*nu*nu/(Ah*Ah*Ah*Ah)));
+		kappa = Kopt(phi0);
+		At = C_At*At;
+	}
 };
 // Calculation of new CFL timestep
 void HIT::Recalculate_CFL_TimeStep() {
-	//Compute local maximums at each process
-	REAL local_MaxVel = 0.0;
-	LOOP_REAL {
+	//See the identical note in Recalculate_SelfAdaptive_TimeStep.
+	if (!omp_in_parallel()) local_MaxVel = 0.0;
+	LOOP_REAL_REDUCE(max:local_MaxVel) {
+		const int ind = (i*My + j) * 2*(Mz_2 + 1) + k;
 		local_MaxVel = max(local_MaxVel, max(fabs(u[ind])/Ax, max(fabs(v[ind])/Ay, fabs(w[ind])/Az)));
 	}
-	//Compute maximum accros processes
-	MaxVel = 0.0;
-	MPI_Allreduce(&local_MaxVel, &MaxVel, 1, REAL_MPI, MPI_MAX, MCW);
-	//Recalculate CFL timestep
-	C_visc = 0.2 * min(Ax*Ax, min(Ay*Ay, Az*Az)) / nu;
-	C_conv = 0.35 / MaxVel;
-	At = min(C_visc, C_conv);
-	At = C_At * At;
+	//See the identical note in Recalculate_SelfAdaptive_TimeStep.
+	#pragma omp master
+	{
+		MaxVel = 0.0;
+		MPI_Allreduce(&local_MaxVel, &MaxVel, 1, REAL_MPI, MPI_MAX, MCW);
+		//Recalculate CFL timestep
+		C_visc = 0.2 * min(Ax*Ax, min(Ay*Ay, Az*Az)) / nu;
+		C_conv = 0.35 / MaxVel;
+		At = min(C_visc, C_conv);
+		At = C_At * At;
+	}
 };
 
 //=====================================================================================================================
@@ -419,6 +550,7 @@ void HIT::Forcing_Energy_Cascade(REAL const * const Forced_Ek, const ptrdiff_t& 
 	}
 	//Scaling of velocity to force the energy cascade to be as Forced_Ek
 	LOOP_FOURIER {
+		const int ind = (b*Mx + a) * (Mz_2 + 1) + k3;
 		if (dealiased[ind]) {
 			int K = static_cast<int>(round(sqrt(rad2[ind])));
 			if (K <= last_eff_rad) {
@@ -502,7 +634,11 @@ REAL HIT::Recalculate_Enstrophy() {
 void HIT::Input_K41_Field() {
 	//Set random velocity field in Fourier space
 	srand(0); //Set fixed seed
+	//Not called from inside any parallel region (setup-only, once) -- LOOP_FOURIER's
+	//omp-for runs serially here, which this relies on: rand() is a shared, ordered
+	//PRNG stream and would need a different generator to be genuinely parallelized.
 	LOOP_FOURIER {
+		const int ind = (b*Mx + a) * (Mz_2 + 1) + k3;
 		for (int ic=0; ic<=1; ic++) { //ic=0 => Real part, ic=1 => Imaginary part
 			if (dealiased[ind]) {
 				int K = static_cast<int>(round(sqrt(rad2[ind])));
@@ -891,6 +1027,7 @@ void HIT::HIT_init() {
 		gradu[coord] = alloc_real(2*alloc_local);
 		gradv[coord] = alloc_real(2*alloc_local);
 		gradw[coord] = alloc_real(2*alloc_local);
+		if (!isLES) vort[coord] = alloc_real(2*alloc_local);
 	}
 	convx = alloc_real(2 * alloc_local);
 	convy = alloc_real(2 * alloc_local);
@@ -918,6 +1055,7 @@ void HIT::HIT_init() {
 		gradu_k[coord] = alloc_complex(alloc_local);
 		gradv_k[coord] = alloc_complex(alloc_local);
 		gradw_k[coord] = alloc_complex(alloc_local);
+		if (!isLES) vort_k[coord] = alloc_complex(alloc_local);
 	}
 	convx_k = alloc_complex(alloc_local);
 	convy_k = alloc_complex(alloc_local);
@@ -937,6 +1075,9 @@ void HIT::HIT_init() {
 	//===================================================
 	//rad2: Initialization of vector radium (to avoid repeated calculations)
 	LOOP_FOURIER_k1k2k3 {
+		const int ind = (b*Mx + a) * (Mz_2 + 1) + k3;
+		const int k1  = FOURIER_FREQ(a, Mx);
+		const int k2  = FOURIER_FREQ(b, local_1_start, My);
 		rad2[ind] = static_cast<REAL>(k1*k1+k2*k2+k3*k3);
 	}
 	//num_dealiased_real: number of relevant terms (considering the length factors) per process
@@ -962,6 +1103,9 @@ void HIT::HIT_init() {
 	//C) num_dealiased: Number of dealiased terms present in current process
 	num_dealiased = 0;
 	LOOP_FOURIER_k1k2k3 {
+		const int ind = (b*Mx + a) * (Mz_2 + 1) + k3;
+		const int k1  = FOURIER_FREQ(a, Mx);
+		const int k2  = FOURIER_FREQ(b, local_1_start, My);
 		//Exclusion of aliased terms (3/2 rule implemented)
 		if (abs(k1)<=Nx_2 && abs(k2)<=Ny_2 && k3<=Nz_2) {
 			dealiased[ind] = true;
@@ -981,6 +1125,7 @@ void HIT::HIT_init() {
 	//conjugate: Initialization of a bool vector to know wether a mode also has an associated conjugate (and
 	//it has to be counted twice when computing the kinetic energy) or not
 	LOOP_FOURIER_k1k2k3 {
+		const int ind = (b*Mx + a) * (Mz_2 + 1) + k3;
 		//Exclude k3=0 as well as the Nyquist XY-plane in case Nz is even (if Nz is odd, then k3=Nz/2 has an
 		//associated conjugate)
 		conjugate[ind] = dealiased[ind] && (k3 != 0) && !((Mz%2 == 0) && (k3 == Mz_2));
@@ -1211,6 +1356,7 @@ void HIT::HIT_destroy() {
 	for (int coord=0; coord<3; coord++) {
 		FREE(gradu[coord]); FREE(gradv[coord]); FREE(gradw[coord]);
 		FREE(gradu_k[coord]); FREE(gradv_k[coord]); FREE(gradw_k[coord]);
+		if (!isLES) { FREE(vort[coord]); FREE(vort_k[coord]); }
 	}
 	// Yotta stuff
 	for(int coord=0; coord<5; coord++) {
@@ -1268,6 +1414,7 @@ REAL HIT::Integrate_Field(std::function<REAL(int a, int b, int k3)>& funcFieldNo
 		}
 		//Recalculation of vector ptr_loc[K]
 		LOOP_FOURIER {
+			const int ind = (b*Mx + a) * (Mz_2 + 1) + k3;
 			if (dealiased[ind]) {
 				int K = static_cast<int>(round(sqrt(rad2[ind])));
 				if (Kmin<=K && K<=Kmax) {
@@ -1301,6 +1448,7 @@ REAL HIT::Integrate_Field(std::function<REAL(int a, int b, int k3)>& funcFieldNo
 		//Recalculation of local sum
 		REAL sum_loc = 0.0;
 		LOOP_FOURIER {
+			const int ind = (b*Mx + a) * (Mz_2 + 1) + k3;
 			if (dealiased[ind]) {
 				int K = static_cast<int>(round(sqrt(rad2[ind])));
 				if (Kmin<=K && K<=Kmax) {
@@ -1323,6 +1471,7 @@ void HIT::Check_PhysFour_Energy(const REAL atol) {
 	// Calculate total kinetic energy in the Fourier space
 	double EkFour = 0, local_EkFour = 0;
 	LOOP_FOURIER {
+		const int ind = (b*Mx + a) * (Mz_2 + 1) + k3;
 		if (dealiased[ind]) {
 			REAL aux = 0.5 * (uk_1[ind][0]*uk_1[ind][0] + uk_1[ind][1]*uk_1[ind][1] +
 							  vk_1[ind][0]*vk_1[ind][0] + vk_1[ind][1]*vk_1[ind][1] +
@@ -1340,6 +1489,7 @@ void HIT::Check_PhysFour_Energy(const REAL atol) {
 	Recalculate_Velocity_Antitransform(); //Compute u,v,w from uk_1, vk_1, wk_1
 	double EkReal = 0, local_EkReal = 0;
 	LOOP_REAL {
+		const int ind = (i*My + j) * 2*(Mz_2 + 1) + k;
 		local_EkReal += u[ind] * u[ind] + v[ind] * v[ind] + w[ind] * w[ind];
 	}
 	MPI_Allreduce(&local_EkReal, &EkReal, 1, REAL_MPI, MPI_SUM, MCW);
@@ -1379,6 +1529,9 @@ void HIT::Calculate_Ek_init_file(COMPLEX const * const uk_file, COMPLEX const * 
     double Enstrophy_partial = 0.0;
     //Sum accross Fourier modes
     LOOP_FOURIER_k1k2k3 {
+		const int ind = (b*Mx + a) * (Mz_2 + 1) + k3;
+		const int k1  = FOURIER_FREQ(a, Mx);
+		const int k2  = FOURIER_FREQ(b, local_1_start, My);
         bool relevant_file = ((k1%Lx_factor == 0) && (k2%Ly_factor == 0) && (k3%Lz_factor == 0));
         if (relevant_file) {
             REAL Ek_file = (uk_file[ind][0] * uk_file[ind][0]) + (uk_file[ind][1] * uk_file[ind][1]);
@@ -1400,10 +1553,18 @@ void HIT::Calculate_Ek_init_file(COMPLEX const * const uk_file, COMPLEX const * 
 
 //Calculation of velocity gradient tensor invariants' distribution
 void HIT::Recalculate_Invariants_Distribution(const char* filename[5]) {
+	//If isLES, then it is already computed. Called outside any parallel region, so no master/barrier needed
+	Recalculate_Velocity_Gradients_Fourier_Coefficients();
+	for (int coord=0; coord<3; coord++) {
+		fftw.IFFTWc2r(gradu_k[coord], gradu[coord]);
+		fftw.IFFTWc2r(gradv_k[coord], gradv[coord]);
+		fftw.IFFTWc2r(gradw_k[coord], gradw[coord]);
+	}
 	//Calculation of velocity gradient invariants
 	struct tensor G;
 	alloc_fill_rand_tensor(&G,0);
 	LOOP_REAL {
+		const int ind = (i*My + j) * 2*(Mz_2 + 1) + k;
 		for(int coord=0; coord<3; coord++) {
 			G.v[0][coord] = gradu[coord][ind];
 			G.v[1][coord] = gradv[coord][ind];

@@ -43,7 +43,10 @@ void HIT::DealiasedComplex3DimField_to_BinaryFile(COMPLEX const * const field_x,
 		}
 		//Initialize field_dealiased
 		int ind_dealiased = 0; //Note that ind_dealiased<=(num_dealiased-1)
+		//Not called from inside any parallel region -- this relies on serial execution:
+		//ind_dealiased is a running compaction index, not independent per iteration.
 		LOOP_FOURIER {
+			const int ind = (b*Mx + a) * (Mz_2 + 1) + k3;
 			if (dealiased[ind]) {
 				for (int ic=0; ic<=1; ic++) { //ic=0 => Real part, ic=1 => Imaginary part
 					field_dealiased[ind_dealiased][ic] = field[ind][ic];
@@ -75,7 +78,6 @@ void HIT::Real3DimField_to_BinaryFile(REAL const * const field_x, REAL const * c
     //Third slice in x-axis
     MPI_Type_contiguous(local_n0, slice_2D, &slice_3D);
     MPI_Type_commit(&slice_3D);
-
 	//Opening MPI file
 	MPI_File fh;
 	MPI_Status status;
