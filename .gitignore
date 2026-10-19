@@ -34,10 +34,8 @@
 # VIM
 *.swp
 
-# Build files
-build
+# CCLS cache files
 .ccls-cache
-*.pdf
 # QA
 stdout.*
 QA/TEST*CBC/Energy_Cascade.dat

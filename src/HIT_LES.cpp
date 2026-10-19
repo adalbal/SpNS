@@ -600,7 +600,6 @@ void HIT::Input_Real_Field() {
     MPI_Barrier(MCW);
     //Truncation/Extension of input field (in Fourier space)
     Truncate_Input_File_Fourier_Coefficients(uk_file, vk_file, wk_file);
-    //Check_PhysFour_Energy(1e-13);
     //Freeing of mallocated memory
     FREE(uk_file);
     FREE(vk_file);
@@ -1350,9 +1349,9 @@ void HIT::Check_PhysFour_Energy(const REAL atol) {
 	REAL EkSpNS = Recalculate_Energy();
 	
 	// Confront values
-	REAL diff1 = (EkReal - EkFour);
+	REAL diff1 = fabs(EkReal - EkFour);
 	REAL diff2 = fabs(EkSpNS - EkFour);
-	if (fabs(diff1)>atol || diff2>atol) {
+	if (diff1>atol || diff2>atol) {
 		crash("Ek differences exceed tolerance [EkReal vs EkFour %e, EkSpNS vs EkFour: %e]\n", diff1, diff2);
 	}
 

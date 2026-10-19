@@ -1,2 +1,0 @@
-- Re-implement legacy reading ASCII files.
-- Don't use aliased modes read from file?
