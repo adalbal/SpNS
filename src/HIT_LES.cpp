@@ -863,6 +863,35 @@ void HIT::Truncate_Input_File_Fourier_Coefficients (COMPLEX const * const uk_fil
             MPI_Type_free(&slice_send);
             MPI_Type_free(&slice_recv);
         }
+        else{
+            if(My%2 == 0){
+                block_lengths[0] = My/2 + 1;
+                block_lengths[1] = My/2 - 1;
+            }
+            else{
+                block_lengths[0] = My/2 + 1;
+                block_lengths[1] = My/2;
+            }
+            int displacements[2] = {0, int(Ny_file - block_lengths[1])};
+            MPI_Type_indexed(2, block_lengths, displacements, slice_send, &full_section);
+            MPI_Type_commit(&full_section);
+
+            MPI_Request req_s[3], req_r[3];
+            MPI_Isend(uk_file, 1, full_section, 0, 0, MCW, &req_s[0]);
+            MPI_Isend(vk_file, 1, full_section, 0, 0, MCW, &req_s[1]);
+            MPI_Isend(wk_file, 1, full_section, 0, 0, MCW, &req_s[2]);
+
+            MPI_Irecv(uk_1, My, slice_recv, 0, 0, MCW, &req_r[0]);
+            MPI_Irecv(vk_1, My, slice_recv, 0, 0, MCW, &req_r[1]);
+            MPI_Irecv(wk_1, My, slice_recv, 0, 0, MCW, &req_r[2]);
+            for(int i=0;i<3;++i){
+                MPI_Wait(&req_s[i], &status);
+                MPI_Wait(&req_r[i], &status);
+            }
+            MPI_Type_free(&full_section);
+            MPI_Type_free(&slice_send);
+            MPI_Type_free(&slice_recv);
+        }
         return;
     }
     //Store comunication info
