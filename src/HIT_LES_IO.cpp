@@ -28,7 +28,7 @@ void HIT::DealiasedComplex3DimField_to_BinaryFile(COMPLEX const * const field_x,
 		MPI_File_close(&fh);
 		MPI_File_open(MCW, filename, MPI_MODE_CREATE | MPI_MODE_WRONLY, MPI_INFO_NULL, &fh);
 	}
-	MPI_Offset bytes_per_component = sizeof(COMPLEX) * ActualNx * ActualNy * (ActualNz/2+1);
+	MPI_Offset bytes_per_component = sizeof(COMPLEX) * Nx * Ny * (Nz/2+1);
 	//Allocate memory for current's process dealiased field[ind] coefficients
 	COMPLEX *field_dealiased = alloc_complex(num_dealiased);
 	//Parallel output of each component of the complex field
@@ -225,10 +225,10 @@ void HIT::BinaryFile_to_Real3DimField (REAL * const field_x, REAL * const field_
 }
 
 void HIT::ASCIIFile_to_Real3DimField (REAL * const field_x, REAL * const field_y, REAL * const field_z) {
-    unsigned int total_file_read = local_n0_file * ActualNy_file * ActualNz_file;
+    unsigned int total_file_read = local_n0_file * Ny_file * Nz_file;
     //File read by only one MPI process (proc 0)
-    unsigned int row_offset = local_0_start_file * ActualNy_file * ActualNz_file;
-    int padding_z = 2 * (ActualNz_file/2 + 1) - ActualNz_file;
+    unsigned int row_offset = local_0_start_file * Ny_file * Nz_file;
+    int padding_z = 2 * (Nz_file/2 + 1) - Nz_file;
 
     REAL shit;
     ifstream infile;
@@ -244,7 +244,7 @@ void HIT::ASCIIFile_to_Real3DimField (REAL * const field_x, REAL * const field_y
     unsigned int index = 0;
     unsigned int num_read = 0;
     while((!infile.eof()) && (num_read < total_file_read)) {
-        if(num_read%ActualNz_file == 0 && num_read != 0){
+        if(num_read%Nz_file == 0 && num_read != 0){
             for(int i=0;i<padding_z;++i){
                 field_x[index] = 0;
                 field_y[index] = 0;
@@ -295,20 +295,18 @@ void HIT::Field2File (REAL const * const field, char const * const filename) con
 	//Data output
 	if (myrank == 0) {
 		ofstream OutputField;
-		OutputField.open(filename);
-		LOOP_3D(i,0,Mx, j,0,My, k,0,Mz) {
-//			if ((local_0_start+i)<ActualMx && j<ActualMy && k<ActualMz) { //If isNonCubic, avoids dummy repeated velocities (ActualN instead of N)
-				int l1=FOURIER_FREQ(i,Mx);
-				int l2=FOURIER_FREQ(j,My);
-				int l3=FOURIER_FREQ(k,Mz);
-				int ind = (i*My+j)*2*(Mz_2+1)+k;
-				OutputField << l1 << " " << l2 << " " << l3 << "\t" << i << " " << j << " " << k << "\t" << field_Gathered[ind] << endl;
-//			}
-		}
-		OutputField.close();
-		//Memory freeing
-		FREE(field_Gathered);
-	}
+        OutputField.open(filename);
+        LOOP_3D(i,0,Mx, j,0,My, k,0,Mz) {
+            REAL l1=FOURIER_FREQ(i,Mx)/Lx_factor;
+            REAL l2=FOURIER_FREQ(j,My)/Ly_factor;
+            REAL l3=FOURIER_FREQ(k,Mz)/Ly_factor;
+            int ind = (i*My+j)*2*(Mz_2+1)+k;
+            OutputField << l1 << " " << l2 << " " << l3 << "\t" << i << " " << j << " " << k << "\t" << field_Gathered[ind] << endl;
+        }
+        OutputField.close();
+        //Memory freeing
+        FREE(field_Gathered);
+    }
 };
 //Output of a complex field into an ASCII file by rank 0 (not efficient)
 void HIT::Field2File (COMPLEX const * const field, char const * const filename) const {
@@ -342,9 +340,11 @@ void HIT::Field2File (COMPLEX const * const field, char const * const filename) 
 			int ind=(b*Mx+a)*(Mz_2+1)+k3;
 			int k1=FOURIER_FREQ(a,Mx);
 			int k2=FOURIER_FREQ(b,My);
-			if ((abs(k1)<=Nx_2 && abs(k2)<=Ny_2 && k3<=Nz_2) && !(Nx%2==0 && k1==-Nx_2) && !(Ny%2==0 && k2==-Ny_2)
-				&& (k1%Lx_factor == 0) && (k2%Ly_factor == 0) && (k3%Lz_factor == 0)) { //Avoids aliased terms
-				OutputField << k1 << " " << k2 << " " << k3 << "\t" << field_Gathered[ind][0] << " " << field_Gathered[ind][1] << endl;
+            const REAL k1_r  = FOURIER_FREQ(a, Mx)/Lx_factor;
+            const REAL k2_r  = FOURIER_FREQ(b, local_1_start, My)/Ly_factor;
+            const REAL k3_r  = k3/Lz_factor;
+			if ((abs(k1)<=Nx_2 && abs(k2)<=Ny_2 && k3<=Nz_2) && !(Nx%2==0 && k1==-Nx_2) && !(Ny%2==0 && k2==-Ny_2)) { //Avoids aliased terms
+				OutputField << k1_r << " " << k2_r << " " << k3_r << "\t" << field_Gathered[ind][0] << " " << field_Gathered[ind][1] << endl;
 			}
 		}
 		OutputField.close();

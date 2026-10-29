@@ -52,20 +52,21 @@ void HIT::New_Fractional_Step_Method() {
 void HIT::Recalculate_Velocity_Gradients_Fourier_Coefficients() {
 	LOOP_FOURIER_k1k2k3{ //Velocity spatial derivatives in Fourier space
 		const int ind = (b*Mx + a) * (Mz_2 + 1) + k3;
-		const int k1  = FOURIER_FREQ(a, Mx);
-		const int k2  = FOURIER_FREQ(b, local_1_start, My);
+		const REAL k1_r  = FOURIER_FREQ(a, Mx)/Lx_factor;
+		const REAL k2_r  = FOURIER_FREQ(b, local_1_start, My)/Ly_factor;
+		const REAL k3_r  = k3/Lz_factor;
 		if (dealiased[ind]) {
-			gradu_k[0][ind][0] = -k1 * uk_1[ind][1];  gradu_k[0][ind][1] = k1 * uk_1[ind][0]; //dudx_k
-			gradu_k[1][ind][0] = -k2 * uk_1[ind][1];  gradu_k[1][ind][1] = k2 * uk_1[ind][0]; //dudy_k
-			gradu_k[2][ind][0] = -k3 * uk_1[ind][1];  gradu_k[2][ind][1] = k3 * uk_1[ind][0]; //dudz_k
+			gradu_k[0][ind][0] = -k1_r * uk_1[ind][1];  gradu_k[0][ind][1] = k1_r * uk_1[ind][0]; //dudx_k
+			gradu_k[1][ind][0] = -k2_r * uk_1[ind][1];  gradu_k[1][ind][1] = k2_r * uk_1[ind][0]; //dudy_k
+			gradu_k[2][ind][0] = -k3_r * uk_1[ind][1];  gradu_k[2][ind][1] = k3_r * uk_1[ind][0]; //dudz_k
 
-			gradv_k[0][ind][0] = -k1 * vk_1[ind][1];  gradv_k[0][ind][1] = k1 * vk_1[ind][0]; //dvdx_k
-			gradv_k[1][ind][0] = -k2 * vk_1[ind][1];  gradv_k[1][ind][1] = k2 * vk_1[ind][0]; //dvdy_k
-			gradv_k[2][ind][0] = -k3 * vk_1[ind][1];  gradv_k[2][ind][1] = k3 * vk_1[ind][0]; //dvdz_k
+			gradv_k[0][ind][0] = -k1_r * vk_1[ind][1];  gradv_k[0][ind][1] = k1_r * vk_1[ind][0]; //dvdx_k
+			gradv_k[1][ind][0] = -k2_r * vk_1[ind][1];  gradv_k[1][ind][1] = k2_r * vk_1[ind][0]; //dvdy_k
+			gradv_k[2][ind][0] = -k3_r * vk_1[ind][1];  gradv_k[2][ind][1] = k3_r * vk_1[ind][0]; //dvdz_k
 
-			gradw_k[0][ind][0] = -k1 * wk_1[ind][1];  gradw_k[0][ind][1] = k1 * wk_1[ind][0]; //dwdx_k
-			gradw_k[1][ind][0] = -k2 * wk_1[ind][1];  gradw_k[1][ind][1] = k2 * wk_1[ind][0]; //dwdy_k
-			gradw_k[2][ind][0] = -k3 * wk_1[ind][1];  gradw_k[2][ind][1] = k3 * wk_1[ind][0]; //dwdz_k
+			gradw_k[0][ind][0] = -k1_r * wk_1[ind][1];  gradw_k[0][ind][1] = k1_r * wk_1[ind][0]; //dwdx_k
+			gradw_k[1][ind][0] = -k2_r * wk_1[ind][1];  gradw_k[1][ind][1] = k2_r * wk_1[ind][0]; //dwdy_k
+			gradw_k[2][ind][0] = -k3_r * wk_1[ind][1];  gradw_k[2][ind][1] = k3_r * wk_1[ind][0]; //dwdz_k
 		} else { //For de-aliasing purposes
 			for (int coord=0; coord<3; coord++) {
 				for (int ic=0; ic<=1; ic++){ //ic=0 => Real part, ic=1 => Imaginary part
@@ -82,18 +83,19 @@ void HIT::Recalculate_Velocity_Gradients_Fourier_Coefficients() {
 void HIT::Recalculate_Vorticity_Fourier_Coefficients() {
 	LOOP_FOURIER_k1k2k3 {
 		const int ind = (b*Mx + a) * (Mz_2 + 1) + k3;
-		const int k1  = FOURIER_FREQ(a, Mx);
-		const int k2  = FOURIER_FREQ(b, local_1_start, My);
+		const REAL k1_r  = FOURIER_FREQ(a, Mx)/Lx_factor;
+		const REAL k2_r  = FOURIER_FREQ(b, local_1_start, My)/Ly_factor;
+		const REAL k3_r  = k3/Lz_factor;
 		if (dealiased[ind]) {
 			//omega_x = dw/dy - dv/dz = i*k2*w - i*k3*v
-			vort_k[0][ind][0] = -k2*wk_1[ind][1] + k3*vk_1[ind][1];
-			vort_k[0][ind][1] =  k2*wk_1[ind][0] - k3*vk_1[ind][0];
-			//omega_y = du/dz - dw/dx = i*k3*u - i*k1*w
-			vort_k[1][ind][0] = -k3*uk_1[ind][1] + k1*wk_1[ind][1];
-			vort_k[1][ind][1] =  k3*uk_1[ind][0] - k1*wk_1[ind][0];
-			//omega_z = dv/dx - du/dy = i*k1*v - i*k2*u
-			vort_k[2][ind][0] = -k1*vk_1[ind][1] + k2*uk_1[ind][1];
-			vort_k[2][ind][1] =  k1*vk_1[ind][0] - k2*uk_1[ind][0];
+			vort_k[0][ind][0] = -k2_r*wk_1[ind][1] + k3_r*vk_1[ind][1];
+			vort_k[0][ind][1] =  k2_r*wk_1[ind][0] - k3_r*vk_1[ind][0];
+			//omega_y = du/dz - dw/dx = i*k3*u - i*k1_r*w
+			vort_k[1][ind][0] = -k3_r*uk_1[ind][1] + k1_r*wk_1[ind][1];
+			vort_k[1][ind][1] =  k3_r*uk_1[ind][0] - k1_r*wk_1[ind][0];
+			//omega_z = dv/dx - du/dy = i*k1_r*v - i*k2_r*u
+			vort_k[2][ind][0] = -k1_r*vk_1[ind][1] + k2_r*uk_1[ind][1];
+			vort_k[2][ind][1] =  k1_r*vk_1[ind][0] - k2_r*uk_1[ind][0];
 		} else { //For de-aliasing purposes
 			for (int coord=0; coord<3; coord++) {
 				vort_k[coord][ind][0] = 0.0;
@@ -275,18 +277,19 @@ void HIT::Recalculate_SGS_Tensor_Divergence_Fourier_Coefficients() {
 	//SGS tensor divergence components in Fourier space
 	LOOP_FOURIER_k1k2k3 {
 		const int ind = (b*Mx + a) * (Mz_2 + 1) + k3;
-		const int k1  = FOURIER_FREQ(a, Mx);
-		const int k2  = FOURIER_FREQ(b, local_1_start, My);
+		const REAL k1_r  = FOURIER_FREQ(a, Mx)/Lx_factor;
+		const REAL k2_r  = FOURIER_FREQ(b, local_1_start, My)/Ly_factor;
+		const REAL k3_r  = k3/Lz_factor;
 		if (dealiased[ind]) {
 			// divSGSx_k
-			divSGSx_k[ind][0] = - k1 * SGS_11_k[ind][1] - k2 * SGS_21_k[ind][1] - k3 * SGS_31_k[ind][1];
-			divSGSx_k[ind][1] =   k1 * SGS_11_k[ind][0] + k2 * SGS_21_k[ind][0] + k3 * SGS_31_k[ind][0];
+			divSGSx_k[ind][0] = - k1_r * SGS_11_k[ind][1] - k2_r * SGS_21_k[ind][1] - k3_r * SGS_31_k[ind][1];
+			divSGSx_k[ind][1] =   k1_r * SGS_11_k[ind][0] + k2_r * SGS_21_k[ind][0] + k3_r * SGS_31_k[ind][0];
 			// divSGSy_k // SGS_12 = SGS_21
-			divSGSy_k[ind][0] = - k1 * SGS_21_k[ind][1] - k2 * SGS_22_k[ind][1] - k3 * SGS_32_k[ind][1];
-			divSGSy_k[ind][1] =   k1 * SGS_21_k[ind][0] + k2 * SGS_22_k[ind][0] + k3 * SGS_32_k[ind][0];
+			divSGSy_k[ind][0] = - k1_r * SGS_21_k[ind][1] - k2_r * SGS_22_k[ind][1] - k3_r * SGS_32_k[ind][1];
+			divSGSy_k[ind][1] =   k1_r * SGS_21_k[ind][0] + k2_r * SGS_22_k[ind][0] + k3_r * SGS_32_k[ind][0];
 			// divSGSz_k // SGS_13 = SGS_31 // SGS_23 = SGS_32
-			divSGSz_k[ind][0] = - k1 * SGS_31_k[ind][1] - k2 * SGS_32_k[ind][1] - k3 * SGS_33_k[ind][1];
-			divSGSz_k[ind][1] =   k1 * SGS_31_k[ind][0] + k2 * SGS_32_k[ind][0] + k3 * SGS_33_k[ind][0];
+			divSGSz_k[ind][0] = - k1_r * SGS_31_k[ind][1] - k2_r * SGS_32_k[ind][1] - k3_r * SGS_33_k[ind][1];
+			divSGSz_k[ind][1] =   k1_r * SGS_31_k[ind][0] + k2_r * SGS_32_k[ind][0] + k3_r * SGS_33_k[ind][0];
 		}
 	}
 };
@@ -310,7 +313,7 @@ void HIT::Recalculate_R_vector_Fourier_Coefficients() {
 		if (dealiased[ind]) {
 			//Must be loop-local, not hoisted: once this is a real "omp for", a shared
 			//scratch variable would be clobbered by concurrent iterations.
-			const REAL ct = nu * rad2[ind];
+			const REAL ct = nu * rad2_r[ind];
 			const bool isMeanVelTerm = !(rad2[ind] > 0.0);
 			for (int ic=0; ic<=1; ic++){ //ic=0 => Real part, ic=1 => Imaginary part
 				// Convective term is zero at K=0 by incompressibility+periodicity;
@@ -462,14 +465,15 @@ void HIT::Recalculate_Divergence_Free_Projection() {
 	//full synchronization).
 	LOOP_FOURIER_NOWAIT {
 		const int ind = (b*Mx + a) * (Mz_2 + 1) + k3;
-		const int k1  = FOURIER_FREQ(a, Mx);
-		const int k2  = FOURIER_FREQ(b, local_1_start, My);
+		const REAL k1_r  = FOURIER_FREQ(a, Mx)/Lx_factor;
+		const REAL k2_r  = FOURIER_FREQ(b, local_1_start, My)/Ly_factor;
+		const REAL k3_r  = k3/Lz_factor;
 		if (dealiased[ind]) {
 			for (int ic=0; ic<=1; ic++){ //ic=0 => Real part, ic=1 => Imaginary part
-				const REAL aux = ((rad2[ind]>0) ? ((k1*uk_1[ind][ic]+k2*vk_1[ind][ic]+k3*wk_1[ind][ic])/rad2[ind]) : 0.0);
-				uk_1[ind][ic] -= aux * k1;
-				vk_1[ind][ic] -= aux * k2;
-				wk_1[ind][ic] -= aux * k3;
+				const REAL aux = ((rad2_r[ind]>0) ? ((k1_r*uk_1[ind][ic]+k2_r*vk_1[ind][ic]+k3_r*wk_1[ind][ic])/rad2_r[ind]) : 0.0);
+				uk_1[ind][ic] -= aux * k1_r;
+				vk_1[ind][ic] -= aux * k2_r;
+				wk_1[ind][ic] -= aux * k3_r;
 			}
 		}
 	}
@@ -1062,6 +1066,7 @@ void HIT::HIT_init() {
 	convy = alloc_real(2 * alloc_local);
 	convz = alloc_real(2 * alloc_local);
 	rad2 = alloc_real(2 * alloc_local);
+	rad2_r = alloc_real(2 * alloc_local);
 	local_acumField = alloc_real(last_rad_max+1);
 	global_acumField = alloc_real(last_rad_max+1);
 	Ek = alloc_real(last_rad_max+1);
@@ -1105,21 +1110,13 @@ void HIT::HIT_init() {
 	//rad2: Initialization of vector radium (to avoid repeated calculations)
 	LOOP_FOURIER_k1k2k3 {
 		const int ind = (b*Mx + a) * (Mz_2 + 1) + k3;
-		const int k1  = FOURIER_FREQ(a, Mx);
-		const int k2  = FOURIER_FREQ(b, local_1_start, My);
-		rad2[ind] = static_cast<REAL>(k1*k1+k2*k2+k3*k3);
+		const REAL k1  = FOURIER_FREQ(a, Mx);
+		const REAL k2  = FOURIER_FREQ(b, local_1_start, My);
+		rad2[ind]   = static_cast<REAL>(k1*k1+k2*k2+k3*k3);
+		rad2_r[ind] = static_cast<REAL>(k1*k1/(Lx_factor*Lx_factor)+k2*k2/(Ly_factor*Ly_factor)+k3*k3/(Lz_factor*Lz_factor));
 	}
 	//num_dealiased_real: number of relevant terms (considering the length factors) per process
-	if (isNotCubic) {
-		num_dealiased_real = 0;
-		LOOP_3D (i,0,local_n0, j,0,My, k,0,Mz) {
-			if ((local_0_start+i)<ActualMx && j<ActualMy && k<ActualMz) {
-				num_dealiased_real++;
-			}
-		}
-	} else {
-		num_dealiased_real = local_n0 * My * Mz;
-	}
+    num_dealiased_real = local_n0 * My * Mz;
 
 	//dealiased: Initialization of a bool vector to know wether a mode is significant. Two cases:
 	//A) Exclusion of aliased terms:
@@ -1143,17 +1140,12 @@ void HIT::HIT_init() {
 		}
 		//Until here, (although it has been separated to make it clearer) dealiased[ind] is equivalent
 		//to: "((abs(k1)<=(Nx-1)/2)||(k1==Nx_2)) && ((abs(k2)<=(Ny-1)/2)||(k2==Ny_2)) && (k3<=Nz_2)"
-		if (isNotCubic) {
-			if ((k1%Lx_factor != 0) || (k2%Ly_factor != 0) || (k3%Lz_factor != 0)){
-				dealiased[ind] = false; //Exclusion of undesired coefficients due to length factors
-			}
-		}
 		if (dealiased[ind]) num_dealiased++; //It needs to be at the end!!!
 	}
 
 	//conjugate: Initialization of a bool vector to know wether a mode also has an associated conjugate (and
 	//it has to be counted twice when computing the kinetic energy) or not
-	LOOP_FOURIER_k1k2k3 {
+	LOOP_FOURIER {
 		const int ind = (b*Mx + a) * (Mz_2 + 1) + k3;
 		//Exclude k3=0 as well as the Nyquist XY-plane in case Nz is even (if Nz is odd, then k3=Nz/2 has an
 		//associated conjugate)
@@ -1279,7 +1271,7 @@ void HIT::HIT_init() {
 	//Enstrophy = 2 * k^2 * E(k) = k^2 * ukxyz^2
 	Enstrophy = [&](int a, int b, int k3)->REAL{
 		int ind = (b*Mx+a)*(Mz_2+1)+k3;
-		return 2 * rad2[ind] * KineticEnergy(a, b, k3);
+		return 2 * rad2_r[ind] * KineticEnergy(a, b, k3);
 	};
 
 	//Yotta stuff
@@ -1381,7 +1373,7 @@ void HIT::HIT_destroy() {
 	FREE(convx_k); FREE(convy_k); FREE(convz_k);
 	FREE(Rx0_k); FREE(Ry0_k); FREE(Rz0_k);
 	FREE(Rx1_k); FREE(Ry1_k); FREE(Rz1_k);
-	FREE(dealiased); FREE(rad2); FREE(local_acumField); FREE(global_acumField); FREE(Ek);
+	FREE(dealiased); FREE(rad2); FREE(rad2_r); FREE(local_acumField); FREE(global_acumField); FREE(Ek);
 	for (int coord=0; coord<3; coord++) {
 		FREE(gradu[coord]); FREE(gradv[coord]); FREE(gradw[coord]);
 		FREE(gradu_k[coord]); FREE(gradv_k[coord]); FREE(gradw_k[coord]);
@@ -1513,7 +1505,6 @@ void HIT::Check_PhysFour_Energy(const REAL atol) {
 		}
 	}
 	MPI_Allreduce(&local_EkFour, &EkFour, 1, REAL_MPI, MPI_SUM, MCW);
-	
 	// Calculate total kinetic energy in the physical space
 	Recalculate_Velocity_Antitransform(); //Compute u,v,w from uk_1, vk_1, wk_1
 	double EkReal = 0, local_EkReal = 0;
@@ -1557,23 +1548,18 @@ void HIT::Calculate_Ek_init_file(COMPLEX const * const uk_file, COMPLEX const * 
     double Ek_partial = 0.0;
     double Enstrophy_partial = 0.0;
     //Sum accross Fourier modes
-    LOOP_FOURIER_k1k2k3 {
+    LOOP_FOURIER {
 		const int ind = (b*Mx + a) * (Mz_2 + 1) + k3;
-		const int k1  = FOURIER_FREQ(a, Mx);
-		const int k2  = FOURIER_FREQ(b, local_1_start, My);
-        bool relevant_file = ((k1%Lx_factor == 0) && (k2%Ly_factor == 0) && (k3%Lz_factor == 0));
-        if (relevant_file) {
-            REAL Ek_file = (uk_file[ind][0] * uk_file[ind][0]) + (uk_file[ind][1] * uk_file[ind][1]);
-            Ek_file += (vk_file[ind][0] * vk_file[ind][0]) + (vk_file[ind][1] * vk_file[ind][1]);
-            Ek_file += (wk_file[ind][0] * wk_file[ind][0]) + (wk_file[ind][1] * wk_file[ind][1]);
-            Ek_file *= 0.5;
-            if (conjugate[ind]) {
-                Ek_partial += 2 * Ek_file;
-                Enstrophy_partial += 2 * (2 * rad2[ind] * Ek_file);
-            } else {
-                Ek_partial += Ek_file;
-                Enstrophy_partial += (2 * rad2[ind] * Ek_file);
-            }
+        REAL Ek_file = (uk_file[ind][0] * uk_file[ind][0]) + (uk_file[ind][1] * uk_file[ind][1]);
+        Ek_file += (vk_file[ind][0] * vk_file[ind][0]) + (vk_file[ind][1] * vk_file[ind][1]);
+        Ek_file += (wk_file[ind][0] * wk_file[ind][0]) + (wk_file[ind][1] * wk_file[ind][1]);
+        Ek_file *= 0.5;
+        if (conjugate[ind]) {
+            Ek_partial += 2 * Ek_file;
+            Enstrophy_partial += 2 * (2 * rad2_r[ind] * Ek_file);
+        } else {
+            Ek_partial += Ek_file;
+            Enstrophy_partial += (2 * rad2_r[ind] * Ek_file);
         }
     }
     MPI_Allreduce(&Ek_partial, &Ek_init_file, 1, REAL_MPI, MPI_SUM, MCW);

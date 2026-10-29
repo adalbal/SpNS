@@ -57,7 +57,7 @@ int main (int argc, char **argv){
 	int nullify_missingEk;
 	double Final_Forced_Time;
 	//Extra constants
-	int Lx_factor, Ly_factor, Lz_factor; //Length factors
+	REAL Lx_factor, Ly_factor, Lz_factor; //Length factors
 	double omega_x, omega_y, omega_z; //Angular rotation velocity of the system
 	double C_Smag; //Smagorinsky model constant
 	double C_At; //Timestep scaling factor
@@ -158,9 +158,9 @@ int main (int argc, char **argv){
 		PM.RequestParameter(nullify_missingEk,"Nullify_MissingK",TYPE_INT,IO_DONTCRASH,GE,0);
 		PM.RequestParameter(Final_Forced_Time,"Final_Forced_Time",TYPE_DOUBLE,IO_DONTCRASH,GE,0.0);
 
-		PM.RequestParameter(Lx_factor,"Lx",TYPE_INT,IO_DONTCRASH,GT,0);
-		PM.RequestParameter(Ly_factor,"Ly",TYPE_INT,IO_DONTCRASH,GT,0);
-		PM.RequestParameter(Lz_factor,"Lz",TYPE_INT,IO_DONTCRASH,GT,0);
+		PM.RequestParameter(Lx_factor,"Lx",TYPE_DOUBLE,IO_DONTCRASH,GT,0);
+		PM.RequestParameter(Ly_factor,"Ly",TYPE_DOUBLE,IO_DONTCRASH,GT,0);
+		PM.RequestParameter(Lz_factor,"Lz",TYPE_DOUBLE,IO_DONTCRASH,GT,0);
 		PM.RequestParameter(omega_x,"omega_x",TYPE_DOUBLE,IO_DONTCRASH);
 		PM.RequestParameter(omega_y,"omega_y",TYPE_DOUBLE,IO_DONTCRASH);
 		PM.RequestParameter(omega_z,"omega_z",TYPE_DOUBLE,IO_DONTCRASH);
@@ -220,37 +220,6 @@ int main (int argc, char **argv){
 			Lx_factor = ((PM["Lx"].GetIsSet()) ? Lx_factor : 1);
 			Ly_factor = ((PM["Ly"].GetIsSet()) ? Ly_factor : 1);
 			Lz_factor = ((PM["Lz"].GetIsSet()) ? Lz_factor : 1);
-			int lcm_Lxyz = lcm(Lx_factor, lcm(Ly_factor, Lz_factor)); //Least common multiple of Lx, Ly and Lz
-			// The following change is made on the length factors: Let's assume that (Lx,Ly,Lz) = (L,3L,12L),
-			// then we assume that new length is L'=12L (the biggest factor). Thus, (Lx,Ly,Lz) = (L'/12,L'/4,L').
-			// This allows us to implement different length factors by setting to zero all coefficients such
-			// that k1%12!=0 and k2%4!=0 (bearing that Kx_k1=2PIk1/Ax and Ky_k2=2PIk2/Ay).
-			Lx_factor = lcm_Lxyz / Lx_factor;
-			Ly_factor = lcm_Lxyz / Ly_factor;
-			Lz_factor = lcm_Lxyz / Lz_factor;
-			if ((Lx_factor > 1) || (Ly_factor > 1) || (Lz_factor > 1)) {
-				isNotCubic = true;
-				//Redefine "ActualM" (see HIT_LES.h) to avoid odd values of M. Then, ActualM=2*k => M=k*L_factor.
-				//Consequently, the physical domain will be coherently divided into L_factor slices of k nodes, and
-				//the velocity field will be repeated (k times) in that direction (only relevant for L_factor>1)
-				Mx = ((Lx_factor>1 && Mx%2!=0) ? Mx+1 : Mx);
-				My = ((Ly_factor>1 && My%2!=0) ? My+1 : My);
-				Mz = ((Lz_factor>1 && Mz%2!=0) ? Mz+1 : Mz);
-				//Update accordingly Nx,Ny,Nz and Mx,My,Mz (and, if needed Nx_file,Ny_file,Nz_file)
-				Nx = ((Nx%2==0) ? Nx*Lx_factor : (Nx-1)*Lx_factor+1);
-				Ny = ((Ny%2==0) ? Ny*Ly_factor : (Ny-1)*Ly_factor+1);
-				Nz = ((Nz%2==0) ? Nz*Lz_factor : (Nz-1)*Lz_factor+1);
-				Mx = ((Mx%2==0) ? Mx*Lx_factor : (Mx-1)*Lx_factor+1);
-				My = ((My%2==0) ? My*Ly_factor : (My-1)*Ly_factor+1);
-				Mz = ((Mz%2==0) ? Mz*Lz_factor : (Mz-1)*Lz_factor+1);
-				if (isInitialFieldFromASCIIFile || isInitialFieldFromBinaryFile) {
-					Nx_file = ((Nx_file%2==0) ? Nx_file*Lx_factor : (Nx_file-1)*Lx_factor+1);
-					Ny_file = ((Ny_file%2==0) ? Ny_file*Ly_factor : (Ny_file-1)*Ly_factor+1);
-					Nz_file = ((Nz_file%2==0) ? Nz_file*Lz_factor : (Nz_file-1)*Lz_factor+1);
-				}
-			} else { //In case input was cubic, e.g. Lx=Ly=Lz=2L
-				isNotCubic = false;
-			}
 		} else {
 			isNotCubic = false;
 			// Must be initialized to its default value for hit.Real3DimField_to_BinaryFile(...)
@@ -386,16 +355,10 @@ int main (int argc, char **argv){
 		printf("### Nx:%4d,  Ny:%4d,  Nz:%4d              ###\n", Nx, Ny, Nz);
 		printf("### Mx:%4d,  My:%4d,  Mz:%4d              ###\n", Mx, My, Mz); //Values used in FFT
 		if (isNotCubic) {
-			int ActualNx = ((Nx%2==0) ? Nx/Lx_factor : (Nx-1)/Lx_factor+1);
-			int ActualNy = ((Ny%2==0) ? Ny/Ly_factor : (Ny-1)/Ly_factor+1);
-			int ActualNz = ((Nz%2==0) ? Nz/Lz_factor : (Nz-1)/Lz_factor+1);
-			int ActualMx = ((Mx%2==0) ? Mx/Lx_factor : (Mx-1)/Lx_factor+1);
-			int ActualMy = ((My%2==0) ? My/Ly_factor : (My-1)/Ly_factor+1);
-			int ActualMz = ((Mz%2==0) ? Mz/Lz_factor : (Mz-1)/Lz_factor+1);
 			printf("###------------------------------------------###\n");
 			printf("### Number of relevant modes:                ###\n");
-			printf("### Nx:%4d,  Ny:%4d,  Nz:%4d              ###\n", ActualNx, ActualNy, ActualNz); //Actual relevant values (when the domain is not cubic)
-			printf("### Mx:%4d,  My:%4d,  Mz:%4d              ###\n", ActualMx, ActualMy, ActualMz);
+			printf("### Nx:%4d,  Ny:%4d,  Nz:%4d              ###\n", Nx, Ny, Nz); //Actual relevant values (when the domain is not cubic)
+			printf("### Mx:%4d,  My:%4d,  Mz:%4d              ###\n", Mx, My, Mz);
 		}
 		printf("################################################\n\n");
 	}
