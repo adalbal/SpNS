@@ -220,12 +220,21 @@ int main (int argc, char **argv){
 			Lx_factor = ((PM["Lx"].GetIsSet()) ? Lx_factor : 1);
 			Ly_factor = ((PM["Ly"].GetIsSet()) ? Ly_factor : 1);
 			Lz_factor = ((PM["Lz"].GetIsSet()) ? Lz_factor : 1);
+
+			int lcm_Lxyz = lcm(Lx_factor, lcm(Ly_factor, Lz_factor)); //Least common multiple of Lx, Ly and Lz
+			// The following change is made on the length factors: Let's assume that (Lx,Ly,Lz) = (L,3L,12L),
+			// then we assume that new length is L'=12L (the biggest factor). Thus, (Lx,Ly,Lz) = (L'/12,L'/4,L').
+			// This allows us to implement different length factors by setting to zero all coefficients such
+			// that k1%12!=0 and k2%4!=0 (bearing that Kx_k1=2PIk1/Ax and Ky_k2=2PIk2/Ay).
+			Lx_factor = Lx_factor / (REAL)lcm_Lxyz;
+			Ly_factor = Ly_factor / (REAL)lcm_Lxyz;
+			Lz_factor = Lz_factor / (REAL)lcm_Lxyz;
 		} else {
 			isNotCubic = false;
 			// Must be initialized to its default value for hit.Real3DimField_to_BinaryFile(...)
-			Lx_factor = 1;
-			Ly_factor = 1;
-			Lz_factor = 1;
+			Lx_factor = 1.0;
+			Ly_factor = 1.0;
+			Lz_factor = 1.0;
 		}
 		if ((PM["omega_x"].GetIsSet() && (fabs(omega_x) > 0.0)) ||
 			(PM["omega_y"].GetIsSet() && (fabs(omega_y) > 0.0)) ||

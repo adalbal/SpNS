@@ -39,8 +39,11 @@ class HIT {
 			Mz(Mz_),
 			Mx_2(Mx_/2), //Half de-aliasing mesh size = N/2
 			Mz_2(Mz_/2),
-			last_rad(min((Nx_-1)/2, min((Ny_-1)/2, (Nz_-1)/2))), //Radium of the biggest circumference incribed in a Nx*Ny*Nz parallelogram
-			last_rad_max((int)std::ceil(std::sqrt(1.0*Nx_2*Nx_2 + 1.0*Ny_2*Ny_2 + 1.0*Nz_2*Nz_2))), //Radium of the biggest circumference circumscribed in a Nx*Ny*Nz parallelogram
+			Lx_factor(Lx_factor_), //Length factors
+			Ly_factor(Ly_factor_),
+			Lz_factor(Lz_factor_),
+			last_rad(min((REAL)(Nx_-1)/2/(Lx_factor_), min((REAL)(Ny_-1)/2/(Ly_factor_), (REAL)(Nz_-1)/2/(Lz_factor_)))), //Radium of the biggest circumference incribed in a Nx*Ny*Nz parallelogram
+			last_rad_max((int)std::ceil(std::sqrt(1.0*(REAL)(Nx_2*Nx_2)/(Lx_factor_*Lx_factor_) + 1.0*(REAL)(Ny_2*Ny_2)/(Ly_factor_*Ly_factor_) + 1.0*(REAL)(Nz_2*Nz_2)/(Lz_factor_*Lz_factor_)))), //Radium of the biggest circumference circumscribed in a Nx*Ny*Nz parallelogram
 			numprocs(NumProc()), //Total number of MPI processes
 			myrank(MyID()), //Current MPI process ID
 			nu(nu_), //Kinetic viscosity
@@ -50,9 +53,6 @@ class HIT {
 			Ax(2.0*PI/Mx * Lx_factor_),
 			Ay(2.0*PI/My * Ly_factor_),
 			Az(2.0*PI/Mz * Lz_factor_),
-			Lx_factor(Lx_factor_), //Length factors
-			Ly_factor(Ly_factor_),
-			Lz_factor(Lz_factor_),
 			omega_x(omega_x_), //Angular rotation velocity of the system
 			omega_y(omega_y_),
 			omega_z(omega_z_),

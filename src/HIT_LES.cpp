@@ -314,7 +314,7 @@ void HIT::Recalculate_R_vector_Fourier_Coefficients() {
 			//Must be loop-local, not hoisted: once this is a real "omp for", a shared
 			//scratch variable would be clobbered by concurrent iterations.
 			const REAL ct = nu * rad2_r[ind];
-			const bool isMeanVelTerm = !(rad2[ind] > 0.0);
+			const bool isMeanVelTerm = !(rad2_r[ind] > 0.0);
 			for (int ic=0; ic<=1; ic++){ //ic=0 => Real part, ic=1 => Imaginary part
 				// Convective term is zero at K=0 by incompressibility+periodicity;
 				// zeroing it here prevents FP residuals from contaminating the mean flow.
@@ -372,7 +372,7 @@ void HIT::Recalculate_R_vector_Fourier_Coefficients() {
 
 		// Add forcing term to RHS: R += alpha*u for Kfmin <= K <= Kfmax
 		LOOP_FOURIER {
-			int K = static_cast<int>(round(sqrt(rad2[ind])));
+			int K = static_cast<int>(round(sqrt(rad2_r[ind])));
 			if (dealiased[ind]) {
 				if (Kfmin<=K && K <= Kfmax) {
 					for (int ic=0; ic<=1; ic++){ //ic=0 => Real part, ic=1 => Imaginary part
@@ -556,7 +556,7 @@ void HIT::Forcing_Energy_Cascade(REAL const * const Forced_Ek, const ptrdiff_t& 
 	LOOP_FOURIER {
 		const int ind = (b*Mx + a) * (Mz_2 + 1) + k3;
 		if (dealiased[ind]) {
-			int K = static_cast<int>(round(sqrt(rad2[ind])));
+			int K = static_cast<int>(round(sqrt(rad2_r[ind])));
 			if (K <= last_eff_rad) {
 				for (int ic=0; ic<=1; ic++){ //ic=0 => Real part, ic=1 => Imaginary part
 					uk_1[ind][ic] *= FT[K];
@@ -645,7 +645,7 @@ void HIT::Input_K41_Field() {
 		const int ind = (b*Mx + a) * (Mz_2 + 1) + k3;
 		for (int ic=0; ic<=1; ic++) { //ic=0 => Real part, ic=1 => Imaginary part
 			if (dealiased[ind]) {
-				int K = static_cast<int>(round(sqrt(rad2[ind])));
+				int K = static_cast<int>(round(sqrt(rad2_r[ind])));
 				//As K41 is not forced to them, set to 0 velocities with K>last_rad
 				if (K<=last_rad) {
 					uk_1[ind][ic] = (((REAL)rand()/RAND_MAX)*2.0 - 1.0);
@@ -1437,7 +1437,7 @@ REAL HIT::Integrate_Field(std::function<REAL(int a, int b, int k3)>& funcFieldNo
 		LOOP_FOURIER {
 			const int ind = (b*Mx + a) * (Mz_2 + 1) + k3;
 			if (dealiased[ind]) {
-				int K = static_cast<int>(round(sqrt(rad2[ind])));
+				int K = static_cast<int>(round(sqrt(rad2_r[ind])));
 				if (Kmin<=K && K<=Kmax) {
 					REAL aux = funcFieldNorm(a, b, k3);
 					if (conjugate[ind]) {
@@ -1471,7 +1471,7 @@ REAL HIT::Integrate_Field(std::function<REAL(int a, int b, int k3)>& funcFieldNo
 		LOOP_FOURIER {
 			const int ind = (b*Mx + a) * (Mz_2 + 1) + k3;
 			if (dealiased[ind]) {
-				int K = static_cast<int>(round(sqrt(rad2[ind])));
+				int K = static_cast<int>(round(sqrt(rad2_r[ind])));
 				if (Kmin<=K && K<=Kmax) {
 					REAL aux = funcFieldNorm(a, b, k3);
 					if (conjugate[ind]) {
