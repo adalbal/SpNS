@@ -67,17 +67,6 @@ void HIT::DealiasedComplex3DimField_to_BinaryFile(COMPLEX const * const field_x,
 //It outputs all the terms of a real field (the consideration of dealiased terms does not make sense here)
 //Field is stored in parallel in a shared binary file - collective routine!
 void HIT::Real3DimField_to_BinaryFile(REAL const * const field_x, REAL const * const field_y, REAL const * const field_z, char const * const filename) const {
-    //Objective: get a 3D slice from a local_n0*My*(Mz+pad) array of size local_n0*My*Mz to remove padding
-    MPI_Datatype slice_1D, slice_1D_pad, slice_2D, slice_3D;
-    int padding_z = 2*(Mz/2 + 1) - Mz;
-    //First slice in z-axis
-    MPI_Type_vector(Mz, 1, 1, REAL_MPI, &slice_1D);
-    //Second slice in y-axis
-    MPI_Type_create_resized(slice_1D, 0, (Mz + padding_z) * BYTES, &slice_1D_pad);
-    MPI_Type_contiguous(My, slice_1D_pad, &slice_2D);
-    //Third slice in x-axis
-    MPI_Type_contiguous(local_n0, slice_2D, &slice_3D);
-    MPI_Type_commit(&slice_3D);
 	//Opening MPI file
 	MPI_File fh;
 	MPI_Status status;
@@ -89,10 +78,10 @@ void HIT::Real3DimField_to_BinaryFile(REAL const * const field_x, REAL const * c
 		MPI_File_open(MCW, filename, MPI_MODE_CREATE | MPI_MODE_WRONLY, MPI_INFO_NULL, &fh);
 	}
 	//Output of 3D real field
-	MPI_Offset components = Mx * My * Mz;
-    MPI_Offset offset = local_0_start * My * Mz;
+	MPI_Offset bytes_per_component = sizeof(REAL) * Mx * My * Mz;
+	//Allocate memory for current's process dealiased field[ind] coefficients
+	REAL *field_to_output = alloc_real(num_dealiased_real);
 	//Parallel output of each component of the real field
-    MPI_File_set_view(fh, 0, REAL_MPI, REAL_MPI, "native", MPI_INFO_NULL);
 	for (int coord=0; coord<3; coord++) {
 		//Temporary alias
 		REAL const * field = NULL;
@@ -102,14 +91,23 @@ void HIT::Real3DimField_to_BinaryFile(REAL const * const field_x, REAL const * c
 			case 1: field = field_y; break;
 			case 2: field = field_z; break;
 		}
-		MPI_File_seek(fh, offset + components*coord, MPI_SEEK_SET);
-		MPI_File_write(fh, field, 1, slice_3D, &status);
+		//Initialize field_to_output
+		int ind_dealiased = 0; //Note that ind_dealiased<=(num_dealiased_real-1)
+			LOOP_REAL {
+		        const int ind = (i*My + j) * 2*(Mz_2 + 1) + k;
+				field_to_output[ind_dealiased] = field[ind];
+				ind_dealiased++;
+			}
+		if (ind_dealiased!=num_dealiased_real) crash("The number of real terms does not match!\n");
+		//Output of field_to_output
+		MPI_File_seek(fh, offset_Real+coord*bytes_per_component, MPI_SEEK_SET);
+		MPI_File_write(fh, field_to_output, num_dealiased_real, REAL_MPI, &status);
 	}
+	//Memory freeing
+	FREE(field_to_output);
 	//Closing MPI file
 	MPI_File_close(&fh);
-    MPI_Type_free(&slice_3D);
 };
-
 void HIT::BinaryFile_to_Real3DimField (REAL * const field_x, REAL * const field_y, REAL * const field_z) {
     unsigned int total_file_num = Nx_file * Ny_file * Nz_file;
     unsigned int expected_filesize        = sizeof(REAL)   * 3 * total_file_num;
@@ -178,10 +176,10 @@ void HIT::BinaryFile_to_Real3DimField (REAL * const field_x, REAL * const field_
                     MPI_Type_create_hvector(local_n0_file, 1, Ny_file * (Nz_file + padding_z) * 4, slice_2D, &slice_3D);
                     MPI_Type_commit(&slice_3D);
                     
-                    double *x_input = NULL, *y_input = NULL, *z_input = NULL;
-                    x_input = fftw_alloc_real(num_to_allocate);
-                    y_input = fftw_alloc_real(num_to_allocate);
-                    z_input = fftw_alloc_real(num_to_allocate);
+                    float *x_input = NULL, *y_input = NULL, *z_input = NULL;
+                    x_input = fftwf_alloc_real(num_to_allocate);
+                    y_input = fftwf_alloc_real(num_to_allocate);
+                    z_input = fftwf_alloc_real(num_to_allocate);
                     MPI_File_set_view(fh, 0, Filetype, Filetype, "native", MPI_INFO_NULL);
                     MPI_File_seek(fh, offset_Real_x, MPI_SEEK_SET);
                     MPI_File_read(fh, x_input, 1, slice_3D, &status);
