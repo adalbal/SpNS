@@ -23,17 +23,11 @@ class HIT {
 		HIT(const ptrdiff_t& Nx_, const ptrdiff_t& Ny_, const ptrdiff_t& Nz_,
 			const ptrdiff_t& Mx_, const ptrdiff_t& My_, const ptrdiff_t& Mz_,
 			const REAL& nu_, const REAL& C_Smag_, const REAL& C_At_,
-			const int& Lx_factor_, const int& Ly_factor_, const int& Lz_factor_,
+			const REAL& Lx_factor_, const REAL& Ly_factor_, const REAL& Lz_factor_,
 			const REAL& omega_x_, const REAL& omega_y_, const REAL& omega_z_,
 			const char *ASCII_Input_Filename_, const char *Binary_Input_Filename_, const ptrdiff_t& Nx_file_, const ptrdiff_t& Ny_file_, const ptrdiff_t& Nz_file_,
 			const bool& isReLambda_, const bool& isInitialFieldFromBinaryFile_, const bool& isInitialFieldFromASCIIFile_, const bool& isNotCubic_, const bool& isRotating_, const bool& isLES_, const bool& isComplexConjugateCorrected_, const bool& isSelfAdaptive_):
 			fftw(Mx_,My_,Mz_), //Class to compute FFT and IFFT
-			ActualNx((Nx_%2==0) ? Nx_/Lx_factor_ : (Nx_-1)/Lx_factor_+1), //Number of dealiased modes to be resolved considering length factors
-			ActualNy((Ny_%2==0) ? Ny_/Ly_factor_ : (Ny_-1)/Ly_factor_+1),
-			ActualNz((Nz_%2==0) ? Nz_/Lz_factor_ : (Nz_-1)/Lz_factor_+1),
-			ActualMx((Mx_%2==0) ? Mx_/Lx_factor_ : (Mx_-1)/Lx_factor_+1), //Number of aliased modes to be resolved considering length factors
-			ActualMy((My_%2==0) ? My_/Ly_factor_ : (My_-1)/Ly_factor_+1),
-			ActualMz((Mz_%2==0) ? Mz_/Lz_factor_ : (Mz_-1)/Lz_factor_+1),
 			Nx(Nx_), //Number of dealiased modes to be calculated
 			Ny(Ny_),
 			Nz(Nz_),
@@ -45,28 +39,25 @@ class HIT {
 			Mz(Mz_),
 			Mx_2(Mx_/2), //Half de-aliasing mesh size = N/2
 			Mz_2(Mz_/2),
-			last_rad(min((Nx_-1)/2, min((Ny_-1)/2, (Nz_-1)/2))), //Radium of the biggest circumference incribed in a Nx*Ny*Nz parallelogram
-			last_rad_max((int)std::ceil(std::sqrt(1.0*Nx_2*Nx_2 + 1.0*Ny_2*Ny_2 + 1.0*Nz_2*Nz_2))), //Radium of the biggest circumference circumscribed in a Nx*Ny*Nz parallelogram
-			numprocs(NumProc()), //Total number of MPI processes
-			myrank(MyID()), //Current MPI process ID
-			nu(nu_), //Kinetic viscosity
-			delta(2.0*PI/cbrt(Lx_factor_*Ly_factor_*Lz_factor_*ActualMx*ActualMy*ActualMz)), //LES-model characteristic length
-			C_Smag(C_Smag_), //LES-model constant
-			C_At(C_At_), //Scaling factor to manually tune timestep
-			Ax(2.0*PI/ActualMx/Lx_factor_),
-			Ay(2.0*PI/ActualMy/Ly_factor_),
-			Az(2.0*PI/ActualMz/Lz_factor_),
 			Lx_factor(Lx_factor_), //Length factors
 			Ly_factor(Ly_factor_),
 			Lz_factor(Lz_factor_),
+			last_rad(min((REAL)(Nx_-1)/2/(Lx_factor_), min((REAL)(Ny_-1)/2/(Ly_factor_), (REAL)(Nz_-1)/2/(Lz_factor_)))), //Radium of the biggest circumference incribed in a Nx*Ny*Nz parallelogram
+			last_rad_max((int)std::ceil(std::sqrt(1.0*(REAL)(Nx_2*Nx_2)/(Lx_factor_*Lx_factor_) + 1.0*(REAL)(Ny_2*Ny_2)/(Ly_factor_*Ly_factor_) + 1.0*(REAL)(Nz_2*Nz_2)/(Lz_factor_*Lz_factor_)))), //Radium of the biggest circumference circumscribed in a Nx*Ny*Nz parallelogram
+			numprocs(NumProc()), //Total number of MPI processes
+			myrank(MyID()), //Current MPI process ID
+			nu(nu_), //Kinetic viscosity
+			delta(2.0*PI/cbrt(Mx*My*Mz/(Lx_factor_*Ly_factor_*Lz_factor_))), //LES-model characteristic length
+			C_Smag(C_Smag_), //LES-model constant
+			C_At(C_At_), //Scaling factor to manually tune timestep
+			Ax(2.0*PI/Mx * Lx_factor_),
+			Ay(2.0*PI/My * Ly_factor_),
+			Az(2.0*PI/Mz * Lz_factor_),
 			omega_x(omega_x_), //Angular rotation velocity of the system
 			omega_y(omega_y_),
 			omega_z(omega_z_),
 			ASCII_Input_Filename(ASCII_Input_Filename_), //ASCII velocity input filename
 			Binary_Input_Filename(Binary_Input_Filename_), //Binary velocity input filename
-			ActualNx_file((Nx_file_%2==0) ? Nx_file_/Lx_factor_ : (Nx_file_-1)/Lx_factor_+1), //Number of dealiased modes to be resolved considering length factors
-			ActualNy_file((Ny_file_%2==0) ? Ny_file_/Ly_factor_ : (Ny_file_-1)/Ly_factor_+1),
-			ActualNz_file((Nz_file_%2==0) ? Nz_file_/Lz_factor_ : (Nz_file_-1)/Lz_factor_+1),
 			Nx_file(Nx_file_), //Augmented mesh size of the velocity input file (field of velocityes repeated as many times as )
 			Ny_file(Ny_file_),
 			Nz_file(Nz_file_),
@@ -100,7 +91,7 @@ class HIT {
 		// B) Initialization of velocity field in Fourier space from an input file containing velocities in Fourier space
 		void Input_Real_Field();
 			// B.1) Load from file (a velocity field in real space)
-			void Read_Input_File_Vxyz (REAL* u_file, REAL* v_file, REAL* w_file, const int& dumb_columns);
+			void Read_Input_File_Vxyz (REAL * const u_file, REAL * const v_file, REAL * const w_file);
 			// B.2) Truncate/Extend input velocity field in Fourier space (accordingly to Nx, Ny, Nz)
 			void Truncate_Input_File_Fourier_Coefficients (COMPLEX const * const ukx_file, COMPLEX const * const uky_file, COMPLEX const * const ukz_file);
 
@@ -112,6 +103,7 @@ class HIT {
 		// 1.) R VECTOR:
 		//Convective term in Fourier space
 		void Recalculate_Velocity_Gradients_Fourier_Coefficients();
+		void Recalculate_Vorticity_Fourier_Coefficients();
 		void Recalculate_Velocity_Antitransform();
 		void Recalculate_Convective_Fourier_Coefficients();
 		//Divergence of SGS tensor in Fourier space (LES modelling)
@@ -173,9 +165,11 @@ class HIT {
 		void Calculate_Ek_init_file(COMPLEX const * const uk_file, COMPLEX const * const vk_file, COMPLEX const * const wk_file);
 		// Velocity gradient invariants spectra
 		void Recalculate_Invariants_Distribution(const char* filename[5] = NULL);
-		// I/O functions (implemented in HIT_LES_output.cpp)
+		// I/O functions (implemented in HIT_LES_IO.cpp)
 		void DealiasedComplex3DimField_to_BinaryFile(COMPLEX const * const field_x, COMPLEX const * const field_y, COMPLEX const * const field_z, char const * const filename) const;
 		void Real3DimField_to_BinaryFile(REAL const * const field_x, REAL const * const field_y, REAL const * const field_z, char const * const filename) const;
+        void BinaryFile_to_Real3DimField (REAL * const field_x, REAL * const field_y, REAL * const field_z);
+        void ASCIIFile_to_Real3DimField (REAL * const field_x, REAL * const field_y, REAL * const field_z);
 		void FourierVelocity_to_BinaryFile(char const * const filename) const;
 		void RealVelocity_to_BinaryFile(char const * const filename) const;
 		void Field2File(REAL const * const field, char const * const filename) const;
@@ -202,36 +196,44 @@ class HIT {
 
 	private:
 		FFT_package fftw;
-		const ptrdiff_t ActualNx, ActualNy, ActualNz, ActualMx, ActualMy, ActualMz, Nx, Ny, Nz, Nx_2, Ny_2, Nz_2, Mx, My, Mz, Mx_2, Mz_2, last_rad, last_rad_max;
+		const ptrdiff_t Nx, Ny, Nz, Nx_2, Ny_2, Nz_2, Mx, My, Mz, Mx_2, Mz_2, last_rad, last_rad_max;
 		const int numprocs, myrank;
 		REAL nu, ReLambda;
 		const REAL delta, C_Smag;
 		const REAL C_At, Ax, Ay, Az; // Any timestep
-		const int Lx_factor, Ly_factor, Lz_factor;
+		const REAL Lx_factor, Ly_factor, Lz_factor;
 		const REAL omega_x, omega_y, omega_z;
 		const char *ASCII_Input_Filename, *Binary_Input_Filename;
-		const ptrdiff_t ActualNx_file, ActualNy_file, ActualNz_file, Nx_file, Ny_file, Nz_file;
+		const ptrdiff_t Nx_file, Ny_file, Nz_file;
 		const bool isReLambda,isInitialFieldFromBinaryFile,isInitialFieldFromASCIIFile,isNotCubic,isRotating,isLES,isComplexConjugateCorrected,isSelfAdaptive;
 		REAL time;
 		REAL MaxVel, At; //Any timestep
+		//Reduction target for the timestep routines' LOOP_REAL_REDUCE(max:...): must be
+		//a class member, not a function-local, since "omp for reduction" requires the
+		//reduction variable to be shared across the team.
+		REAL local_MaxVel;
 		REAL C_visc, C_conv; //CFL timestep
 		REAL Ah, t1, kappa, *k, *phi, *c, phi0, _kappa05; //Self-adaptive timestep
 		//General case
 		ptrdiff_t alloc_local, local_n0, local_0_start, local_n1, local_1_start;
+		ptrdiff_t alloc_local_file, local_n0_file, local_0_start_file, local_n1_file, local_1_start_file;
 		REAL *u, *v, *w;
 		REAL *gradu[3], *gradv[3], *gradw[3];
+		REAL *vort[3]; //Vorticity: curl u. Not named "omega" to avoid clashing with omega_x/y/z (rotation rate)
 		REAL *convx, *convy, *convz;
 		REAL *velGradInv[5];
 		COMPLEX *velGradInvk[5];
 		COMPLEX *uk_aux, *vk_aux, *wk_aux, *uk_0, *vk_0, *wk_0, *uk_1, *vk_1, *wk_1;
 		COMPLEX *gradu_k[3], *gradv_k[3], *gradw_k[3];
+		COMPLEX *vort_k[3];
 		COMPLEX *convx_k, *convy_k, *convz_k;
 		COMPLEX *Rx0_k, *Ry0_k, *Rz0_k, *Rx1_k, *Ry1_k, *Rz1_k;
 		bool *dealiased, *conjugate;
-		REAL *rad2, *local_acumField, *global_acumField, *Ek;
+		REAL *rad2, *rad2_r, *local_acumField, *global_acumField, *Ek;
 		REAL Ok_Tot, Ek_Tot, Ek_init, Ek_init_file, Enstrophy_init_file;
 		int num_dealiased, num_dealiased_real;
 		int *local_n0_, *local_n1_;
+		int *local_n0_file_, *local_n1_file_;
 		MPI_Offset offset_Fourier, offset_Real;
 		//LES
 		REAL *nu_eddy, *SGS_11, *SGS_21, *SGS_22, *SGS_31, *SGS_32, *SGS_33;

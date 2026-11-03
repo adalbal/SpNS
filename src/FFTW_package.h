@@ -52,6 +52,7 @@ class FFT_package {
 		void Fourier_Normalization(REAL* phi, bool const * const relevant); //Normalizes "relevant" components of real vectors
 		void Fourier_Normalization(COMPLEX* phi, bool const * const relevant); //Normalizes "relevant" components of complex vectors
 		void Fourier_Normalization(REAL* phi); //Normalizes all components of real vectors
+		void Fourier_Normalization(COMPLEX* phi); //Normalizes all components of complex vectors 
 
 	private :
 		const int Mx, My, Mz, Mz_2;

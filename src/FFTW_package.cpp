@@ -41,6 +41,14 @@ void FFT_package::Fourier_Normalization(COMPLEX* phi, bool const * const relevan
 	}
 };
 
+void FFT_package::Fourier_Normalization(COMPLEX* phi) {
+	LOOP_3D(b,0,local_n1, a,0,Mx, k3,0,(Mz_2+1)) {
+        int ind = (b*Mx+a)*(Mz_2+1)+k3;
+        for (int ic=0; ic<=1; ic++){ //ic=0 => Real part, ic=1 => Imaginary part
+            phi[ind][ic] /= norm_Fourier;
+        }
+    }
+};
 //=====================================================================================================================
 // Initialization and destruction of FFTW_package class
 //=====================================================================================================================

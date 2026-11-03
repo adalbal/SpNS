@@ -5,6 +5,7 @@
 #include <stdarg.h>
 #include <mpi.h>
 #include <fftw3-mpi.h>
+#include <omp.h>
 
 #include "util.h"
 
@@ -131,7 +132,14 @@ void init_parallel(const bool& isOpenMP, const int& OMP_Threads, int *argc,char 
 		threads_ok = provided >= MPI_THREAD_FUNNELED;
 		if (threads_ok) threads_ok = init_threads();
 		mpi_init();
-		if (threads_ok) plan_with_nthreads(OMP_Threads); //From here, all FFTW3 plans will consider (at most) OMP_Threads threads
+		//Pinned to 1, NOT plan_with_nthreads(OMP_Threads): FFTW's own thread pool
+		//partitions the local array on its own heuristics, uncoordinated with our
+		//schedule(static) choice, so threads keep missing cache on the handoff
+		//between an FFTW call and the next elementwise loop. See NOTES_ON_OPENMP.md.
+		if (threads_ok) plan_with_nthreads(1);
+		//Without this, the hot path's "#pragma omp parallel" team would default to
+		//all cores regardless of what was requested here.
+		omp_set_num_threads(OMP_Threads);
 		//Rest of MPI related variables
 		if(MPI_Comm_rank(MPI_COMM_WORLD,&myid) != MPI_SUCCESS){fprintf(stderr,"2\n"); exit(-1); };
 		if(MPI_Comm_size(MPI_COMM_WORLD,&numprocs) != MPI_SUCCESS){fprintf(stderr,"3\n"); exit(-1); };
@@ -139,6 +147,9 @@ void init_parallel(const bool& isOpenMP, const int& OMP_Threads, int *argc,char 
 		//MPI-only FFTW initialization
 		if(MPI_Init(argc,argv) != MPI_SUCCESS){fprintf(stderr,"1\n"); exit(-1); }
 		mpi_init();
+		//Pin the hot path's team to 1 thread; otherwise it'd default to all cores,
+		//silently oversubscribing each MPI rank.
+		omp_set_num_threads(1);
 		//Rest of MPI related variables
 		if(MPI_Comm_rank(MPI_COMM_WORLD,&myid) != MPI_SUCCESS){fprintf(stderr,"2\n"); exit(-1); };
 		if(MPI_Comm_size(MPI_COMM_WORLD,&numprocs) != MPI_SUCCESS){fprintf(stderr,"3\n"); exit(-1); };

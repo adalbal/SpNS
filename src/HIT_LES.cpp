@@ -1,4 +1,5 @@
 #include "HIT_LES.h"
+#include <omp.h>
 
 int iter = 0;
 
@@ -10,18 +11,35 @@ void HIT::New_Fractional_Step_Method() {
 #if(QA) //USED FOR QA TESTS
 	Check_PhysFour_Energy(1e-13);
 #endif
-	//Calculation of R vector
-	Recalculate_R_vector_Fourier_Coefficients();
-	//Calculation of the predictor velocity at the following timestep (from R vector)
-	Recalculate_Predictor_Velocity_Fourier_Coefficients();
-	//Calculation of the new timesteps velocity distribution (from predictor velocity)
-	Recalculate_Divergence_Free_Projection();
-	//Obtention of new timestep
-	Recalculate_TimeStep();
-	//Update of total simulated time
-	time=time+At;
-	//Update of intern iteration counter
-	iter++;
+	//Reset local_MaxVel/_kappa05 before the team forks, not inside it: both are
+	//shared scalars (local_MaxVel via a reduction, whose combine step folds in its
+	//pre-existing value), so resetting them here avoids needing a barrier to do it
+	//race-free.
+	local_MaxVel = 0.0;
+	if (isSelfAdaptive) _kappa05 = (1.0/(kappa+0.5));
+	//Single parallel region for the whole per-iteration hot path: opened/closed once
+	//per iteration instead of once per LOOP_* call (~30x fewer team fork/joins). The
+	//functions below use "omp for" (worksharing, no new team), and gate every
+	//FFTW/MPI call and every plain scalar update (like `iter` below) behind
+	//"omp master" + "omp barrier".
+	#pragma omp parallel
+	{
+		//Calculation of R vector
+		Recalculate_R_vector_Fourier_Coefficients();
+		//Calculation of the predictor velocity at the following timestep (from R vector)
+		Recalculate_Predictor_Velocity_Fourier_Coefficients();
+		//Calculation of the new timesteps velocity distribution (from predictor velocity)
+		Recalculate_Divergence_Free_Projection();
+		//Obtention of new timestep
+		Recalculate_TimeStep();
+		//Update of total simulated time and intern iteration counter -- master-only:
+		//done by every thread, `iter` would advance by nthreads per real timestep.
+		#pragma omp master
+		{
+			time=time+At;
+			iter++;
+		}
+	}
 };
 
 //===================================================
@@ -33,18 +51,22 @@ void HIT::New_Fractional_Step_Method() {
 // Comment Recalculate_Velocity_Gradients_Fourier_Coefficients
 void HIT::Recalculate_Velocity_Gradients_Fourier_Coefficients() {
 	LOOP_FOURIER_k1k2k3{ //Velocity spatial derivatives in Fourier space
+		const int ind = (b*Mx + a) * (Mz_2 + 1) + k3;
+		const REAL k1_r  = FOURIER_FREQ(a, Mx)/Lx_factor;
+		const REAL k2_r  = FOURIER_FREQ(b, local_1_start, My)/Ly_factor;
+		const REAL k3_r  = k3/Lz_factor;
 		if (dealiased[ind]) {
-			gradu_k[0][ind][0] = -k1 * uk_1[ind][1];  gradu_k[0][ind][1] = k1 * uk_1[ind][0]; //dudx_k
-			gradu_k[1][ind][0] = -k2 * uk_1[ind][1];  gradu_k[1][ind][1] = k2 * uk_1[ind][0]; //dudy_k
-			gradu_k[2][ind][0] = -k3 * uk_1[ind][1];  gradu_k[2][ind][1] = k3 * uk_1[ind][0]; //dudz_k
+			gradu_k[0][ind][0] = -k1_r * uk_1[ind][1];  gradu_k[0][ind][1] = k1_r * uk_1[ind][0]; //dudx_k
+			gradu_k[1][ind][0] = -k2_r * uk_1[ind][1];  gradu_k[1][ind][1] = k2_r * uk_1[ind][0]; //dudy_k
+			gradu_k[2][ind][0] = -k3_r * uk_1[ind][1];  gradu_k[2][ind][1] = k3_r * uk_1[ind][0]; //dudz_k
 
-			gradv_k[0][ind][0] = -k1 * vk_1[ind][1];  gradv_k[0][ind][1] = k1 * vk_1[ind][0]; //dvdx_k
-			gradv_k[1][ind][0] = -k2 * vk_1[ind][1];  gradv_k[1][ind][1] = k2 * vk_1[ind][0]; //dvdy_k
-			gradv_k[2][ind][0] = -k3 * vk_1[ind][1];  gradv_k[2][ind][1] = k3 * vk_1[ind][0]; //dvdz_k
+			gradv_k[0][ind][0] = -k1_r * vk_1[ind][1];  gradv_k[0][ind][1] = k1_r * vk_1[ind][0]; //dvdx_k
+			gradv_k[1][ind][0] = -k2_r * vk_1[ind][1];  gradv_k[1][ind][1] = k2_r * vk_1[ind][0]; //dvdy_k
+			gradv_k[2][ind][0] = -k3_r * vk_1[ind][1];  gradv_k[2][ind][1] = k3_r * vk_1[ind][0]; //dvdz_k
 
-			gradw_k[0][ind][0] = -k1 * wk_1[ind][1];  gradw_k[0][ind][1] = k1 * wk_1[ind][0]; //dwdx_k
-			gradw_k[1][ind][0] = -k2 * wk_1[ind][1];  gradw_k[1][ind][1] = k2 * wk_1[ind][0]; //dwdy_k
-			gradw_k[2][ind][0] = -k3 * wk_1[ind][1];  gradw_k[2][ind][1] = k3 * wk_1[ind][0]; //dwdz_k
+			gradw_k[0][ind][0] = -k1_r * wk_1[ind][1];  gradw_k[0][ind][1] = k1_r * wk_1[ind][0]; //dwdx_k
+			gradw_k[1][ind][0] = -k2_r * wk_1[ind][1];  gradw_k[1][ind][1] = k2_r * wk_1[ind][0]; //dwdy_k
+			gradw_k[2][ind][0] = -k3_r * wk_1[ind][1];  gradw_k[2][ind][1] = k3_r * wk_1[ind][0]; //dwdz_k
 		} else { //For de-aliasing purposes
 			for (int coord=0; coord<3; coord++) {
 				for (int ic=0; ic<=1; ic++){ //ic=0 => Real part, ic=1 => Imaginary part
@@ -56,71 +78,142 @@ void HIT::Recalculate_Velocity_Gradients_Fourier_Coefficients() {
 		}
 	}
 };
+// Vorticity (curl of u) in Fourier space
+// If non-LES, used to save 6 IFFT in Recalculate_Convective_Fourier_Coefficients()
+void HIT::Recalculate_Vorticity_Fourier_Coefficients() {
+	LOOP_FOURIER_k1k2k3 {
+		const int ind = (b*Mx + a) * (Mz_2 + 1) + k3;
+		const REAL k1_r  = FOURIER_FREQ(a, Mx)/Lx_factor;
+		const REAL k2_r  = FOURIER_FREQ(b, local_1_start, My)/Ly_factor;
+		const REAL k3_r  = k3/Lz_factor;
+		if (dealiased[ind]) {
+			//omega_x = dw/dy - dv/dz = i*k2*w - i*k3*v
+			vort_k[0][ind][0] = -k2_r*wk_1[ind][1] + k3_r*vk_1[ind][1];
+			vort_k[0][ind][1] =  k2_r*wk_1[ind][0] - k3_r*vk_1[ind][0];
+			//omega_y = du/dz - dw/dx = i*k3*u - i*k1_r*w
+			vort_k[1][ind][0] = -k3_r*uk_1[ind][1] + k1_r*wk_1[ind][1];
+			vort_k[1][ind][1] =  k3_r*uk_1[ind][0] - k1_r*wk_1[ind][0];
+			//omega_z = dv/dx - du/dy = i*k1_r*v - i*k2_r*u
+			vort_k[2][ind][0] = -k1_r*vk_1[ind][1] + k2_r*uk_1[ind][1];
+			vort_k[2][ind][1] =  k1_r*vk_1[ind][0] - k2_r*uk_1[ind][0];
+		} else { //For de-aliasing purposes
+			for (int coord=0; coord<3; coord++) {
+				vort_k[coord][ind][0] = 0.0;
+				vort_k[coord][ind][1] = 0.0;
+			}
+		}
+	}
+};
 // Calculation of physical velocity using Fourier series expansion
 void HIT::Recalculate_Velocity_Antitransform() {
-	//Auxiliary copy needed because c2r leaves garbage at input
-	memcpy(uk_aux, uk_1, sizeof(COMPLEX) * alloc_local);
-	memcpy(vk_aux, vk_1, sizeof(COMPLEX) * alloc_local);
-	memcpy(wk_aux, wk_1, sizeof(COMPLEX) * alloc_local);
-	//IFFT: Vxy
-	fftw.IFFTWc2r(uk_aux,u);
-	fftw.IFFTWc2r(vk_aux,v);
-	fftw.IFFTWc2r(wk_aux,w);
+	//Copy and IFFT are both master-only serial work with nothing else in between --
+	//merged into one master block so the team pays for one barrier round-trip
+	//instead of two. Auxiliary copy needed because c2r leaves garbage at input.
+	#pragma omp master
+	{
+		memcpy(uk_aux, uk_1, sizeof(COMPLEX) * alloc_local);
+		memcpy(vk_aux, vk_1, sizeof(COMPLEX) * alloc_local);
+		memcpy(wk_aux, wk_1, sizeof(COMPLEX) * alloc_local);
+		fftw.IFFTWc2r(uk_aux,u);
+		fftw.IFFTWc2r(vk_aux,v);
+		fftw.IFFTWc2r(wk_aux,w);
+	}
+	#pragma omp barrier
 };
-// Recalculate_Convective_Fourier_Coefficients():
-//	1.) Calculation of gradu, gradv and gradw
-//	2.) Calculation convective term in Physical space
-//	3.) Calculation convective term in Fourier space
+// Recalculate_Convective_Fourier_Coefficients(). Two paths:
+//    1) LES: Needs the full gradient tensor, so graduvw is computed through 9 IFFT.
+//    2) Non-LES: Uses the rotational formulation: u.grad(u) = vort x u + grad(|u|^2/2).
+//                Then, only vorticity's 3 IFFT are required, as grad(|u|^2/2) can be
+//                ignored: it is curl-free, and the divergence-free projection discards
+//                it anyway. Equivalent to the full form after projection given exact
+//                dealiasing, although not bit-identical beforehand.
 void HIT::Recalculate_Convective_Fourier_Coefficients() {
-	//Recalculate gradients of velocity in Fourier space
-	Recalculate_Velocity_Gradients_Fourier_Coefficients();
 	//Obtention of the velocity field in the Physical space (via the IFFT)
 	Recalculate_Velocity_Antitransform();
-	//Calculation of the convective term in Fourier space. Loop over [coord] (1=x, 2=y, 3=z)
-	for(int coord=0; coord<3; coord++){
-		//Temporary aliases
-		REAL *convxyz = NULL;
-		REAL *graduvw[3] = {NULL,NULL,NULL};
-		COMPLEX *convxyz_k = NULL;
-		COMPLEX *graduvw_k[3] = {NULL,NULL,NULL};
-		//Alias assignation
-		switch(coord){
-			case 0:
-				for (int sub_coord=0; sub_coord<3; sub_coord++) { //x-velocity gradient
-					graduvw[sub_coord] = gradu[sub_coord];
-					graduvw_k[sub_coord] = gradu_k[sub_coord];
+	if (isLES) {
+		//Recalculate gradients of velocity in Fourier space
+		Recalculate_Velocity_Gradients_Fourier_Coefficients();
+		//Calculation of the convective term in Fourier space. Loop over [coord] (1=x, 2=y, 3=z)
+		for(int coord=0; coord<3; coord++){
+			//Temporary aliases
+			REAL *convxyz = NULL;
+			REAL *graduvw[3] = {NULL,NULL,NULL};
+			COMPLEX *convxyz_k = NULL;
+			COMPLEX *graduvw_k[3] = {NULL,NULL,NULL};
+			//Alias assignation
+			switch(coord){
+				case 0:
+					for (int sub_coord=0; sub_coord<3; sub_coord++) { //x-velocity gradient
+						graduvw[sub_coord] = gradu[sub_coord];
+						graduvw_k[sub_coord] = gradu_k[sub_coord];
+					}
+					convxyz = convx;
+					convxyz_k = convx_k;
+					break;
+				case 1:
+					for (int sub_coord=0; sub_coord<3; sub_coord++) { //y-velocity gradient
+						graduvw[sub_coord] = gradv[sub_coord];
+						graduvw_k[sub_coord] = gradv_k[sub_coord];
+					}
+					convxyz = convy;
+					convxyz_k = convy_k;
+					break;
+				case 2:
+					for (int sub_coord=0; sub_coord<3; sub_coord++) { //z-velocity gradient
+						graduvw[sub_coord] = gradw[sub_coord];
+						graduvw_k[sub_coord] = gradw_k[sub_coord];
+					}
+					convxyz = convz;
+					convxyz_k = convz_k;
+					break;
+			}
+			//IFFT of each component of the gradient of velocity (c2r)
+			#pragma omp master
+			{
+				for(int sub_coord=0; sub_coord<3; sub_coord++){
+					fftw.IFFTWc2r(graduvw_k[sub_coord],graduvw[sub_coord]);
 				}
-				convxyz = convx;
-				convxyz_k = convx_k;
-				break;
-			case 1:
-				for (int sub_coord=0; sub_coord<3; sub_coord++) { //y-velocity gradient
-					graduvw[sub_coord] = gradv[sub_coord];
-					graduvw_k[sub_coord] = gradv_k[sub_coord];
-				}
-				convxyz = convy;
-				convxyz_k = convy_k;
-				break;
-			case 2:
-				for (int sub_coord=0; sub_coord<3; sub_coord++) { //z-velocity gradient
-					graduvw[sub_coord] = gradw[sub_coord];
-					graduvw_k[sub_coord] = gradw_k[sub_coord];
-				}
-				convxyz = convz;
-				convxyz_k = convz_k;
-				break;
+			}
+			#pragma omp barrier
+			//Calculation of the [coord]-convective term in Physical space
+			LOOP_REAL {
+				const int ind = (i*My + j) * 2*(Mz_2 + 1) + k;
+				convxyz[ind] = u[ind] * graduvw[0][ind] + v[ind] * graduvw[1][ind] + w[ind] * graduvw[2][ind];
+			}
+			//Calculation of the [coord]-convective term in Fourier space
+			#pragma omp master
+			fftw.FFTWr2c(convxyz,convxyz_k); //FFT (r2c)
+			#pragma omp barrier
+			fftw.Fourier_Normalization(convxyz_k,dealiased); //Normalization of relevant coefficients (has its own omp-for + barrier)
 		}
-		//IFFT of each component of the gradient of velocity (c2r)
-		for(int sub_coord=0; sub_coord<3; sub_coord++){
-			fftw.IFFTWc2r(graduvw_k[sub_coord],graduvw[sub_coord]);
+	} else {
+		//Recalculate vorticity in Fourier space
+		Recalculate_Vorticity_Fourier_Coefficients();
+		//Batched into one master/barrier round-trip, as in Recalculate_Velocity_Antitransform
+		#pragma omp master
+		{
+			fftw.IFFTWc2r(vort_k[0],vort[0]);
+			fftw.IFFTWc2r(vort_k[1],vort[1]);
+			fftw.IFFTWc2r(vort_k[2],vort[2]);
 		}
-		//Calculation of the [coord]-convective term in Physical space
+		#pragma omp barrier
+		//vort x u; sign matches u.grad(u) (Rx1_k negates convx_k, as in the LES branch)
 		LOOP_REAL {
-			convxyz[ind] = u[ind] * graduvw[0][ind] + v[ind] * graduvw[1][ind] + w[ind] * graduvw[2][ind];
+			const int ind = (i*My + j) * 2*(Mz_2 + 1) + k;
+			convx[ind] = vort[1][ind]*w[ind] - vort[2][ind]*v[ind];
+			convy[ind] = vort[2][ind]*u[ind] - vort[0][ind]*w[ind];
+			convz[ind] = vort[0][ind]*v[ind] - vort[1][ind]*u[ind];
 		}
-		//Calculation of the [coord]-convective term in Fourier space
-		fftw.FFTWr2c(convxyz,convxyz_k); //FFT (r2c)
-		fftw.Fourier_Normalization(convxyz_k,dealiased); //Normalization of relevant coefficients
+		#pragma omp master
+		{
+			fftw.FFTWr2c(convx,convx_k);
+			fftw.FFTWr2c(convy,convy_k);
+			fftw.FFTWr2c(convz,convz_k);
+		}
+		#pragma omp barrier
+		fftw.Fourier_Normalization(convx_k,dealiased);
+		fftw.Fourier_Normalization(convy_k,dealiased);
+		fftw.Fourier_Normalization(convz_k,dealiased);
 	}
 };
 
@@ -131,6 +224,7 @@ void HIT::Recalculate_Eddy_Viscosity() {
 	// Smagorinsky model
 	const REAL ct = C_Smag * C_Smag * delta * delta;
 	LOOP_REAL {
+		const int ind = (i*My + j) * 2*(Mz_2 + 1) + k;
 		nu_eddy[ind] = 2.0 * gradu[0][ind] * gradu[0][ind];
 		nu_eddy[ind] += 2.0 * gradv[1][ind] * gradv[1][ind];
 		nu_eddy[ind] += 2.0 * gradw[2][ind] * gradw[2][ind];
@@ -144,6 +238,7 @@ void HIT::Recalculate_Eddy_Viscosity() {
 void HIT::Recalculate_SGS_Tensor_Components() {
 	Recalculate_Eddy_Viscosity();
 	LOOP_REAL {
+		const int ind = (i*My + j) * 2*(Mz_2 + 1) + k;
 		SGS_11[ind] = (-2.0) * nu_eddy[ind] * gradu[0][ind];
 		SGS_21[ind] = (-1.0) * nu_eddy[ind] * (gradu[1][ind] + gradv[0][ind]);
 		SGS_22[ind] = (-2.0) * nu_eddy[ind] * gradv[1][ind];
@@ -155,12 +250,16 @@ void HIT::Recalculate_SGS_Tensor_Components() {
 // Calculation of SGS tensor components in Fourier space
 void HIT::Recalculate_SGS_Tensor_Transform() {
 	//FFT: SGS_Tensor
-	fftw.FFTWr2c(SGS_11,SGS_11_k);
-	fftw.FFTWr2c(SGS_21,SGS_21_k);
-	fftw.FFTWr2c(SGS_22,SGS_22_k);
-	fftw.FFTWr2c(SGS_31,SGS_31_k);
-	fftw.FFTWr2c(SGS_32,SGS_32_k);
-	fftw.FFTWr2c(SGS_33,SGS_33_k);
+	#pragma omp master
+	{
+		fftw.FFTWr2c(SGS_11,SGS_11_k);
+		fftw.FFTWr2c(SGS_21,SGS_21_k);
+		fftw.FFTWr2c(SGS_22,SGS_22_k);
+		fftw.FFTWr2c(SGS_31,SGS_31_k);
+		fftw.FFTWr2c(SGS_32,SGS_32_k);
+		fftw.FFTWr2c(SGS_33,SGS_33_k);
+	}
+	#pragma omp barrier
 	//Normalization
 	fftw.Fourier_Normalization(SGS_11_k,dealiased);
 	fftw.Fourier_Normalization(SGS_21_k,dealiased);
@@ -177,16 +276,20 @@ void HIT::Recalculate_SGS_Tensor_Divergence_Fourier_Coefficients() {
 	Recalculate_SGS_Tensor_Transform();
 	//SGS tensor divergence components in Fourier space
 	LOOP_FOURIER_k1k2k3 {
+		const int ind = (b*Mx + a) * (Mz_2 + 1) + k3;
+		const REAL k1_r  = FOURIER_FREQ(a, Mx)/Lx_factor;
+		const REAL k2_r  = FOURIER_FREQ(b, local_1_start, My)/Ly_factor;
+		const REAL k3_r  = k3/Lz_factor;
 		if (dealiased[ind]) {
 			// divSGSx_k
-			divSGSx_k[ind][0] = - k1 * SGS_11_k[ind][1] - k2 * SGS_21_k[ind][1] - k3 * SGS_31_k[ind][1];
-			divSGSx_k[ind][1] =   k1 * SGS_11_k[ind][0] + k2 * SGS_21_k[ind][0] + k3 * SGS_31_k[ind][0];
+			divSGSx_k[ind][0] = - k1_r * SGS_11_k[ind][1] - k2_r * SGS_21_k[ind][1] - k3_r * SGS_31_k[ind][1];
+			divSGSx_k[ind][1] =   k1_r * SGS_11_k[ind][0] + k2_r * SGS_21_k[ind][0] + k3_r * SGS_31_k[ind][0];
 			// divSGSy_k // SGS_12 = SGS_21
-			divSGSy_k[ind][0] = - k1 * SGS_21_k[ind][1] - k2 * SGS_22_k[ind][1] - k3 * SGS_32_k[ind][1];
-			divSGSy_k[ind][1] =   k1 * SGS_21_k[ind][0] + k2 * SGS_22_k[ind][0] + k3 * SGS_32_k[ind][0];
+			divSGSy_k[ind][0] = - k1_r * SGS_21_k[ind][1] - k2_r * SGS_22_k[ind][1] - k3_r * SGS_32_k[ind][1];
+			divSGSy_k[ind][1] =   k1_r * SGS_21_k[ind][0] + k2_r * SGS_22_k[ind][0] + k3_r * SGS_32_k[ind][0];
 			// divSGSz_k // SGS_13 = SGS_31 // SGS_23 = SGS_32
-			divSGSz_k[ind][0] = - k1 * SGS_31_k[ind][1] - k2 * SGS_32_k[ind][1] - k3 * SGS_33_k[ind][1];
-			divSGSz_k[ind][1] =   k1 * SGS_31_k[ind][0] + k2 * SGS_32_k[ind][0] + k3 * SGS_33_k[ind][0];
+			divSGSz_k[ind][0] = - k1_r * SGS_31_k[ind][1] - k2_r * SGS_32_k[ind][1] - k3_r * SGS_33_k[ind][1];
+			divSGSz_k[ind][1] =   k1_r * SGS_31_k[ind][0] + k2_r * SGS_32_k[ind][0] + k3_r * SGS_33_k[ind][0];
 		}
 	}
 };
@@ -194,18 +297,24 @@ void HIT::Recalculate_SGS_Tensor_Divergence_Fourier_Coefficients() {
 //=========================
 // 3.) R VECTOR
 void HIT::Recalculate_R_vector_Fourier_Coefficients() {
-	//Update last timestep value of R vector
-	memcpy(Rx0_k, Rx1_k, sizeof(COMPLEX) * alloc_local);
-	memcpy(Ry0_k, Ry1_k, sizeof(COMPLEX) * alloc_local);
-	memcpy(Rz0_k, Rz1_k, sizeof(COMPLEX) * alloc_local);
+	//NOWAIT: Rx0_k/Ry0_k/Rz0_k aren't read again until well past several later
+	//barriers, which already flush this write for every thread by then.
+	COPY3_COMPLEX_NOWAIT(Rx0_k,Ry0_k,Rz0_k, Rx1_k,Ry1_k,Rz1_k, alloc_local);
 	//Calculate new R vector in Fourier space
 	Recalculate_Convective_Fourier_Coefficients();
-	REAL ct;
-	bool isMeanVelTerm;
-	LOOP_FOURIER {
+	//NOWAIT: safe in all 4 isLES x isRotating combinations -- whichever of {this
+	//loop, the isLES/isRotating loops below} writes Rx1_k/Ry1_k/Rz1_k LAST, that
+	//write isn't read again until Predictor_Velocity's COPY3_COMPLEX barrier. All
+	//these loops share the same shape/schedule, so thread t's own writes here
+	//happen-before thread t's own writes to the same indices later; no other
+	//thread touches them.
+	LOOP_FOURIER_NOWAIT {
+		const int ind = (b*Mx + a) * (Mz_2 + 1) + k3;
 		if (dealiased[ind]) {
-			ct = nu * rad2[ind];
-			isMeanVelTerm = !(rad2[ind] > 0.0);
+			//Must be loop-local, not hoisted: once this is a real "omp for", a shared
+			//scratch variable would be clobbered by concurrent iterations.
+			const REAL ct = nu * rad2_r[ind];
+			const bool isMeanVelTerm = !(rad2_r[ind] > 0.0);
 			for (int ic=0; ic<=1; ic++){ //ic=0 => Real part, ic=1 => Imaginary part
 				// Convective term is zero at K=0 by incompressibility+periodicity;
 				// zeroing it here prevents FP residuals from contaminating the mean flow.
@@ -218,7 +327,10 @@ void HIT::Recalculate_R_vector_Fourier_Coefficients() {
 	}
 	if (isLES) {
 		Recalculate_SGS_Tensor_Divergence_Fourier_Coefficients();
-		LOOP_FOURIER {
+		//nowait: safe only because the very next thing (isRotating's loop, if taken)
+		//is another LOOP_FOURIER with nothing in between -- see the note in util.h.
+		LOOP_FOURIER_NOWAIT {
+			const int ind = (b*Mx + a) * (Mz_2 + 1) + k3;
 			if (dealiased[ind]) {
 				for (int ic=0; ic<=1; ic++){ //ic=0 => Real part, ic=1 => Imaginary part
 					Rx1_k[ind][ic] -= divSGSx_k[ind][ic];
@@ -229,8 +341,11 @@ void HIT::Recalculate_R_vector_Fourier_Coefficients() {
 		}
 	}
 	if (isRotating) {
-		//Considering the system is rotating with angular rotation velocity (omega_x,omega_y,omega_z)
-		LOOP_FOURIER {
+		//Considering the system is rotating with angular rotation velocity
+		//(omega_x,omega_y,omega_z). NOWAIT: same reasoning as above -- this is the
+		//last possible writer to Rx1_k/Ry1_k/Rz1_k in this function.
+		LOOP_FOURIER_NOWAIT {
+			const int ind = (b*Mx + a) * (Mz_2 + 1) + k3;
 			if (dealiased[ind]) {
 				for (int ic=0; ic<=1; ic++){ //ic=0 => Real part, ic=1 => Imaginary part
 					Rx1_k[ind][ic] += 2 * (omega_z * vk_1[ind][ic] - omega_y * wk_1[ind][ic]);
@@ -257,7 +372,7 @@ void HIT::Recalculate_R_vector_Fourier_Coefficients() {
 
 		// Add forcing term to RHS: R += alpha*u for Kfmin <= K <= Kfmax
 		LOOP_FOURIER {
-			int K = static_cast<int>(round(sqrt(rad2[ind])));
+			int K = static_cast<int>(round(sqrt(rad2_r[ind])));
 			if (dealiased[ind]) {
 				if (Kfmin<=K && K <= Kfmax) {
 					for (int ic=0; ic<=1; ic++){ //ic=0 => Real part, ic=1 => Imaginary part
@@ -296,17 +411,17 @@ void HIT::Recalculate_Predictor_Velocity_Fourier_Coefficients() {
 	if (isSelfAdaptive) {
 		//Update old values
 		if (iter > 0) { //Initial old velocity field equal to 0.0 unstabilities
-			memcpy(uk_aux, uk_0, sizeof(COMPLEX) * alloc_local);
-			memcpy(vk_aux, vk_0, sizeof(COMPLEX) * alloc_local);
-			memcpy(wk_aux, wk_0, sizeof(COMPLEX) * alloc_local);
+			COPY3_COMPLEX(uk_aux,vk_aux,wk_aux, uk_0,vk_0,wk_0, alloc_local);
 		}
-		memcpy(uk_0, uk_1, sizeof(COMPLEX) * alloc_local);
-		memcpy(vk_0, vk_1, sizeof(COMPLEX) * alloc_local);
-		memcpy(wk_0, wk_1, sizeof(COMPLEX) * alloc_local);
-		//Related to self-adaptive timestep
-		_kappa05 = (1.0/(kappa+0.5));
+		COPY3_COMPLEX(uk_0,vk_0,wk_0, uk_1,vk_1,wk_1, alloc_local);
+		//_kappa05 already computed pre-fork by New_Fractional_Step_Method -- see the
+		//comment there.
 		//Calculation of new coefficients
-		LOOP_FOURIER {
+		//nowait: safe because the caller's very next call, Recalculate_Divergence_Free_
+		//Projection, opens with a LOOP_FOURIER_k1k2k3 over the exact same trip count --
+		//see the note in util.h.
+		LOOP_FOURIER_NOWAIT {
+			const int ind = (b*Mx + a) * (Mz_2 + 1) + k3;
 			if (dealiased[ind]) {
 				for (int ic=0; ic<=1; ic++){ //ic=0 => Real part, ic=1 => Imaginary part
 					//Adaptive timestep
@@ -321,11 +436,11 @@ void HIT::Recalculate_Predictor_Velocity_Fourier_Coefficients() {
 		}
 	} else {
 		//Update old values
-		memcpy(uk_0, uk_1, sizeof(COMPLEX) * alloc_local);
-		memcpy(vk_0, vk_1, sizeof(COMPLEX) * alloc_local);
-		memcpy(wk_0, wk_1, sizeof(COMPLEX) * alloc_local);
+		COPY3_COMPLEX(uk_0,vk_0,wk_0, uk_1,vk_1,wk_1, alloc_local);
 		//Calculation of new coefficients
-		LOOP_FOURIER {
+		//nowait: see the identical note on the isSelfAdaptive branch's final loop above.
+		LOOP_FOURIER_NOWAIT {
+			const int ind = (b*Mx + a) * (Mz_2 + 1) + k3;
 			if (dealiased[ind]) {
 				for (int ic=0; ic<=1; ic++){ //ic=0 => Real part, ic=1 => Imaginary part
 					//Adams-Bashforth method
@@ -344,15 +459,21 @@ void HIT::Recalculate_Predictor_Velocity_Fourier_Coefficients() {
 
 // Divergence-free projection of predictor velocity (result of substracting the gradient of pseudo-pressure -> operator (k^t·k)/(k·k))
 void HIT::Recalculate_Divergence_Free_Projection() {
-	REAL aux;
-	//Projection of Predictor velocity and calculation of uk_n+1 (stored in ukxyz_1 replacing predictor velocity)
-	LOOP_FOURIER_k1k2k3 {
+	//Projection of Predictor velocity, result stored back into uk_1/vk_1/wk_1.
+	//NOWAIT: not read again until next iteration's Recalculate_Velocity_Gradients_
+	//Fourier_Coefficients, after the parallel region closes and reopens (itself a
+	//full synchronization).
+	LOOP_FOURIER_NOWAIT {
+		const int ind = (b*Mx + a) * (Mz_2 + 1) + k3;
+		const REAL k1_r  = FOURIER_FREQ(a, Mx)/Lx_factor;
+		const REAL k2_r  = FOURIER_FREQ(b, local_1_start, My)/Ly_factor;
+		const REAL k3_r  = k3/Lz_factor;
 		if (dealiased[ind]) {
 			for (int ic=0; ic<=1; ic++){ //ic=0 => Real part, ic=1 => Imaginary part
-				aux = ((rad2[ind]>0) ? ((k1*uk_1[ind][ic]+k2*vk_1[ind][ic]+k3*wk_1[ind][ic])/rad2[ind]) : 0.0);
-				uk_1[ind][ic] -= aux * k1;
-				vk_1[ind][ic] -= aux * k2;
-				wk_1[ind][ic] -= aux * k3;
+				const REAL aux = ((rad2_r[ind]>0) ? ((k1_r*uk_1[ind][ic]+k2_r*vk_1[ind][ic]+k3_r*wk_1[ind][ic])/rad2_r[ind]) : 0.0);
+				uk_1[ind][ic] -= aux * k1_r;
+				vk_1[ind][ic] -= aux * k2_r;
+				wk_1[ind][ic] -= aux * k3_r;
 			}
 		}
 	}
@@ -371,35 +492,49 @@ void HIT::Recalculate_TimeStep() {
 }
 // Calculation of new self-adaptive timestep
 void HIT::Recalculate_SelfAdaptive_TimeStep() {
-	//Compute local maximums at each process
-	REAL local_MaxVel = 0.0;
-	LOOP_REAL {
+	//local_MaxVel is a class member (needed for the reduction below to be legal --
+	//see HIT_LES.h), so it carries over from the last call and must be reset before
+	//any thread enters the reduction -- resetting it inside the team would race.
+	//New_Fractional_Step_Method's hot path already resets it pre-fork; when called
+	//standalone (no active team) there's nothing to race against, so reset here.
+	if (!omp_in_parallel()) local_MaxVel = 0.0;
+	LOOP_REAL_REDUCE(max:local_MaxVel) {
+		const int ind = (i*My + j) * 2*(Mz_2 + 1) + k;
 		local_MaxVel = max(local_MaxVel, (fabs(u[ind])/Ax + fabs(v[ind])/Ay + fabs(w[ind])/Az));
 	}
-	//Compute maximum accros processes
-	MaxVel = 0.0;
-	MPI_Allreduce(&local_MaxVel, &MaxVel, 1, REAL_MPI, MPI_MAX, MCW);
-	//Recalculate self-adaptive timestep
-	phi0 = atan(MaxVel*Ah*Ah/(0.35*nu*12.0)); //0.35 per la constant Cc
-	At = Topt(phi0)/sqrt((MaxVel*MaxVel)/(0.35*0.35)+(144.0*nu*nu/(Ah*Ah*Ah*Ah)));
-	kappa = Kopt(phi0);
-	At = C_At*At;
+	//MPI_Allreduce is effectively collective, so only the master thread may call it.
+	//No barrier needed after: this is the last statement of the hot path's parallel
+	//region, and the next reader only runs after that region closes and reopens.
+	#pragma omp master
+	{
+		MaxVel = 0.0;
+		MPI_Allreduce(&local_MaxVel, &MaxVel, 1, REAL_MPI, MPI_MAX, MCW);
+		//Recalculate self-adaptive timestep
+		phi0 = atan(MaxVel*Ah*Ah/(0.35*nu*12.0)); //0.35 per la constant Cc
+		At = Topt(phi0)/sqrt((MaxVel*MaxVel)/(0.35*0.35)+(144.0*nu*nu/(Ah*Ah*Ah*Ah)));
+		kappa = Kopt(phi0);
+		At = C_At*At;
+	}
 };
 // Calculation of new CFL timestep
 void HIT::Recalculate_CFL_TimeStep() {
-	//Compute local maximums at each process
-	REAL local_MaxVel = 0.0;
-	LOOP_REAL {
+	//See the identical note in Recalculate_SelfAdaptive_TimeStep.
+	if (!omp_in_parallel()) local_MaxVel = 0.0;
+	LOOP_REAL_REDUCE(max:local_MaxVel) {
+		const int ind = (i*My + j) * 2*(Mz_2 + 1) + k;
 		local_MaxVel = max(local_MaxVel, max(fabs(u[ind])/Ax, max(fabs(v[ind])/Ay, fabs(w[ind])/Az)));
 	}
-	//Compute maximum accros processes
-	MaxVel = 0.0;
-	MPI_Allreduce(&local_MaxVel, &MaxVel, 1, REAL_MPI, MPI_MAX, MCW);
-	//Recalculate CFL timestep
-	C_visc = 0.2 * min(Ax*Ax, min(Ay*Ay, Az*Az)) / nu;
-	C_conv = 0.35 / MaxVel;
-	At = min(C_visc, C_conv);
-	At = C_At * At;
+	//See the identical note in Recalculate_SelfAdaptive_TimeStep.
+	#pragma omp master
+	{
+		MaxVel = 0.0;
+		MPI_Allreduce(&local_MaxVel, &MaxVel, 1, REAL_MPI, MPI_MAX, MCW);
+		//Recalculate CFL timestep
+		C_visc = 0.2 * min(Ax*Ax, min(Ay*Ay, Az*Az)) / nu;
+		C_conv = 0.35 / MaxVel;
+		At = min(C_visc, C_conv);
+		At = C_At * At;
+	}
 };
 
 //=====================================================================================================================
@@ -419,8 +554,9 @@ void HIT::Forcing_Energy_Cascade(REAL const * const Forced_Ek, const ptrdiff_t& 
 	}
 	//Scaling of velocity to force the energy cascade to be as Forced_Ek
 	LOOP_FOURIER {
+		const int ind = (b*Mx + a) * (Mz_2 + 1) + k3;
 		if (dealiased[ind]) {
-			int K = static_cast<int>(round(sqrt(rad2[ind])));
+			int K = static_cast<int>(round(sqrt(rad2_r[ind])));
 			if (K <= last_eff_rad) {
 				for (int ic=0; ic<=1; ic++){ //ic=0 => Real part, ic=1 => Imaginary part
 					uk_1[ind][ic] *= FT[K];
@@ -502,10 +638,14 @@ REAL HIT::Recalculate_Enstrophy() {
 void HIT::Input_K41_Field() {
 	//Set random velocity field in Fourier space
 	srand(0); //Set fixed seed
+	//Not called from inside any parallel region (setup-only, once) -- LOOP_FOURIER's
+	//omp-for runs serially here, which this relies on: rand() is a shared, ordered
+	//PRNG stream and would need a different generator to be genuinely parallelized.
 	LOOP_FOURIER {
+		const int ind = (b*Mx + a) * (Mz_2 + 1) + k3;
 		for (int ic=0; ic<=1; ic++) { //ic=0 => Real part, ic=1 => Imaginary part
 			if (dealiased[ind]) {
-				int K = static_cast<int>(round(sqrt(rad2[ind])));
+				int K = static_cast<int>(round(sqrt(rad2_r[ind])));
 				//As K41 is not forced to them, set to 0 velocities with K>last_rad
 				if (K<=last_rad) {
 					uk_1[ind][ic] = (((REAL)rand()/RAND_MAX)*2.0 - 1.0);
@@ -540,195 +680,84 @@ void HIT::Input_K41_Field() {
 };
 // Initialization of velocity field in Fourier space from an input file containing velocities in Fourier space
 void HIT::Input_Real_Field() {
-	//Create pointers for Fourier-space velocity
-	COMPLEX *uk_file = alloc_complex(Nx_file * Ny_file * (Nz_file/2+1));
-	COMPLEX *vk_file = alloc_complex(Nx_file * Ny_file * (Nz_file/2+1));
-	COMPLEX *wk_file = alloc_complex(Nx_file * Ny_file * (Nz_file/2+1));
-	//Create pointers for physical-space velocity
-	REAL *u_file = NULL, *v_file = NULL, *w_file = NULL;
-	if (myrank == 0) {
-		u_file = alloc_real(Nx_file * Ny_file * Nz_file);
-		v_file = alloc_real(Nx_file * Ny_file * Nz_file);
-		w_file = alloc_real(Nx_file * Ny_file * Nz_file);
+    //Create fftw3 plans (FFT of physical velocities)
+    //Create FFT_Package instance with file Nx Ny Nz
+    FFT_package fftw_file(Nx_file, Ny_file, Nz_file);
+
+    alloc_local_file    = fftw_file.getalloc_local();
+    local_n0_file       = fftw_file.getlocal_n0();
+    local_0_start_file  = fftw_file.getlocal_0_start();
+    local_n1_file       = fftw_file.getlocal_n1();
+    local_1_start_file  = fftw_file.getlocal_1_start();
+
+	local_n0_file_ = (int*) MALLOC(sizeof(int) * numprocs);
+	MPI_Gather(&local_n0_file, 1, MPI_INT, local_n0_file_, 1, MPI_INT, 0, MCW);
+	MPI_Bcast(local_n0_file_, numprocs, MPI_INT, 0, MCW);
+
+	local_n1_file_ = (int*) MALLOC(sizeof(int) * numprocs);
+	MPI_Gather(&local_n1_file, 1, MPI_INT, local_n1_file_, 1, MPI_INT, 0, MCW);
+	MPI_Bcast(local_n1_file_, numprocs, MPI_INT, 0, MCW);
+
+    //Create pointers for Fourier-space velocity
+    COMPLEX *uk_file = alloc_complex(alloc_local_file);
+    COMPLEX *vk_file = alloc_complex(alloc_local_file);
+    COMPLEX *wk_file = alloc_complex(alloc_local_file);
+    //Create pointers for physical-space velocity
+    REAL *u_file = alloc_real(2 * alloc_local_file);
+    REAL *v_file = alloc_real(2 * alloc_local_file);
+    REAL *w_file = alloc_real(2 * alloc_local_file);
+
+    //Load of input file (velocity in physical space).
+    Read_Input_File_Vxyz(u_file, v_file, w_file);
+
+    //Execute FFT
+    fftw_file.FFTWr2c(u_file, uk_file);
+    fftw_file.FFTWr2c(v_file, vk_file);
+    fftw_file.FFTWr2c(w_file, wk_file);
+    FREE(u_file);
+    FREE(v_file);
+    FREE(w_file);
+
+    //Normalization following FFT
+    fftw_file.Fourier_Normalization(uk_file);
+    fftw_file.Fourier_Normalization(vk_file);
+    fftw_file.Fourier_Normalization(wk_file);
+
+	LOOP_3D (b,0,local_n1_file, a,0,Nx_file, k3,0,Nz_file/2+1) {
+		int ind = (b*Nx_file+a)*(Nz_file/2+1)+k3;
+		int k1 = FOURIER_FREQ(a,Nx_file);
+		int k2 = FOURIER_FREQ(b,local_1_start_file,Ny_file);
+        if( (abs(k1) > (Nx_file-1)/2) || (abs(k2) > (Ny_file-1)/2) || (k3 > (Nz_file-1)/2)){
+           uk_file[ind][0] = 0; 
+           vk_file[ind][0] = 0; 
+           wk_file[ind][0] = 0; 
+
+           uk_file[ind][1] = 0; 
+           vk_file[ind][1] = 0; 
+           wk_file[ind][1] = 0; 
+        }
 	}
-	//Create fftw3 plans (FFT of physical velocities)
-	plan r2c_u_file = NULL, r2c_v_file = NULL, r2c_w_file = NULL;
-	if (myrank == 0) {
-		r2c_u_file = plan_dft_r2c_3d(Nx_file, Ny_file, Nz_file, u_file, uk_file, FE|FDI);
-		r2c_v_file = plan_dft_r2c_3d(Nx_file, Ny_file, Nz_file, v_file, vk_file, FE|FDI);
-		r2c_w_file = plan_dft_r2c_3d(Nx_file, Ny_file, Nz_file, w_file, wk_file, FE|FDI);
-	}
-	//Load of input file (velocity in physical space). Only process 0 reads the (whole) file
-	int dumb_columns = 0;
-	Read_Input_File_Vxyz(u_file, v_file, w_file, dumb_columns);
-	//Execute FFT
-	if (myrank == 0) {
-		execute(r2c_u_file);
-		execute(r2c_v_file);
-		execute(r2c_w_file);
-		//Freeing of mallocated memory
-		destroy_plan(r2c_u_file);
-		destroy_plan(r2c_v_file);
-		destroy_plan(r2c_w_file);
-		FREE(u_file);
-		FREE(v_file);
-		FREE(w_file);
-		//Normalization following FFT
-		for (int ind=0; ind<Nx_file*Ny_file*(Nz_file/2+1); ind++) {
-			for (int ic=0; ic<=1; ic++){ //ic=0 => Real part, ic=1 => Imaginary part
-				uk_file[ind][ic] /= (Nx_file*Ny_file*Nz_file);
-				vk_file[ind][ic] /= (Nx_file*Ny_file*Nz_file);
-				wk_file[ind][ic] /= (Nx_file*Ny_file*Nz_file);
-			}
-		}
-		Calculate_Ek_init_file(uk_file, vk_file, wk_file);
-	}
-	//Share Ek_init_file and Enstrophy_init_file from process 0 to the rest of processes
-	MPI_Bcast(&Ek_init_file, 1, REAL_MPI, 0, MCW);
-	MPI_Bcast(&Enstrophy_init_file, 1, REAL_MPI, 0, MCW);
-	//Share vectors uk_file, vk_file and wk_file from process 0 to the rest of processes
-	MPI_Bcast(uk_file, sizeof(COMPLEX) *  Nx_file * Ny_file * (Nz_file/2+1), MPI_BYTE, 0, MCW);
-	MPI_Bcast(vk_file, sizeof(COMPLEX) *  Nx_file * Ny_file * (Nz_file/2+1), MPI_BYTE, 0, MCW);
-	MPI_Bcast(wk_file, sizeof(COMPLEX) *  Nx_file * Ny_file * (Nz_file/2+1), MPI_BYTE, 0, MCW);
-	//Truncation/Extension of input field (v in Fourier space)
-	Truncate_Input_File_Fourier_Coefficients(uk_file, vk_file, wk_file);
-	//Freeing of mallocated memory
-	FREE(uk_file);
-	FREE(vk_file);
-	FREE(wk_file);
+    MPI_Barrier(MCW);
+    //Truncation/Extension of input field (in Fourier space)
+    Truncate_Input_File_Fourier_Coefficients(uk_file, vk_file, wk_file);
+    //Freeing of mallocated memory
+    FREE(uk_file);
+    FREE(vk_file);
+    FREE(wk_file);
+
+    Calculate_Ek_init_file(uk_1, vk_1, wk_1);
+
 };
 
 //=========================
 // 1.) LOAD PHYSICAL VELOCITY FROM FILE (All by read by one rank!!)
 // Read and load of velocity fields from input files of known size
-void HIT::Read_Input_File_Vxyz (REAL* u_file, REAL* v_file, REAL* w_file, const int& dumb_columns) {
-	REAL *u_read = NULL, *v_read = NULL, *w_read = NULL;
-	unsigned int total_file_num = ActualNx_file * ActualNy_file * ActualNz_file;
-	if (myrank == 0) {
-		if (isNotCubic) { //isNotCubic => ActualN <= N
-			u_read = alloc_real(ActualNx_file * ActualNy_file * ActualNz_file);
-			v_read = alloc_real(ActualNx_file * ActualNy_file * ActualNz_file);
-			w_read = alloc_real(ActualNx_file * ActualNy_file * ActualNz_file);
-		} else { //Cubic => ActualN = N
-			u_read = u_file;
-			v_read = v_file;
-			w_read = w_file;
-		}
-	}
-	if (isInitialFieldFromBinaryFile) {
-		unsigned int expected_filesize = sizeof(REAL) * 3 * total_file_num;
-		unsigned int expected_single_filesize = sizeof(float) * 3 * total_file_num;
-		unsigned int expected_double_filesize = sizeof(double) * 3 * total_file_num;
-		MPI_File fh;
-		MPI_Status status;
-		MPI_File_open(MCW, Binary_Input_Filename, MPI_MODE_RDONLY, MPI_INFO_NULL, &fh);
-		//Check the size of the input file
-		MPI_Offset filesize;
-		MPI_File_get_size(fh, &filesize);
-		if ((filesize != expected_single_filesize) && (filesize != expected_double_filesize)) crash("Incorrect size of \"%s\"!! %lld bytes instead of %d bytes (for single-precision) or %d bytes (for double-precision).\n", Binary_Input_Filename, filesize, expected_single_filesize, expected_double_filesize);
-		//Read of input file (only by rank 0)
-		MPI_Offset offset_Real_read = 0;
-		MPI_File_seek(fh, offset_Real_read, MPI_SEEK_SET);
-		int num_to_read;
-		if (myrank == 0) num_to_read = total_file_num; //everything read by rank 0
-		else num_to_read = 0;
-		//Binary read of input velocity field
-		if (filesize != expected_filesize) { //calculation precision != input precision
-			switch (BYTES) {
-				case 4: //single-precision simulation but double-precision input
-				{
-					double *u_input = NULL, *v_input = NULL, *w_input = NULL;
-					if (myrank == 0) {
-						u_input = fftw_alloc_real(total_file_num);
-						v_input = fftw_alloc_real(total_file_num);
-						w_input = fftw_alloc_real(total_file_num);
-					}
-					MPI_File_read_all(fh, u_input, num_to_read, MPI_DOUBLE, &status);
-					MPI_File_read_all(fh, v_input, num_to_read, MPI_DOUBLE, &status);
-					MPI_File_read_all(fh, w_input, num_to_read, MPI_DOUBLE, &status);
-					if (myrank == 0) {
-						for (int ind=0; ind<ActualNx_file*ActualNy_file*ActualNz_file; ind++) {
-							u_read[ind] = u_input[ind];
-							v_read[ind] = v_input[ind];
-							w_read[ind] = w_input[ind];
-						}
-						fftw_free(u_input); fftw_free(v_input); fftw_free(w_input);
-					}
-					break;
-				}
-				case 8: //double-precision simulation but single-precision input
-				{
-					float *u_input = NULL, *v_input = NULL, *w_input = NULL;
-					if (myrank == 0) {
-						u_input = fftwf_alloc_real(total_file_num);
-						v_input = fftwf_alloc_real(total_file_num);
-						w_input = fftwf_alloc_real(total_file_num);
-					}
-					MPI_File_read_all(fh, u_input, num_to_read, MPI_FLOAT, &status);
-					MPI_File_read_all(fh, v_input, num_to_read, MPI_FLOAT, &status);
-					MPI_File_read_all(fh, w_input, num_to_read, MPI_FLOAT, &status);
-					if (myrank == 0) {
-						for (int ind=0; ind<ActualNx_file*ActualNy_file*ActualNz_file; ind++) {
-							u_read[ind] = u_input[ind];
-							v_read[ind] = v_input[ind];
-							w_read[ind] = w_input[ind];
-						}
-						fftwf_free(u_input); fftwf_free(v_input); fftwf_free(w_input);
-					}
-					break;
-				}
-			}
-		} else { //calculation precision == input precision
-			MPI_File_read_all(fh, u_read, num_to_read, REAL_MPI, &status);
-			MPI_File_read_all(fh, v_read, num_to_read, REAL_MPI, &status);
-			MPI_File_read_all(fh, w_read, num_to_read, REAL_MPI, &status);
-		}
-		MPI_File_close(&fh);
+void HIT::Read_Input_File_Vxyz (REAL * const u_file, REAL * const v_file, REAL * const w_file) {
+    if (isInitialFieldFromBinaryFile) {
+        BinaryFile_to_Real3DimField(u_file, v_file, w_file);
 	} else if (isInitialFieldFromASCIIFile) {
-		if (myrank == 0) {
-			int row = 0;
-			int col = 0;
-			REAL shit;
-			ifstream infile;
-			infile.open(ASCII_Input_Filename);
-			if(infile.fail()) {
-				crash("Error opening \"%s\"!!\n", ASCII_Input_Filename);
-			}
-			while((!infile.eof()) && (row < ActualNx_file*ActualNy_file*ActualNz_file)) {
-				if (col < dumb_columns) {
-					infile >> shit;
-					col++;
-				} else {
-					infile >> u_read[row] >> v_read[row] >> w_read[row];
-					row++;
-					col=0;
-				}
-			}
-			infile.close();
-		}
-	}
-	if (isNotCubic) {
-		if(myrank == 0) {
-			LOOP_3D (i,0,Nx_file, j,0,Ny_file, k,0,Nz_file) {
-				int ind = (i*Ny_file+j)*Nz_file+k;
-				if (i<ActualNx_file && j<ActualNy_file && k<ActualNz_file) {
-					int ind_read = (i*ActualNy_file+j)*ActualNz_file+k;
-					u_file[ind] = u_read[ind_read];
-					v_file[ind] = v_read[ind_read];
-					w_file[ind] = w_read[ind_read];
-				} else {
-					int i_ = ((i < ActualNx_file) ? i : i-ActualNx_file);
-					int j_ = ((j < ActualNy_file) ? j : j-ActualNy_file);
-					int k_ = ((k < ActualNz_file) ? k : k-ActualNz_file);
-					int ind_ = (i_*Ny_file+j_)*Nz_file+k_;
-					u_file[ind] = u_file[ind_];
-					v_file[ind] = v_file[ind_];
-					w_file[ind] = w_file[ind_];
-				}
-			}
-			FREE(u_read); FREE(v_read); FREE(w_read);
-		}
-	}
+        ASCIIFile_to_Real3DimField(u_file, v_file, w_file);
+    }
 };
 
 //=========================
@@ -736,30 +765,276 @@ void HIT::Read_Input_File_Vxyz (REAL* u_file, REAL* v_file, REAL* w_file, const 
 // Truncate/Extend input velocity field in Fourier space (accordingly to Nx, Ny, Nz)
 // Afterwards, uk_1, vk_1 and wk_1 are completely initialized
 void HIT::Truncate_Input_File_Fourier_Coefficients (COMPLEX const * const uk_file, COMPLEX const * const vk_file, COMPLEX const * const wk_file) {
-	// TRUNCATION:
-	LOOP_FOURIER_k1k2k3 {
-		for (int ic=0; ic<=1; ic++) { //ic=0 => Real part, ic=1 => Imaginary part
-			if (dealiased[ind]) {
-				if ((abs(k1) <= (Nx_file-1)/2) && (abs(k2) <= (Ny_file-1)/2) && (k3 <= (Nz_file-1)/2)) {
-					int a_file = ((k1 >= 0) ? a : (Nx_file+k1)); // k1<0 => Nx_file+k1 = Nx_file-|k1|
-					int b_file = ((k2 >= 0) ? (local_1_start+b) : (Ny_file+k2)); // k2<0 => Ny_file+k2 = Ny_file-|k2|
-					int c_file = ((k3 >= 0) ? k3 : (Nz_file+k3)); // k3<0 => Nz_file+k3 = Nz_file-|k3|
-					int ind_file = (a_file*Ny_file+b_file)*(Nz_file/2+1)+c_file;
-					uk_1[ind][ic] = uk_file[ind_file][ic];
-					vk_1[ind][ic] = vk_file[ind_file][ic];
-					wk_1[ind][ic] = wk_file[ind_file][ic];
-				} else { //Extension of input data (when N* > N*_file)
-					uk_1[ind][ic] = 0.0;
-					vk_1[ind][ic] = 0.0;
-					wk_1[ind][ic] = 0.0;	
-				}
-			} else { //Aliased (and mean flow) terms (abs(k*) = N*_2+1, ..., M*_2)
-				uk_1[ind][ic] = 0.0;
-				vk_1[ind][ic] = 0.0;
-				wk_1[ind][ic] = 0.0;					
-			}
-		}
-	}
+    if(Mx == Nx_file && My == Ny_file && Mz == Nz_file){
+        memcpy(uk_1, uk_file, alloc_local * 2 * BYTES);
+        memcpy(vk_1, vk_file, alloc_local * 2 * BYTES);
+        memcpy(wk_1, wk_file, alloc_local * 2 * BYTES);
+        return;
+    }
+    //Initialize simulation spectra to 0
+    memset(uk_1, 0, alloc_local * 2 * BYTES);
+    memset(vk_1, 0, alloc_local * 2 * BYTES);
+    memset(wk_1, 0, alloc_local * 2 * BYTES);
+   
+    // TRUNCATION:
+    //The data is sent over in groups of columns (XZ slices)
+    MPI_Status status;
+    MPI_Datatype slice_1D, slice_1D_file, slice_1D_sim, slice_send, slice_recv;
+    int smallest_Mz_2 = Nz_file < Mz ? Nz_file/2+1 : Mz/2+1;
+    MPI_Type_vector(smallest_Mz_2, 1, 1, COMPLEX_MPI, &slice_1D);
+    //Create send datatype 
+    long sizeofcomplex, lb;
+    //Get extent of COMPLEX type to calculate strides
+    MPI_Type_get_extent(COMPLEX_MPI, &lb, &sizeofcomplex);
+    if(sizeofcomplex != sizeof(COMPLEX)) crash("C_COMPLEX and FFTW_COMPLEX are not of matching size.");
+    //First slice in z-axis
+    MPI_Type_create_resized(slice_1D, 0, (Nz_file/2 + 1) * sizeofcomplex, &slice_1D_file);
+    MPI_Type_create_resized(slice_1D, 0, (Mz/2 + 1) * sizeofcomplex, &slice_1D_sim);
+    //Second slice in x-axis
+    int block_lengths[2];
+    if(Nx_file <= Mx){
+        MPI_Type_contiguous(Nx_file, slice_1D_file, &slice_send);
+    }
+    else{
+        if(Mx%2 == 0){
+            block_lengths[0] = Mx/2 + 1;
+            block_lengths[1] = Mx/2 - 1;
+        }
+        else{
+            block_lengths[0] = Mx/2 + 1;
+            block_lengths[1] = Mx/2;
+        }
+        int displacements[2] = {0, int(Nx_file - block_lengths[1])};
+        MPI_Type_indexed(2, block_lengths, displacements, slice_1D_file, &slice_send);
+    }
+    MPI_Type_commit(&slice_send);
+    
+    //Create receive datatype 
+    //Second slice in x-axis
+    if(Nx_file >= Mx){
+        MPI_Type_contiguous(Mx, slice_1D_sim, &slice_recv);
+    }
+    else{
+        if(Nx_file%2 == 0){
+            block_lengths[0] = Nx_file/2 + 1;
+            block_lengths[1] = Nx_file/2 - 1;
+        }
+        else{
+            block_lengths[0] = Nx_file/2 + 1;
+            block_lengths[1] = Nx_file/2;
+        }
+        int displacements[2] = {0, int(Mx - block_lengths[1])};
+        MPI_Type_indexed(2, block_lengths, displacements, slice_1D_sim, &slice_recv);
+    }
+    MPI_Type_commit(&slice_recv);
+
+    int size_send,size_recv;
+    MPI_Type_size(slice_send, &size_send);
+    MPI_Type_size(slice_recv, &size_recv);
+    long extent_send,extent_recv;
+    MPI_Type_get_extent(slice_send, &lb, &extent_send);
+    MPI_Type_get_extent(slice_recv, &lb, &extent_recv);
+    //Special Case: Num procs = 1 
+    if(numprocs == 1){
+        //crash("TODO: Handle special truncation when only 1 MPI process");
+        MPI_Datatype full_section;
+        if(Ny_file <= My){
+            if(Ny_file%2 == 0){
+                block_lengths[0] = Ny_file/2 + 1;
+                block_lengths[1] = Ny_file/2 - 1;
+            }
+            else{
+                block_lengths[0] = Ny_file/2 + 1;
+                block_lengths[1] = Ny_file/2;
+            }
+            int displacements[2] = {0, int(My - block_lengths[1])};
+            MPI_Type_indexed(2, block_lengths, displacements, slice_recv, &full_section);
+            MPI_Type_commit(&full_section);
+
+            MPI_Request req_s[3], req_r[3];
+            MPI_Isend(uk_file, Ny_file, slice_send, 0, 0, MCW, &req_s[0]);
+            MPI_Isend(vk_file, Ny_file, slice_send, 0, 0, MCW, &req_s[1]);
+            MPI_Isend(wk_file, Ny_file, slice_send, 0, 0, MCW, &req_s[2]);
+
+            MPI_Irecv(uk_1, 1, full_section, 0, 0, MCW, &req_r[0]);
+            MPI_Irecv(vk_1, 1, full_section, 0, 0, MCW, &req_r[1]);
+            MPI_Irecv(wk_1, 1, full_section, 0, 0, MCW, &req_r[2]);
+            for(int i=0;i<3;++i){
+                MPI_Wait(&req_s[i], &status);
+                MPI_Wait(&req_r[i], &status);
+            }
+            MPI_Type_free(&full_section);
+            MPI_Type_free(&slice_send);
+            MPI_Type_free(&slice_recv);
+        }
+        else{
+            if(My%2 == 0){
+                block_lengths[0] = My/2 + 1;
+                block_lengths[1] = My/2 - 1;
+            }
+            else{
+                block_lengths[0] = My/2 + 1;
+                block_lengths[1] = My/2;
+            }
+            int displacements[2] = {0, int(Ny_file - block_lengths[1])};
+            MPI_Type_indexed(2, block_lengths, displacements, slice_send, &full_section);
+            MPI_Type_commit(&full_section);
+
+            MPI_Request req_s[3], req_r[3];
+            MPI_Isend(uk_file, 1, full_section, 0, 0, MCW, &req_s[0]);
+            MPI_Isend(vk_file, 1, full_section, 0, 0, MCW, &req_s[1]);
+            MPI_Isend(wk_file, 1, full_section, 0, 0, MCW, &req_s[2]);
+
+            MPI_Irecv(uk_1, My, slice_recv, 0, 0, MCW, &req_r[0]);
+            MPI_Irecv(vk_1, My, slice_recv, 0, 0, MCW, &req_r[1]);
+            MPI_Irecv(wk_1, My, slice_recv, 0, 0, MCW, &req_r[2]);
+            for(int i=0;i<3;++i){
+                MPI_Wait(&req_s[i], &status);
+                MPI_Wait(&req_r[i], &status);
+            }
+            MPI_Type_free(&full_section);
+            MPI_Type_free(&slice_send);
+            MPI_Type_free(&slice_recv);
+        }
+        return;
+    }
+    //Store comunication info
+    int * destination_proc = new int[local_n1_file]; //array containing the process that receives the column (-1 if column isn't sent)
+    int * source_proc      = new int[local_n1];      //array containing the process that sent the column (-1 if column isn't received)
+
+    for (int j = 0; j < local_n1_file; j++) {
+        //Calculate the equivalent mode in the simulation
+        int k2_recv = FOURIER_FREQ(j,local_1_start_file,Ny_file);
+        //Check for when file size is larger than simulation size
+        if(-(My-1)/2 <= k2_recv && k2_recv <= My/2){
+            int n1_recv = k2_recv >= 0 ? k2_recv : k2_recv + My;
+            //Find out which MPI process receives the data
+            int proc_recv = -1;
+            int proc_max_freq = 0;
+            for(int k = 0; k < numprocs; k++){
+                proc_max_freq += local_n1_[k];
+                if(n1_recv < proc_max_freq){
+                    proc_recv = k;
+                    break;
+                }
+            }
+            destination_proc[j] = proc_recv;
+        }
+        else{
+            destination_proc[j] = -1;
+        }
+    }
+
+    for (int j = 0; j < local_n1; j++) {
+        //Calculate the equivalent mode in the file
+        int k2_sender = FOURIER_FREQ(j,local_1_start,My);
+        //Check for when file size is smaller than simulation size
+        if(-(Ny_file-1)/2 <= k2_sender && k2_sender <= Ny_file/2){
+            int n1_sender = k2_sender >= 0 ? k2_sender : k2_sender + Ny_file;
+            //Find out which MPI process sent the data
+            int proc_send = -1;
+            int proc_max_freq = 0;
+            for(int k = 0; k < numprocs; k++){
+                proc_max_freq += local_n1_file_[k];
+                if(n1_sender < proc_max_freq){
+                    proc_send = k;
+                    break;
+                }
+            }
+            source_proc[j] = proc_send;
+        }
+        else{
+            source_proc[j] = -1;
+        }
+    }
+    MPI_Request * u_send_requests = new MPI_Request[local_n1_file];
+    MPI_Request * v_send_requests = new MPI_Request[local_n1_file];
+    MPI_Request * w_send_requests = new MPI_Request[local_n1_file];
+    MPI_Request * u_recv_requests = new MPI_Request[local_n1];
+    MPI_Request * v_recv_requests = new MPI_Request[local_n1];
+    MPI_Request * w_recv_requests = new MPI_Request[local_n1];
+    int num_request_send = 0;
+    int num_request_recv = 0;
+
+    //Execute all the necessary MPI_Isend calls
+    int send_col  = 0;
+    int recv_proc = destination_proc[0];
+    for (int j = 0; j < local_n1_file; j++) {
+        if(destination_proc[j] != recv_proc){
+            if(recv_proc != -1){
+                int pointer_offset = send_col*(Nx_file * (Nz_file/2+1));
+                int num_slices = j-send_col;
+                MPI_Isend(&uk_file[pointer_offset], num_slices, slice_send, recv_proc, 0, MCW, &u_send_requests[num_request_send]);
+                MPI_Isend(&vk_file[pointer_offset], num_slices, slice_send, recv_proc, 0, MCW, &v_send_requests[num_request_send]);
+                MPI_Isend(&wk_file[pointer_offset], num_slices, slice_send, recv_proc, 0, MCW, &w_send_requests[num_request_send]);
+                num_request_send++;
+            }
+            send_col  = j;
+            recv_proc = destination_proc[j];
+        }
+        if(j == local_n1_file-1){
+            if(recv_proc != -1){
+                int pointer_offset = send_col*(Nx_file * (Nz_file/2+1));
+                int num_slices = j-send_col+1;
+                MPI_Isend(&uk_file[pointer_offset], num_slices, slice_send, recv_proc, 0, MCW, &u_send_requests[num_request_send]);
+                MPI_Isend(&vk_file[pointer_offset], num_slices, slice_send, recv_proc, 0, MCW, &v_send_requests[num_request_send]);
+                MPI_Isend(&wk_file[pointer_offset], num_slices, slice_send, recv_proc, 0, MCW, &w_send_requests[num_request_send]);
+                num_request_send++;
+            }
+            send_col  = j;
+            recv_proc = destination_proc[j];
+        }
+    }
+    //Execute all the necessary MPI_Irecv calls
+    int recv_col  = 0;
+    int sender_proc = source_proc[0];
+    for (int j = 0; j < local_n1; j++) {
+        if(source_proc[j] != sender_proc){
+            if(sender_proc != -1){
+                int pointer_offset = recv_col*(Mx * (Mz/2+1));
+                int num_slices = j-recv_col;
+                MPI_Irecv(&uk_1[pointer_offset], num_slices, slice_recv, sender_proc, 0, MCW, &u_recv_requests[num_request_recv]);
+                MPI_Irecv(&vk_1[pointer_offset], num_slices, slice_recv, sender_proc, 0, MCW, &v_recv_requests[num_request_recv]);
+                MPI_Irecv(&wk_1[pointer_offset], num_slices, slice_recv, sender_proc, 0, MCW, &w_recv_requests[num_request_recv]);
+                num_request_recv++;
+            }
+            recv_col  = j;
+            sender_proc = source_proc[j];
+        }
+        if(j == local_n1-1){
+            if(sender_proc != -1){
+                int pointer_offset = recv_col*(Mx * (Mz/2+1));
+                int num_slices = j-recv_col+1;
+                MPI_Irecv(&uk_1[pointer_offset], num_slices, slice_recv, sender_proc, 0, MCW, &u_recv_requests[num_request_recv]);
+                MPI_Irecv(&vk_1[pointer_offset], num_slices, slice_recv, sender_proc, 0, MCW, &v_recv_requests[num_request_recv]);
+                MPI_Irecv(&wk_1[pointer_offset], num_slices, slice_recv, sender_proc, 0, MCW, &w_recv_requests[num_request_recv]);
+                num_request_recv++;
+            }
+            recv_col  = j;
+            sender_proc = source_proc[j];
+        }
+    }
+
+    //Wait for comunications to complete
+    for (int i = 0; i < num_request_send; i++) {
+        MPI_Wait(&u_send_requests[i], &status);
+        MPI_Wait(&v_send_requests[i], &status);
+        MPI_Wait(&w_send_requests[i], &status);
+    }
+    for (int i = 0; i < num_request_recv; i++) {
+        MPI_Wait(&u_recv_requests[i], &status);
+        MPI_Wait(&v_recv_requests[i], &status);
+        MPI_Wait(&w_recv_requests[i], &status);
+    }
+    MPI_Barrier(MCW);
+    delete [] u_send_requests;
+    delete [] v_send_requests;
+    delete [] w_send_requests;
+    delete [] u_recv_requests;
+    delete [] v_recv_requests;
+    delete [] w_recv_requests;
+    MPI_Type_free(&slice_send);
+    MPI_Type_free(&slice_recv);
 };
 
 //=====================================================================================================================
@@ -785,11 +1060,13 @@ void HIT::HIT_init() {
 		gradu[coord] = alloc_real(2*alloc_local);
 		gradv[coord] = alloc_real(2*alloc_local);
 		gradw[coord] = alloc_real(2*alloc_local);
+		if (!isLES) vort[coord] = alloc_real(2*alloc_local);
 	}
 	convx = alloc_real(2 * alloc_local);
 	convy = alloc_real(2 * alloc_local);
 	convz = alloc_real(2 * alloc_local);
 	rad2 = alloc_real(2 * alloc_local);
+	rad2_r = alloc_real(2 * alloc_local);
 	local_acumField = alloc_real(last_rad_max+1);
 	global_acumField = alloc_real(last_rad_max+1);
 	Ek = alloc_real(last_rad_max+1);
@@ -812,6 +1089,7 @@ void HIT::HIT_init() {
 		gradu_k[coord] = alloc_complex(alloc_local);
 		gradv_k[coord] = alloc_complex(alloc_local);
 		gradw_k[coord] = alloc_complex(alloc_local);
+		if (!isLES) vort_k[coord] = alloc_complex(alloc_local);
 	}
 	convx_k = alloc_complex(alloc_local);
 	convy_k = alloc_complex(alloc_local);
@@ -831,19 +1109,14 @@ void HIT::HIT_init() {
 	//===================================================
 	//rad2: Initialization of vector radium (to avoid repeated calculations)
 	LOOP_FOURIER_k1k2k3 {
-		rad2[ind] = static_cast<REAL>(k1*k1+k2*k2+k3*k3);
+		const int ind = (b*Mx + a) * (Mz_2 + 1) + k3;
+		const REAL k1  = FOURIER_FREQ(a, Mx);
+		const REAL k2  = FOURIER_FREQ(b, local_1_start, My);
+		rad2[ind]   = static_cast<REAL>(k1*k1+k2*k2+k3*k3);
+		rad2_r[ind] = static_cast<REAL>(k1*k1/(Lx_factor*Lx_factor)+k2*k2/(Ly_factor*Ly_factor)+k3*k3/(Lz_factor*Lz_factor));
 	}
 	//num_dealiased_real: number of relevant terms (considering the length factors) per process
-	if (isNotCubic) {
-		num_dealiased_real = 0;
-		LOOP_3D (i,0,local_n0, j,0,My, k,0,Mz) {
-			if ((local_0_start+i)<ActualMx && j<ActualMy && k<ActualMz) {
-				num_dealiased_real++;
-			}
-		}
-	} else {
-		num_dealiased_real = local_n0 * My * Mz;
-	}
+    num_dealiased_real = local_n0 * My * Mz;
 
 	//dealiased: Initialization of a bool vector to know wether a mode is significant. Two cases:
 	//A) Exclusion of aliased terms:
@@ -856,6 +1129,9 @@ void HIT::HIT_init() {
 	//C) num_dealiased: Number of dealiased terms present in current process
 	num_dealiased = 0;
 	LOOP_FOURIER_k1k2k3 {
+		const int ind = (b*Mx + a) * (Mz_2 + 1) + k3;
+		const int k1  = FOURIER_FREQ(a, Mx);
+		const int k2  = FOURIER_FREQ(b, local_1_start, My);
 		//Exclusion of aliased terms (3/2 rule implemented)
 		if (abs(k1)<=Nx_2 && abs(k2)<=Ny_2 && k3<=Nz_2) {
 			dealiased[ind] = true;
@@ -864,17 +1140,13 @@ void HIT::HIT_init() {
 		}
 		//Until here, (although it has been separated to make it clearer) dealiased[ind] is equivalent
 		//to: "((abs(k1)<=(Nx-1)/2)||(k1==Nx_2)) && ((abs(k2)<=(Ny-1)/2)||(k2==Ny_2)) && (k3<=Nz_2)"
-		if (isNotCubic) {
-			if ((k1%Lx_factor != 0) || (k2%Ly_factor != 0) || (k3%Lz_factor != 0)){
-				dealiased[ind] = false; //Exclusion of undesired coefficients due to length factors
-			}
-		}
 		if (dealiased[ind]) num_dealiased++; //It needs to be at the end!!!
 	}
 
 	//conjugate: Initialization of a bool vector to know wether a mode also has an associated conjugate (and
 	//it has to be counted twice when computing the kinetic energy) or not
-	LOOP_FOURIER_k1k2k3 {
+	LOOP_FOURIER {
+		const int ind = (b*Mx + a) * (Mz_2 + 1) + k3;
 		//Exclude k3=0 as well as the Nyquist XY-plane in case Nz is even (if Nz is odd, then k3=Nz/2 has an
 		//associated conjugate)
 		conjugate[ind] = dealiased[ind] && (k3 != 0) && !((Mz%2 == 0) && (k3 == Mz_2));
@@ -999,7 +1271,7 @@ void HIT::HIT_init() {
 	//Enstrophy = 2 * k^2 * E(k) = k^2 * ukxyz^2
 	Enstrophy = [&](int a, int b, int k3)->REAL{
 		int ind = (b*Mx+a)*(Mz_2+1)+k3;
-		return 2 * rad2[ind] * KineticEnergy(a, b, k3);
+		return 2 * rad2_r[ind] * KineticEnergy(a, b, k3);
 	};
 
 	//Yotta stuff
@@ -1101,10 +1373,11 @@ void HIT::HIT_destroy() {
 	FREE(convx_k); FREE(convy_k); FREE(convz_k);
 	FREE(Rx0_k); FREE(Ry0_k); FREE(Rz0_k);
 	FREE(Rx1_k); FREE(Ry1_k); FREE(Rz1_k);
-	FREE(dealiased); FREE(rad2); FREE(local_acumField); FREE(global_acumField); FREE(Ek);
+	FREE(dealiased); FREE(rad2); FREE(rad2_r); FREE(local_acumField); FREE(global_acumField); FREE(Ek);
 	for (int coord=0; coord<3; coord++) {
 		FREE(gradu[coord]); FREE(gradv[coord]); FREE(gradw[coord]);
 		FREE(gradu_k[coord]); FREE(gradv_k[coord]); FREE(gradw_k[coord]);
+		if (!isLES) { FREE(vort[coord]); FREE(vort_k[coord]); }
 	}
 	// Yotta stuff
 	for(int coord=0; coord<5; coord++) {
@@ -1162,8 +1435,9 @@ REAL HIT::Integrate_Field(std::function<REAL(int a, int b, int k3)>& funcFieldNo
 		}
 		//Recalculation of vector ptr_loc[K]
 		LOOP_FOURIER {
+			const int ind = (b*Mx + a) * (Mz_2 + 1) + k3;
 			if (dealiased[ind]) {
-				int K = static_cast<int>(round(sqrt(rad2[ind])));
+				int K = static_cast<int>(round(sqrt(rad2_r[ind])));
 				if (Kmin<=K && K<=Kmax) {
 					REAL aux = funcFieldNorm(a, b, k3);
 					if (conjugate[ind]) {
@@ -1195,8 +1469,9 @@ REAL HIT::Integrate_Field(std::function<REAL(int a, int b, int k3)>& funcFieldNo
 		//Recalculation of local sum
 		REAL sum_loc = 0.0;
 		LOOP_FOURIER {
+			const int ind = (b*Mx + a) * (Mz_2 + 1) + k3;
 			if (dealiased[ind]) {
-				int K = static_cast<int>(round(sqrt(rad2[ind])));
+				int K = static_cast<int>(round(sqrt(rad2_r[ind])));
 				if (Kmin<=K && K<=Kmax) {
 					REAL aux = funcFieldNorm(a, b, k3);
 					if (conjugate[ind]) {
@@ -1217,6 +1492,7 @@ void HIT::Check_PhysFour_Energy(const REAL atol) {
 	// Calculate total kinetic energy in the Fourier space
 	double EkFour = 0, local_EkFour = 0;
 	LOOP_FOURIER {
+		const int ind = (b*Mx + a) * (Mz_2 + 1) + k3;
 		if (dealiased[ind]) {
 			REAL aux = 0.5 * (uk_1[ind][0]*uk_1[ind][0] + uk_1[ind][1]*uk_1[ind][1] +
 							  vk_1[ind][0]*vk_1[ind][0] + vk_1[ind][1]*vk_1[ind][1] +
@@ -1229,11 +1505,11 @@ void HIT::Check_PhysFour_Energy(const REAL atol) {
 		}
 	}
 	MPI_Allreduce(&local_EkFour, &EkFour, 1, REAL_MPI, MPI_SUM, MCW);
-	
 	// Calculate total kinetic energy in the physical space
 	Recalculate_Velocity_Antitransform(); //Compute u,v,w from uk_1, vk_1, wk_1
 	double EkReal = 0, local_EkReal = 0;
 	LOOP_REAL {
+		const int ind = (i*My + j) * 2*(Mz_2 + 1) + k;
 		local_EkReal += u[ind] * u[ind] + v[ind] * v[ind] + w[ind] * w[ind];
 	}
 	MPI_Allreduce(&local_EkReal, &EkReal, 1, REAL_MPI, MPI_SUM, MCW);
@@ -1266,39 +1542,44 @@ REAL HIT::Recalculate_Energy_Cascade(const char* filename) {
 };
 // Calculation of the total kinetic energy of initial velocity field loaded from file (all done by process 0 in Input_Real_Field())
 void HIT::Calculate_Ek_init_file(COMPLEX const * const uk_file, COMPLEX const * const vk_file, COMPLEX const * const wk_file) {
-	printf("WARNING: Before using it, double-check function HIT::Calculate_Ek_init_file()\n");
-	Ek_init_file = 0.0;
-	Enstrophy_init_file = 0.0;
-	//Sum accross Fourier modes
-	LOOP_3D (a,0,Nx_file, b,0,Ny_file, k3,0,Nz_file/2+1) {
-		int ind = (a*Ny_file+b)*(Nz_file/2+1)+k3;
-		int k1 = FOURIER_FREQ(a,Nx_file);
-		int k2 = FOURIER_FREQ(b,Ny_file);
-		int rad2_file = k1*k1+k2*k2+k3*k3;
-		bool relevant_file = ((k1%Lx_factor == 0) && (k2%Ly_factor == 0) && (k3%Lz_factor == 0));
-		if (relevant_file) {
-			bool conjugate_file = (k3 != 0) && !((Nz_file % 2 == 0) && (k3 == Nz_file / 2));
-			REAL Ek_file = (uk_file[ind][0] * uk_file[ind][0]) + (uk_file[ind][1] * uk_file[ind][1]);
-			Ek_file += (vk_file[ind][0] * vk_file[ind][0]) + (vk_file[ind][1] * vk_file[ind][1]);
-			Ek_file += (wk_file[ind][0] * wk_file[ind][0]) + (wk_file[ind][1] * wk_file[ind][1]);
-			Ek_file *= 0.5;
-			if (conjugate_file) {
-				Ek_init_file += 2 * Ek_file;
-				Enstrophy_init_file += 2 * (2 * rad2_file * Ek_file);
-			} else {
-				Ek_init_file += Ek_file;
-				Enstrophy_init_file += (2 * rad2_file * Ek_file);
-			}
-		}
-	}
-};
+    printf("WARNING: Before using it, double-check function HIT::Calculate_Ek_init_file()\n");
+    Ek_init_file = 0.0;
+    Enstrophy_init_file = 0.0;
+    double Ek_partial = 0.0;
+    double Enstrophy_partial = 0.0;
+    //Sum accross Fourier modes
+    LOOP_FOURIER {
+		const int ind = (b*Mx + a) * (Mz_2 + 1) + k3;
+        REAL Ek_file = (uk_file[ind][0] * uk_file[ind][0]) + (uk_file[ind][1] * uk_file[ind][1]);
+        Ek_file += (vk_file[ind][0] * vk_file[ind][0]) + (vk_file[ind][1] * vk_file[ind][1]);
+        Ek_file += (wk_file[ind][0] * wk_file[ind][0]) + (wk_file[ind][1] * wk_file[ind][1]);
+        Ek_file *= 0.5;
+        if (conjugate[ind]) {
+            Ek_partial += 2 * Ek_file;
+            Enstrophy_partial += 2 * (2 * rad2_r[ind] * Ek_file);
+        } else {
+            Ek_partial += Ek_file;
+            Enstrophy_partial += (2 * rad2_r[ind] * Ek_file);
+        }
+    }
+    MPI_Allreduce(&Ek_partial, &Ek_init_file, 1, REAL_MPI, MPI_SUM, MCW);
+    MPI_Allreduce(&Enstrophy_partial, &Enstrophy_init_file, 1, REAL_MPI, MPI_SUM, MCW);
+}
 
 //Calculation of velocity gradient tensor invariants' distribution
 void HIT::Recalculate_Invariants_Distribution(const char* filename[5]) {
+	//If isLES, then it is already computed. Called outside any parallel region, so no master/barrier needed
+	Recalculate_Velocity_Gradients_Fourier_Coefficients();
+	for (int coord=0; coord<3; coord++) {
+		fftw.IFFTWc2r(gradu_k[coord], gradu[coord]);
+		fftw.IFFTWc2r(gradv_k[coord], gradv[coord]);
+		fftw.IFFTWc2r(gradw_k[coord], gradw[coord]);
+	}
 	//Calculation of velocity gradient invariants
 	struct tensor G;
 	alloc_fill_rand_tensor(&G,0);
 	LOOP_REAL {
+		const int ind = (i*My + j) * 2*(Mz_2 + 1) + k;
 		for(int coord=0; coord<3; coord++) {
 			G.v[0][coord] = gradu[coord][ind];
 			G.v[1][coord] = gradv[coord][ind];
